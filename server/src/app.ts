@@ -80,11 +80,20 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
         res.writeHead(200,{'content-type':mime[extname(path)]??'application/octet-stream','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; script-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"});res.end(readFileSync(path));return;
       }
       if(route[1]==='health'){json(res,200,{ok:true,version:1});return;}
+      const address=server.address();
+      if(url.pathname==='/api/local-access'){
+        const local=req.method==='GET'&&req.headers['x-coach-local']==='1'
+          &&typeof address==='object'&&address!==null&&loopback(address.address)&&loopback(req.socket.remoteAddress)
+          &&/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host??'')
+          &&(!req.headers.origin||req.headers.origin===`${options.tls?'https':'http'}://${req.headers.host}`)
+          &&(!req.headers['sec-fetch-site']||['same-origin','none'].includes(String(req.headers['sec-fetch-site'])));
+        if(!local)throw new HttpError(403,'Automatic access is available from the local app only');
+        json(res,200,{token:operatorToken});return;
+      }
       const credential=req.headers.authorization?.replace(/^Bearer /,'')??'';
       const id=route[1]==='sessions'&&route[2]?idSchema.parse(route[2]):undefined;
       // USB adb reverse reaches a loopback-only listener. Bootstrap the native app;
       // all existing-session operations still require their scoped credentials.
-      const address=server.address();
       const localSetup=!credential&&req.headers['x-coach-local']==='1'&&!req.headers.origin
         &&typeof address==='object'&&address!==null&&loopback(address.address)&&loopback(req.socket.remoteAddress)
         &&((url.pathname==='/api/providers'&&req.method==='GET')||(url.pathname==='/api/sessions'&&req.method==='POST')||(url.pathname==='/api/diagnostics'&&req.method==='POST'));

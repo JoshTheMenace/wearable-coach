@@ -113,7 +113,10 @@ function DiagnosticsPanel({ path, token, scope }: { path: string; token: string;
 }
 
 export function App() {
-  const [operatorToken, setOperatorToken] = useState(() => sessionStorage.getItem('coach.operator') ?? '');
+  const [operatorToken, setOperatorToken] = useState('');
+  const [connecting, setConnecting] = useState(true);
+  const [connectionError, setConnectionError] = useState('');
+  const workspaceRequest = useRef<AbortController | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [provider, setProvider] = useState('gemini');
   const [cprMode, setCprMode] = useState(true);
@@ -189,19 +192,31 @@ export function App() {
     flushAudio();
     setSession(null); setSnapshot(null); setEvents([]); setImageUrl(''); setConnection('offline');
   };
-  const loadProviders = async () => {
-    setBusy(true); setError('');
+  const connectWorkspace = useCallback(async () => {
+    workspaceRequest.current?.abort();
+    const controller = new AbortController(); workspaceRequest.current = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]);
+    setConnecting(true); setConnectionError(''); setOperatorToken(''); setProviders([]); setSessionList([]);
     try {
-      sessionStorage.setItem('coach.operator', operatorToken);
-      const data = await (await request('/providers', operatorToken)).json();
-      setProviders(data.providers);
-      if (!data.providers.some((item: Provider) => item.id === provider && item.available)) setProvider(data.providers.find((item: Provider) => item.available)?.id ?? 'mock');
-      const dataSessions = await (await request('/sessions', operatorToken)).json();
+      const { token } = await (await request('/local-access', '', { headers: { 'x-coach-local': '1' }, signal })).json();
+      if (typeof token !== 'string' || !token) throw new Error('Local access is unavailable.');
+      const [data, dataSessions] = await Promise.all([
+        request('/providers', token, { signal }).then(response => response.json()),
+        request('/sessions', token, { signal }).then(response => response.json()),
+      ]);
+      if (controller.signal.aborted) return;
+      setOperatorToken(token); setProviders(data.providers);
+      setProvider(current => data.providers.some((item: Provider) => item.id === current && item.available) ? current : data.providers.find((item: Provider) => item.available)?.id ?? 'mock');
       setSessionList(Array.isArray(dataSessions) ? dataSessions : dataSessions.sessions ?? []);
-    } catch (error) { setError(errorMessage(error)); }
-    finally { setBusy(false); }
-  };
+    } catch (error) { if (!controller.signal.aborted) setConnectionError(`Could not connect to the local server: ${errorMessage(error)}`); }
+    finally { if (!controller.signal.aborted) setConnecting(false); }
+  }, []);
+  useEffect(() => {
+    void connectWorkspace();
+    return () => workspaceRequest.current?.abort();
+  }, [connectWorkspace]);
   const start = async () => {
+    if (connecting || !operatorToken || !selected?.available) return;
     setBusy(true); setError('');
     try {
       const data = await (await request('/sessions', operatorToken, { method: 'POST', body: JSON.stringify({ createKey: uuid(), config: { provider, model: selected?.model ?? 'mock-coach', device, recordFrames, ...(cprMode ? { lessonId: 'adult-cpr-demo-v1' } : {}) } }) })).json();
@@ -479,9 +494,9 @@ export function App() {
     <section className="heading"><div><div className="eyebrow">{lessonMode || (!session && cprMode) ? 'YOUR AI PRACTICE COACH' : 'LIVE SESSION WORKSPACE'}</div><h1>{lessonMode || (!session && cprMode) ? 'Learn CPR. Practice with guidance.' : <>A second set<br className="mobile-break" /> of eyes.</>}</h1><p>{lessonMode || (!session && cprMode) ? 'A guided session for your manikin, camera, and glasses.' : 'One coach. A shared view. Every action accounted for.'}</p></div><div className="session-tag"><span>{session ? session.readOnly ? 'SPECTATOR' : 'OPERATOR' : 'AWAITING SESSION'}</span><strong>{snapshot?.status ?? 'Ready when you are'}</strong>{session && <code>{session.sessionId.slice(0, 8)} / G{snapshot?.generation}</code>}</div></section>
     {error && <div className="alert" role="alert"><span>{error}</span><button className="plain" onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
     {!session ? <section className="setup-grid">
-      <div className="panel setup-panel"><div className="panel-title"><span className="step">01</span><h2>Connect your workspace</h2></div><p className="hint">Use the development operator token from your server configuration. Credentials stay in this browser tab.</p><label>Operator token<input type="password" autoComplete="off" value={operatorToken} onChange={event => setOperatorToken(event.target.value)} placeholder="Enter operator token" /></label><button className="secondary" onClick={loadProviders} disabled={busy || !operatorToken}>Check connection <span>↗</span></button>{providers.length > 0 && <div className="connected-note"><span className="dot on" /> Server connected · {providers.filter(item => item.available).length} providers available</div>}
+      <div className="panel setup-panel"><div className="panel-title"><span className="step">01</span><h2>Your local workspace</h2></div><p className="hint">Connects automatically to the coach running on this computer.</p>{connecting ? <p role="status">Connecting to the local server…</p> : connectionError ? <div className="diagnostic-error" role="alert">{connectionError}</div> : <div className="connected-note"><span className="dot on" /> Server connected · {providers.filter(item => item.available).length} providers available</div>}<button className="secondary" onClick={() => void connectWorkspace()} disabled={busy || connecting}>Retry connection <span>↗</span></button>
         <div className="divider" /><div className="panel-title"><span className="step">02</span><h2>Choose a coach</h2></div><div className="provider-list">{(providers.length ? providers : [{ id: 'mock', model: 'Deterministic development coach', available: true, inputRate: 16000, outputRate: 24000 }]).map(item => <button key={item.id} className={`provider ${provider === item.id ? 'selected' : ''}`} onClick={() => setProvider(item.id)} disabled={!item.available}><span className="radio" /><span><strong>{item.id === 'mock' ? 'Mock coach' : item.id === 'gemini' ? 'Gemini Live' : 'GPT Live'}</strong><small>{item.available ? item.model : item.reason ?? 'Not configured'}</small></span><span className="provider-status">{item.available ? 'AVAILABLE' : 'UNAVAILABLE'}</span></button>)}</div>
-        <div className="lesson-entry-toggle" aria-label="Session type"><button className={cprMode ? 'selected' : ''} onClick={() => setCprMode(true)}>CPR practice<small>Lesson, demonstration, and AI coaching</small></button><button className={!cprMode ? 'selected' : ''} onClick={() => setCprMode(false)}>General lab<small>Open conversation and device testing</small></button></div><div className="form-row"><label>Device<select value={device} onChange={event => setDevice(event.target.value)}><option value="mock">Glasses simulator</option><option value="phone">Android phone</option><option value="meta_display">Meta display glasses</option></select></label></div><label className="checkbox"><input type="checkbox" checked={recordFrames} onChange={event => setRecordFrames(event.target.checked)} />Retain selected inspection images with session evidence</label><button className="primary start" onClick={start} disabled={busy || !providers.length || !selected?.available}>{cprMode ? 'Start CPR practice' : 'Start session'} <span>↗</span></button>
+        <div className="lesson-entry-toggle" aria-label="Session type"><button className={cprMode ? 'selected' : ''} onClick={() => setCprMode(true)}>CPR practice<small>Lesson, demonstration, and AI coaching</small></button><button className={!cprMode ? 'selected' : ''} onClick={() => setCprMode(false)}>General lab<small>Open conversation and device testing</small></button></div><div className="form-row"><label>Device<select value={device} onChange={event => setDevice(event.target.value)}><option value="mock">Glasses simulator</option><option value="phone">Android phone</option><option value="meta_display">Meta display glasses</option></select></label></div><label className="checkbox"><input type="checkbox" checked={recordFrames} onChange={event => setRecordFrames(event.target.checked)} />Retain selected inspection images with session evidence</label><button className="primary start" onClick={start} disabled={busy || connecting || !operatorToken || !selected?.available}>{cprMode ? 'Start CPR practice' : 'Start session'} <span>↗</span></button>
       </div>
       <div className="setup-aside"><div className="intro-visual"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="visual-card"><div className="tiny">COACH → LEARNER</div><div className="visual-line" /><strong>{cprMode ? <>Learn.<br />Watch.<br /><span>Practice.</span></> : <>Notice.<br />Understand.<br /><span>Act.</span></>}</strong><div className="visual-caption"><span className="dot on" />A clear view of what happens next</div></div><span className="axis axis-top">VISION / VOICE / CONTEXT</span><span className="axis axis-bottom">DESIGNED FOR THE MOMENT</span></div><div className="panel spectator-join"><h2>Watch a session</h2><p className="hint">Join with a read-only spectator capability. Camera previews may be visible.</p><form onSubmit={event => { event.preventDefault(); void join(); }}><label>Session ID<input value={joinId} onChange={event => setJoinId(event.target.value)} required placeholder="Session UUID" /></label><label>Spectator token<input type="password" value={joinToken} onChange={event => setJoinToken(event.target.value)} required placeholder="Session-scoped token" autoComplete="off" /></label><button className="secondary" disabled={busy}>Open spectator view <span>↗</span></button></form></div></div>
       {providers.length > 0 && <DiagnosticsPanel key="workspace-diagnostics" path="/diagnostics" token={operatorToken} scope="Workspace" />}

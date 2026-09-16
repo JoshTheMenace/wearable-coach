@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { get as httpGet } from 'node:http';
 import WebSocket from 'ws';
 import { createApp } from '../src/app.ts';
 import { encodeAudio, decodeAudio } from '../../contracts/index.ts';
@@ -33,6 +34,29 @@ test('native local setup needs no credential but cannot bypass session auth or a
   assert.equal((await request(`/sessions/${session.sessionId}`,undefined,session.token)).status,200);
   const lan=await setup(t,'0.0.0.0');
   assert.equal((await fetch(lan.base+'/api/providers',{headers})).status,401);
+});
+
+test('local browser connects automatically while remote sites and LAN listeners cannot obtain access',async t=>{
+  const {app,base,request}=await setup(t),headers={'x-coach-local':'1'};
+  for(const origin of [undefined,base]){
+    const response=await fetch(base+'/api/local-access',{headers:{...headers,...(origin?{origin}:{})}});
+    assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+    const {token}=await response.json() as {token:string};assert.equal(token,app.operatorToken);
+    assert.equal((await request('/providers',undefined,token)).status,200);
+    assert.equal((await request('/sessions',undefined,token)).status,200);
+  }
+  for(const denied of [{}, {...headers,origin:'https://example.com'}, {...headers,origin:'null'},
+    {...headers,origin:'http://127.0.0.1:1'}, {...headers,'sec-fetch-site':'cross-site'}]){
+    const response=await fetch(base+'/api/local-access',{headers:denied});
+    assert.equal(response.status,403,JSON.stringify(denied));assert.ok(!(await response.text()).includes(app.operatorToken));
+  }
+  // Fetch normalizes Host, so use HTTP directly for the DNS-rebinding case.
+  assert.equal(await new Promise<number|undefined>((resolve,reject)=>{
+    httpGet(base+'/api/local-access',{headers:{...headers,host:'attacker.example'}},response=>{response.resume();resolve(response.statusCode);}).on('error',reject);
+  }),403);
+  assert.equal((await fetch(base+'/api/local-access',{method:'POST',headers})).status,403);
+  const lan=await setup(t,'0.0.0.0');
+  assert.equal((await fetch(lan.base+'/api/local-access',{headers})).status,403);
 });
 
 test('session creation and commands are idempotent; conflicting reuse does not mutate state',async t=>{

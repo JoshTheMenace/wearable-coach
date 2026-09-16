@@ -24,7 +24,7 @@ npm run build
 npm start
 ```
 
-Open [localhost:8787](http://127.0.0.1:8787), connect using the existing local setup, and start the CPR lesson with **Gemini Live** and **Glasses simulator**. Choose a separate practice recording as the camera source, play it, and enable camera uploads when entering placement. Enable browser sound to hear the coach. The mock provider can exercise controls but does not interpret images.
+Open [localhost:8787](http://127.0.0.1:8787). The browser connects automatically without an operator token. Start the CPR lesson with **Gemini Live** and **Glasses simulator**. Choose a separate practice recording as the camera source, play it, and enable camera uploads when entering placement. Enable browser sound to hear the coach. The mock provider can exercise controls but does not interpret images.
 
 Preparation writes two standalone MP4s and a manifest under ignored `.runtime/lesson-media/`. Defaults select a 55-second overview beginning at source second 50 and a five-second hand-placement excerpt beginning at 61.5. These offsets belong to the current selected source; choose and inspect different ranges for another movie:
 
