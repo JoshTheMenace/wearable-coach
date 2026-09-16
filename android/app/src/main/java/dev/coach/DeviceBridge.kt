@@ -11,8 +11,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.LifecycleOwner
-import com.meta.wearable.dat.camera.Camera
-import com.meta.wearable.dat.camera.addCamera
+import com.meta.wearable.dat.camera.Stream
+import com.meta.wearable.dat.camera.addStream
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
 import com.meta.wearable.dat.camera.types.StreamState
@@ -30,7 +30,6 @@ import com.meta.wearable.dat.display.addDisplay
 import com.meta.wearable.dat.display.removeDisplay
 import com.meta.wearable.dat.display.types.DisplayState
 import com.meta.wearable.dat.display.views.Direction
-import com.meta.wearable.dat.display.views.ImageSize
 import com.meta.wearable.dat.display.views.TextStyle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -48,7 +47,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var phoneProvider: ProcessCameraProvider? = null
     private var phoneCapture: ImageCapture? = null
     private var session: DeviceSession? = null
-    private var camera: Camera? = null
+    private var stream: Stream? = null
     private var display: Display? = null
     private var monitor: Job? = null
     private var videoMonitor: Job? = null
@@ -81,22 +80,23 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                 session = created
                 monitor = scope.launch { created.errors.collect { report("Meta: ${it.description}") } }
                 created.start()
-                withTimeout(20_000) { created.state.first { it == DeviceSessionState.STARTED } }
-                val added = created.addCamera(StreamConfiguration(videoQuality = VideoQuality.LOW, frameRate = 2, compressVideo = false))
+                withTimeoutOrNull(20_000) { created.state.first { it == DeviceSessionState.STARTED } }
+                    ?: throw CameraCaptureFailure("DeviceStartTimeout")
+                val added = created.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 24, compressVideo = false))
                     .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                camera = added
+                stream = added
                 val frames = videoFrames
                 videoMonitor = scope.launch {
-                    launch { added.stream.state.collect {
+                    launch { added.state.collect {
                         if (it != StreamState.STREAMING) frames.reset()
                         report("Meta video state: $it")
                     } }
-                    launch { added.stream.errorStream.collect {
+                    launch { added.errorStream.collect {
                         videoError = it.name
                         report("Meta video error: ${it.description}")
                     } }
                     try {
-                        added.stream.videoStream.collect { frame ->
+                        added.videoStream.collect { frame ->
                             if (!frame.isCompressed && !frame.isCodecConfig) {
                                 try {
                                     if (frames.receive(frame.buffer, frame.width, frame.height, SystemClock.elapsedRealtime(), frame.presentationTimeUs)) {
@@ -115,8 +115,8 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                         report("Meta video stream failed: $videoError")
                     }
                 }
-                added.stream.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                withTimeout(20_000) { added.stream.state.first { it == StreamState.STREAMING } }
+                added.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
+                withTimeout(20_000) { added.state.first { it == StreamState.STREAMING } }
                 // Ordinary Ray-Ban Meta can expose camera without a display. Report this honestly.
                 created.addDisplay().onSuccess { capability ->
                     display = capability
@@ -146,7 +146,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             } finally { file.delete() }
         }
         "meta_display" -> {
-            checkNotNull(camera) { "Meta camera not ready" }
+            checkNotNull(stream) { "Meta camera not ready" }
             val frame = videoFrames.next(SystemClock.elapsedRealtime())
             if (frame == null && allowPhotoFallback) captureMetaPhoto()
             else if (frame == null) throw CameraCaptureFailure(when (videoError) {
@@ -180,13 +180,11 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     suspend fun render(hud: JSONObject, imageBytes: ByteArray? = null): String {
         if (hud.has("imageAssetId") && imageBytes == null) return "unsupported"
         if (mode != "meta_display") return "phone_received"
+        if (hud.has("imageAssetId")) return "unsupported" // DAT 0.8 cannot send local bitmap content.
         val active = display ?: return "unsupported"
         if (!displayAvailable || active.state.value != DisplayState.STARTED) return "unsupported"
-        val bitmap = imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
-        if (imageBytes != null && bitmap == null) return "failed"
         val result = active.sendContent {
             flexBox(direction = Direction.COLUMN, gap = 10, padding = 16) {
-                bitmap?.let { image(bitmap = it, sizePreset = ImageSize.FILL) }
                 hud.optJSONObject("card")?.let { card ->
                     if (card.optString("title").isNotEmpty()) text(card.optString("title"), style = TextStyle.HEADING)
                     text(card.optString("body"), style = TextStyle.BODY)
@@ -203,11 +201,10 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                 if (hud.length() == 0) text("", style = TextStyle.BODY)
             }
         }
-        bitmap?.recycle()
         return result.fold(onSuccess = { "sdk_submitted" }, onFailure = { error, _ -> report("Meta HUD: ${error.description}"); "failed" })
     }
 
-    fun cameraStats(): JSONObject = JSONObject().put("streamState", camera?.stream?.state?.value?.name ?: "unavailable")
+    fun cameraStats(): JSONObject = JSONObject().put("streamState", stream?.state?.value?.name ?: "unavailable")
         .put("framesReceived", videoFrames.receivedCount)
         .put("lastFrameAgeMs", videoFrames.current?.let { SystemClock.elapsedRealtime() - it.receivedAtMono } ?: JSONObject.NULL)
         .put("streamError", videoError ?: JSONObject.NULL)
@@ -218,7 +215,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         videoMonitor?.cancel(); videoMonitor = null
         videoFrames = VideoFrames(); videoError = null
         monitor?.cancel(); monitor = null
-        runCatching { camera?.stop() }; camera = null
+        runCatching { stream?.stop() }; stream = null
         runCatching { session?.removeDisplay() }; display = null; displayAvailable = false
         runCatching { session?.stop() }; session = null
         phoneProvider?.unbindAll(); phoneProvider = null; phoneCapture = null
@@ -236,7 +233,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private suspend fun captureMetaPhoto(): CapturedFrame {
         report("No video frame arrived; trying one still photo for this inspection")
         val photo = withTimeoutOrNull(10_000) {
-            checkNotNull(camera).stream.capturePhoto().fold(onSuccess = { it },
+            checkNotNull(stream).capturePhoto().fold(onSuccess = { it },
                 onFailure = { error, _ -> throw CameraCaptureFailure(error.javaClass.simpleName) })
         } ?: throw CameraCaptureFailure("CaptureFailed")
         return when (photo) {

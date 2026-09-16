@@ -1,0 +1,39 @@
+{
+  "testedOn": "2026-09-16",
+  "phone": "Samsung Galaxy S21, Android 13",
+  "glasses": "Meta Ray-Ban Display",
+  "firmwareBuild": "68597370069500080",
+  "metaDatVersion": "0.8.0",
+  "damEnabled": false,
+  "stream": {
+    "quality": "MEDIUM",
+    "requestedFps": 24,
+    "compressed": false
+  },
+  "sessionId": "77a40cb3-8560-4a83-8d6c-191ff18b6664",
+  "provider": "gemini",
+  "generation": 1,
+  "cameraFramesReceived": 3667,
+  "geminiFramesUploaded": 189,
+  "geminiFramesDropped": 0,
+  "backendErrors": 0,
+  "physicalSceneDescribed": true,
+  "wearerConfirmedGlassesAudio": true,
+  "microphoneMuted": true,
+  "glassesDisplayAvailable": false,
+  "hudTarget": "phone",
+  "limitations": [
+    "Trial telemetry incorrectly labeled the SDK as 0.9.0; source and APK used 0.8.0. The label is corrected in the final build.",
+    "Glasses video plus glasses HUD was not verified. Local bitmap HUD output is unsupported by SDK 0.8.",
+    "Frame counts are from a session snapshot, not an endurance or battery test."
+  ],
+  "repeatTest": {
+    "sessionId": "50436507-491c-4bad-bc0b-b5a29ea3253c",
+    "reportedSdkVersion": "0.8.0",
+    "cameraFramesReceivedAtCheck": 870,
+    "lastFrameAgeMs": 81,
+    "streamError": null,
+    "changedSceneDescribed": true,
+    "backendErrors": 0
+  }
+}

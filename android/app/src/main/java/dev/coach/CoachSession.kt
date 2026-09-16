@@ -34,7 +34,7 @@ data class CoachState(val status: String = "idle", val sessionId: String = "", v
     val muted: Boolean = false, val hud: String = "{}", val hudRevision: Int = -1,
     val captions: List<String> = emptyList(), val diagnostics: List<String> = emptyList(),
     val error: String? = null, val route: String = "System default", val frame: ByteArray? = null,
-    val hudImage: ByteArray? = null, val inspection: InspectionState? = null,
+    val hudImage: ByteArray? = null, val inspection: InspectionState? = null, val glassesDisplayAvailable: Boolean? = null,
     val spectatorToken: String = "", val providers: String = "", val preview: Boolean = false,
     val liveVideo: Boolean = false, val liveChanging: Boolean = false, val liveFrames: Int = 0,
     val liveMessage: String = "", val lastLiveFrameAt: Long = 0)
@@ -152,6 +152,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             diagnostic("session.created", "session")
             activeStage = "camera"
             device.start(config.device)
+            _state.update { it.copy(glassesDisplayAvailable = device.displayAvailable) }
             activeStage = "control"
             applySnapshot(response.getJSONObject("snapshot"))
             connect()
@@ -208,7 +209,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 if (_state.value.status == "active" && media == null) connectAudio(activeBinding)
                 report("device.status", json("cameraSource" to config.device, "hudTarget" to if (device.displayAvailable) "glasses" else "phone",
                     "glassesDisplayAvailable" to device.displayAvailable, "audioRoute" to audio.routeDescription(),
-                    "foregroundService" to true, "sdkVersion" to "0.9.0", "observedAt" to System.currentTimeMillis()))
+                    "foregroundService" to true, "sdkVersion" to BuildConfig.META_DAT_VERSION, "observedAt" to System.currentTimeMillis()))
             }
             "event" -> {
                 val event = message.getJSONObject("event")

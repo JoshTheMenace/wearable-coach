@@ -138,6 +138,8 @@ class MainActivity : ComponentActivity() {
                     if (state.providers.isNotEmpty()) Text(state.providers, style = MaterialTheme.typography.bodySmall)
                 } else {
                     Text("${state.sessionId.take(8)}  ·  ${state.provider} / ${state.device}", style = MaterialTheme.typography.bodySmall)
+                    if (state.device == "meta_display" && state.glassesDisplayAvailable == false)
+                        Text("Glasses display unavailable. Coach cards appear on this phone.", style = MaterialTheme.typography.bodySmall)
                     Button({ session?.describeView() },
                         enabled = state.status == "active" && !state.liveChanging && state.inspection?.status !in setOf("reserved", "running") &&
                             (!state.liveVideo || state.lastLiveFrameAt > 0 && now - state.lastLiveFrameAt < 5000), modifier = Modifier.fillMaxWidth()) {

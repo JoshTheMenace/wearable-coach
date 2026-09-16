@@ -8,7 +8,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal data class ReceivedVideoFrame(val sequence: Long, val receivedAtMono: Long,
     val width: Int, val height: Int, val nv21: ByteArray, val presentationTimeUs: Long)
 
-// DAT 0.9 requests COLOR_FormatYUV420Planar (I420). Own the bytes before returning
+// DAT requests COLOR_FormatYUV420Planar (I420). Own the bytes before returning
 // to the SDK; keep only the latest frame and interleave V/U for Android's JPEG encoder.
 internal class VideoFrames {
     private val latest = MutableStateFlow<ReceivedVideoFrame?>(null)

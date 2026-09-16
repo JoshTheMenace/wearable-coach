@@ -1,6 +1,6 @@
 # Android bridge and Galaxy S21 setup
 
-The native app builds with Kotlin 2.2.21, Compose, Android API 36 and Meta DAT 0.9.0. It requires Android 12 / API 31 or later. A Galaxy S21 updated to Android 12 or later meets the OS requirement. Actual Bluetooth routes and simultaneous camera, microphone, audio output and display need testing on the phone and glasses.
+The native app builds with Kotlin 2.2.21, Compose, Android API 36 and Meta DAT 0.8.0. It requires Android 12 / API 31 or later. A Galaxy S21 updated to Android 12 or later meets the OS requirement. Actual Bluetooth routes and simultaneous camera, microphone, audio output and display need testing on the phone and glasses.
 
 ## Build and install
 
@@ -50,7 +50,7 @@ First identify the hardware: **Meta Ray-Ban Display** has a display. Ordinary **
 5. Use **Choose audio route** to explicitly select the glasses communication route. Verify the shown route and test by speaking and listening. Android communication routing determines microphone and playback; attaching DAT camera does not prove the audio route changed.
 6. If DAT reports incompatible software, use **Glasses firmware update** or **Glasses DAT app update**. Recently updated firmware alone does not prove the DAT glasses app is current.
 
-The bridge uses one DAT `DeviceSession`, attaches the `Camera` stream and `Display` capability, and copies decoded camera frames into one owned latest-frame buffer. Requested inspections wait for a new frame for up to four seconds, then may attempt one still photo with a ten-second timeout. Live mode never uses this photo fallback. Display content uses DAT's `sendContent` primitives. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Meta frames deliberately carry unknown sensor capture age; frame receipt time is measured separately.
+The bridge uses one DAT `DeviceSession`, attaches the legacy `Stream` and `Display` capability, and copies decoded camera frames into one owned latest-frame buffer. Requested inspections wait for a new frame for up to four seconds, then may attempt one still photo with a ten-second timeout. Live mode never uses this photo fallback. Display content uses DAT's `sendContent` primitives. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Meta frames deliberately carry unknown sensor capture age; frame receipt time is measured separately.
 
 ### Gemini live camera
 
@@ -58,7 +58,17 @@ With **gemini** and **Meta** selected, start a session and enable **Live camera*
 
 Only the latest camera frame is kept. Duplicate presentation timestamps, stale uploads, and congested provider writes are dropped. A failed capture stops live mode with an error; reconnecting or ending a session also turns it off. Frame counters, frame age, firmware, stream state, errors, and aggregate upload/drop counts are available in session evidence. Live video is not recorded and does not pass through the separate structured observer.
 
-Physical testing on September 16 found the glasses reporting `STREAMING` with zero frames on firmware `68597370069500080`, matching the symptoms and build in [upstream issue 178](https://github.com/facebook/meta-wearables-dat-android/issues/178). This is evidence of a likely firmware problem, not a confirmed vendor diagnosis. Restarting the companion app and rebooting the glasses did not restore frames; the one-shot fallback also timed out after the reboot. An isolated real-Gemini test with 50 Hz silent microphone traffic correctly recognized two changing synthetic images through native video in about 1.4–1.5 seconds, with nine frames submitted, no drops and no observer calls. That verifies the provider path, not glasses delivery.
+### Tested video compatibility setup
+
+On September 16, 2026, the official SDK 0.9 CameraAccess demo reported `STREAMING` but delivered no video on Display firmware `68597370069500080`. The official sample adapted to SDK 0.8 with `DAM_ENABLED=false` delivered real video at approximately 23–27 fps. This app now pins all three DAT libraries to 0.8.0 and uses that legacy transport, with decoded MEDIUM/24 fps frames. Gemini receives at most one new frame per second.
+
+The S21 test recorded 3,667 received camera frames, 189 Gemini uploads, zero upload drops, and no backend errors. Gemini described the physical scene and the wearer confirmed hearing it through the glasses with the mic muted. See [test evidence summary](glasses-video-result.json). The SDK version label in that trial's raw telemetry was stale; the installed APK used 0.8.0, and the label is corrected in this build.
+
+**Current limitation:** the glasses display service was unavailable with this transport. Cards remain on the phone, and the app reports that status. Local bitmap HUD output is also unsupported by SDK 0.8. A separate attempt to combine display startup with legacy video did not sustain a session and is excluded from this build. Simultaneous live video and glasses HUD remains unverified.
+
+Keep the glasses on and awake when starting. Select **gemini / Meta**, start the session, mute the mic if needed, enable **Live camera**, and wait for the sent-frame counter to increase before tapping **Tell me what you see**. A `STREAMING` state alone does not prove that frames are arriving. Do not upgrade the DAT libraries independently: repeat the official CameraAccess test, native frame/upload checks, audible glasses playback, and HUD checks before removing this compatibility configuration.
+
+The vendor acknowledged a firmware camera issue in [discussion 171](https://github.com/facebook/meta-wearables-dat-android/discussions/171); [issue 178](https://github.com/facebook/meta-wearables-dat-android/issues/178) reports this firmware build. The working older transport is a tested workaround on this device, not evidence that every firmware or glasses model behaves the same.
 
 Official references: [Meta Android DAT repository](https://github.com/facebook/meta-wearables-dat-android), [setup and Developer Mode](https://wearables.developer.meta.com/docs/getting-started-toolkit/), [version compatibility](https://wearables.developer.meta.com/docs/version-dependencies).
 
@@ -74,7 +84,7 @@ On transport loss, playback stops, sockets close, and the app requests a new gen
 
 ## Verification and remaining hardware gates
 
-`./android/build.sh` compiles the actual DAT artifacts, packages an installable debug APK and runs nine JVM tests covering stale/future/duplicate audio, local stop recovery barriers, binary packet round-trips, burst/partial playback writes and safe error messages. Android lint also passes with zero errors and 11 dependency-version/Kotlin shorthand warnings (`./android/build.sh :app:lintDebug`).
+`./android/build.sh` compiles the actual DAT artifacts, packages an installable debug APK and runs 19 JVM tests covering stale/future/duplicate audio, local stop recovery barriers, binary packet round-trips, burst/partial playback writes and safe error messages. Android lint also passes with zero errors and 15 dependency-version/Kotlin shorthand warnings (`./android/build.sh :app:lintDebug`).
 
 On September 15, 2026, an API 35 arm64 emulator completed an isolated mock-backend run: native audio initialization, session start, text-to-HUD, correlated mock-image inspection, manual HUD replacement, clear, speech stop with server rebind, explicit reconnect, background/resume and session end. After two binding replacements the server showed generation 3, clear HUD and a fresh renderer receipt. A second session used CameraX with the emulator's rear camera: the server accepted a 1280×1706 JPEG, correlated work ID, phone capture interval and 196 ms clock/capture uncertainty as fresh. These are emulator results, not physical-camera or audible Bluetooth tests.
 
