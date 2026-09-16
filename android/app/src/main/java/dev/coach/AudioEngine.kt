@@ -75,7 +75,21 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
     companion object { const val PLAYBACK_QUEUE_MS = 10000 }
     private val manager = context.getSystemService(AudioManager::class.java)
     private val executor = context.mainExecutor
-    private val routeListener = AudioManager.OnCommunicationDeviceChangedListener { report("Audio route changed: ${routeDescription()}") }
+    private val preferences = context.getSharedPreferences("audio-route", Context.MODE_PRIVATE)
+    private var preferredType = preferences.getInt("type", 0)
+    private var preferredName = preferences.getString("name", "").orEmpty()
+    private fun selectedRouteAvailable() = preferredType == 0 || manager.communicationDevice?.let { it.type == preferredType && it.productName.toString() == preferredName } == true
+    private val deviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            if (alive.get() && !selectedRouteAvailable())
+                routes().firstOrNull { it.type == preferredType && it.productName.toString() == preferredName }?.let { manager.setCommunicationDevice(it) }
+        }
+    }
+    private val routeListener = AudioManager.OnCommunicationDeviceChangedListener {
+        synchronized(lock) { if (!selectedRouteAvailable()) player?.pause() else if (!gate.suppressed) player?.play() }
+        report("Audio route changed: ${routeDescription()}")
+        report(if (selectedRouteAvailable()) "Selected audio route restored" else "Selected audio route unavailable; playback paused to prevent phone fallback")
+    }
     private var routeListening = false
     private val alive = AtomicBoolean(false)
     private val run = AtomicInteger()
@@ -103,6 +117,10 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
     fun route(deviceId: Int): Boolean {
         val device = routes().firstOrNull { it.id == deviceId } ?: return false
         val accepted = manager.setCommunicationDevice(device)
+        if (accepted) {
+            preferredType = device.type; preferredName = device.productName.toString()
+            preferences.edit().putInt("type", preferredType).putString("name", preferredName).apply()
+        }
         report("Route requested: ${device.productName}; accepted=$accepted; actual=${manager.communicationDevice?.productName}")
         return accepted
     }
@@ -112,6 +130,7 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
     fun start(inputRate: Int, outputRate: Int, generation: Int, epoch: Int, send: (ByteArray) -> Boolean) {
         close(resetRoute = false)
         manager.mode = AudioManager.MODE_IN_COMMUNICATION
+        routes().firstOrNull { it.type == preferredType && it.productName.toString() == preferredName }?.let { manager.setCommunicationDevice(it) }
         manager.addOnCommunicationDeviceChangedListener(executor, routeListener)
         routeListening = true
         this.outputRate = outputRate
@@ -135,9 +154,10 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
             pendingAudio = PcmWriteQueue(outputRate * 2 * PLAYBACK_QUEUE_MS / 1000)
             receivedBytes = 0; capturedBytes = 0; shortWrites = 0; droppedSamples = 0; queueHighWaterBytes = 0
             startedAt = SystemClock.elapsedRealtime()
-            gate.bind(generation, epoch); samplesWritten = 0; player!!.play()
+            gate.bind(generation, epoch); samplesWritten = 0; if (selectedRouteAvailable()) player!!.play()
         }
         alive.set(true)
+        manager.registerAudioDeviceCallback(deviceCallback, android.os.Handler(android.os.Looper.getMainLooper()))
         recorder!!.startRecording()
         val activeRecorder = recorder!!
         val activeRun = run.get()
@@ -201,6 +221,7 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
 
     private fun drainPlayback() {
         val output = player ?: return
+        if (!selectedRouteAvailable()) { lastProgressAt = SystemClock.elapsedRealtime(); return }
         try {
             val written = pendingAudio.drain { bytes, offset, count ->
                 output.write(bytes, offset, count, AudioTrack.WRITE_NON_BLOCKING).also { if (it in 0 until count) shortWrites++ }
@@ -226,7 +247,7 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
         pendingAudio.clear()
         player?.pause(); player?.flush()
         samplesWritten = 0
-        player?.play()
+        if (selectedRouteAvailable()) player?.play()
     }
 
     fun stats(): Map<String, Any> = synchronized(lock) { mapOf(
@@ -250,6 +271,7 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
 
     fun close(resetRoute: Boolean = true) {
         alive.set(false)
+        manager.unregisterAudioDeviceCallback(deviceCallback)
         run.incrementAndGet()
         runCatching { recorder?.stop() }
         recordingThread?.join(500); recordingThread = null

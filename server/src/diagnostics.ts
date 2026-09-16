@@ -33,6 +33,7 @@ export const diagnosticDetailsSchema = z.object({
   httpStatus: z.number().int().min(100).max(599).optional(), closeCode: number(4999).optional(),
   durationMs: number(86400000).optional(), pendingCount: number(10000).optional(),
   errorClass: z.string().min(1).max(100).regex(/^[A-Za-z_$][A-Za-z0-9_.$]*$/).optional(),
+  cameraError: z.enum(['CaptureFailed', 'CaptureInProgress', 'DeviceDisconnected', 'NotStreaming', 'VideoFrameTimeout', 'UnsupportedVideoLayout', 'VideoStreamFailed']).optional(),
   inputRate: z.number().int().min(8000).max(192000).optional(), outputRate: z.number().int().min(8000).max(192000).optional(),
   queuedBytes: number(1024 * 1024 * 1024).optional(), droppedSamples: number(1e9).optional(), underruns: number(1e6).optional(),
   capturedBytes: number(1e12).optional(), receivedBytes: number(1e12).optional(), writtenSamples: number(1e12).optional(), playedSamples: number(1e12).optional(),

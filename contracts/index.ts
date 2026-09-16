@@ -23,7 +23,7 @@ export type Hud = z.infer<typeof hudSchema>;
 export const commandSchema = z.object({
   schemaVersion: z.literal(1), sessionId: idSchema, generation: z.number().int().positive(),
   messageId: idSchema, commandId: idSchema,
-  type: z.enum(['send_text','set_mic','stop_speech','clear_hud','set_hud','inspect_frame','end_session','activity','cancel_work']),
+  type: z.enum(['send_text','set_mic','stop_speech','clear_hud','set_hud','inspect_frame','end_session','activity','cancel_work','set_live_video']),
   payload: z.record(z.string(), z.unknown()),
 });
 export type Command = z.infer<typeof commandSchema>;
@@ -35,6 +35,7 @@ export type Snapshot = {
   hudRevision: number; hud: Hud; inputRate: number; outputRate: number; createdAt: number; endedAt?: number;
   transcripts: Transcript[]; work: Work[]; receipts: Record<string, unknown>[]; usage: Record<string, unknown>[];
   device?: Record<string, unknown>; latestFrame?: Frame; muted: boolean; finalization: string;
+  liveVideo: boolean; liveVideoEpoch: number; liveVideoStats?: {submitted:number; dropped:number; lastFrameReceivedAt?:number};
 };
 export type SessionEvent = { schemaVersion: 1; sessionId: string; generation: number; eventId: string; seq: number; type: string; source: string; receivedAt: number; payload: Record<string, unknown> };
 export const AUDIO_MAGIC = 0x434f4143;

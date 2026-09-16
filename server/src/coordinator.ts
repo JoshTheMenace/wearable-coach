@@ -13,7 +13,7 @@ export const hash = (v: unknown) => createHash('sha256').update(typeof v === 'st
 const active = (s: Snapshot) => ['starting','active','reconnecting'].includes(s.status);
 const pending = (w: Work) => ['reserved','running'].includes(w.status);
 type Adapter = ReturnType<typeof createProvider>;
-type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; ready: boolean; aborts: Map<string,AbortController> };
+type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; ready: boolean; video: {lastAt:number; lastId?:string; reportedAt:number; stale:boolean}; aborts: Map<string,AbortController> };
 type Emit = (type: string, payload: Record<string,unknown>, source?: string, messageId?: string) => void;
 
 export class Coordinator extends EventEmitter {
@@ -25,7 +25,7 @@ export class Coordinator extends EventEmitter {
   constructor(readonly store: Store, readonly dataDir: string, private readonly dependencies: { createProvider?: typeof createProvider; observeFrame?: typeof observeFrame } = {}) {
     super(); mkdirSync(join(dataDir,'media'),{recursive:true});
     for (const snapshot of store.list()) if (active(snapshot) || snapshot.status === 'ending') this.mutate(snapshot.id,(s,emit)=>{
-      s.status='interrupted'; s.endedAt=Date.now(); s.finalization='incomplete';
+      s.status='interrupted'; s.liveVideo=false; s.endedAt=Date.now(); s.finalization='incomplete';
       for (const w of s.work.filter(pending)) this.finishIn(s,w,'aborted',{reason:'server_restarted',applicationEffect:'not_applied',providerOutcomeKnown:false},emit);
       emit('session.interrupted',{reason:'server_restarted'});
     });
@@ -48,7 +48,7 @@ export class Coordinator extends EventEmitter {
     const prior=this.store.byCreate(key);
     if(prior){if(prior.create_hash!==digest)throw new HttpError(409,'Creation key reused with different configuration');return this.get(prior.id as string);}
     if(this.store.list().filter(active).length>=4)throw new HttpError(429,'At most four active sessions are allowed');
-    const s:Snapshot={id:randomUUID(),config,status:'starting',generation:1,speechEpoch:0,throughSeq:0,hudRevision:0,hud:{},inputRate:config.provider==='openai'?24000:16000,outputRate:24000,createdAt:Date.now(),transcripts:[],work:[],receipts:[],usage:[],muted:false,finalization:'pending'};
+    const s:Snapshot={id:randomUUID(),config,status:'starting',generation:1,speechEpoch:0,throughSeq:0,hudRevision:0,hud:{},inputRate:config.provider==='openai'?24000:16000,outputRate:24000,createdAt:Date.now(),transcripts:[],work:[],receipts:[],usage:[],muted:false,finalization:'pending',liveVideo:false,liveVideoEpoch:0};
     this.store.atomic(()=>{this.store.create(s,key,digest);this.store.connection(s.id,1,randomUUID(),{status:'starting'});this.store.append(s,'session.created',{config,appVersion:'0.1.0',contractVersion:1,promptVersion:'coach-v2',coachPrompt:COACH_PROMPT});this.store.save(s);});
     queueMicrotask(()=>{if(!this.closing)this.background(this.connect(s.id));}); return s;
   }
@@ -67,11 +67,12 @@ export class Coordinator extends EventEmitter {
       error:()=>{if(valid())this.mutate(id,(_,emit)=>emit('error',{code:'provider_error',message:'Provider request failed; verify access and configuration'}));},
       closed:reason=>{if(valid()&&runtime.ready)this.providerLost(id,reason);},
     },{resumeHandle:resume?.handle,history});
-    runtime={provider,generation,conversation,outputSeq:0,outputSamples:0,ready:false,aborts:new Map()}; this.runtime.set(id,runtime);
+    runtime={provider,generation,conversation,outputSeq:0,outputSamples:0,ready:false,video:{lastAt:0,reportedAt:0,stale:true},aborts:new Map()}; this.runtime.set(id,runtime);
     this.store.connection(id,generation,conversation,{status:'connecting',recoveryKind:resume?.handle?'resumed':history?'history_seeded':'new',openedAt:Date.now()});
     try {
       await provider.connect(); if(!valid()){await provider.close();return;}
       runtime.ready=true;
+      if(resume?.handle&&s.config.provider==='gemini')provider.appendContext('Live video is OFF after reconnect. Earlier camera frames are historical evidence only.',null,false);
       this.mutate(id,(state,emit)=>{state.status='active';state.inputRate=provider.inputRate;state.outputRate=provider.outputRate;this.store.connection(id,generation,conversation,{status:'active',inputRate:state.inputRate,outputRate:state.outputRate,provider:state.config.provider,model:state.config.model,recoveryKind:resume?.handle?'resumed':history?'history_seeded':'new'});emit('connection.ready',{provider:state.config.provider,model:state.config.model,inputRate:state.inputRate,outputRate:state.outputRate,recoveryKind:resume?.handle?'resumed':history?'history_seeded':'new'});});
       this.emit('snapshot',id);
     } catch {
@@ -151,9 +152,23 @@ export class Coordinator extends EventEmitter {
       switch(c.type){
         case 'set_hud': this.setHud(s,c.payload.hud,emit);result.hudRevision=s.hudRevision;break;
         case 'clear_hud':this.setHud(s,{},emit);result.hudRevision=s.hudRevision;break;
+        case 'set_live_video': {
+          const enabled=z.boolean().parse(c.payload.enabled),rt=this.runtime.get(id);
+          if(s.config.provider!=='gemini'||!rt?.provider.sendVideo)throw new HttpError(400,'Live video requires Gemini');
+          if(s.status!=='active'||!rt.ready)throw new HttpError(409,'Provider is not ready');
+          if(s.liveVideo!==enabled){
+            if(s.liveVideoStats)emit('video.summary',{...s.liveVideoStats,liveVideoEpoch:s.liveVideoEpoch,reason:'mode_changed'});
+            s.liveVideo=enabled;s.liveVideoEpoch=(s.liveVideoEpoch??0)+1;s.liveVideoStats={submitted:0,dropped:0};
+            rt.video={lastAt:0,reportedAt:0,stale:true};this.cancelVisualWork(s,emit,'video_mode_changed');
+            emit('video.changed',{enabled,liveVideoEpoch:s.liveVideoEpoch});
+            effect=()=>rt.provider.appendContext(enabled?'Live video is ON but awaiting frames. Do not describe the current view until frames arrive.':'Live video is OFF. Previously received video is historical evidence only.',null,false);
+          }
+          result.liveVideo=s.liveVideo;result.liveVideoEpoch=s.liveVideoEpoch;break;
+        }
         case 'set_mic':s.muted=z.boolean().parse(c.payload.muted);emit('microphone.changed',{muted:s.muted});break;
         case 'send_text': {
           const text=z.string().min(1).max(2000).parse(c.payload.text); if(s.status!=='active')throw new HttpError(409,'Provider is not ready');
+          if(c.payload.requireLiveVideo===true&&(!s.liveVideo||!this.runtime.get(id)?.video.lastAt||Date.now()-this.runtime.get(id)!.video.lastAt>5000))throw new HttpError(412,'Live camera has no recent frames. Wait for the feed to resume and try again.');
           this.cancelVisualWork(s,emit,'new_learner_request');
           effect=()=>this.runtime.get(id)?.provider.sendText(text);emit('input.text',{text},'device');break;
         }
@@ -176,7 +191,7 @@ export class Coordinator extends EventEmitter {
     const key='reconnect:'+requestId;const digest=hash({generation,resume});const prior=this.store.command(id,key);
     if(prior){if(prior.hash!==digest)throw new HttpError(409,'Reconnect ID reused');return this.get(id);}
     const old=this.runtime.get(id);const history=this.get(id).transcripts.slice(-50).map(t=>`${t.speaker}: ${t.text}`).join('\n');
-    this.mutate(id,(s,emit)=>{this.checkGeneration(s,generation);s.status='reconnecting';s.generation++;s.speechEpoch++;
+    this.mutate(id,(s,emit)=>{this.checkGeneration(s,generation);if(s.liveVideoStats)emit('video.summary',{...s.liveVideoStats,liveVideoEpoch:s.liveVideoEpoch,reason:'reconnect'});s.status='reconnecting';s.generation++;s.speechEpoch++;s.liveVideo=false;s.liveVideoEpoch=(s.liveVideoEpoch??0)+1;s.liveVideoStats=undefined;
       for(const w of s.work.filter(pending))this.finishIn(s,w,'cancelled',{reason:'connection_replaced',applicationEffect:'not_applied',providerOutcomeKnown:false},emit);
       this.store.connection(id,s.generation,old?.conversation??randomUUID(),{status:'starting'});s.receipts=[];
       emit('connection.replacing',{generation:s.generation});this.store.receipt(id,key,digest,{generation:s.generation});});
@@ -194,7 +209,7 @@ export class Coordinator extends EventEmitter {
         if(renderer&&renderer.rendererInstanceId!==payload.rendererInstanceId){emit('hud.receipt.stale',payload,'device',messageId);return;}
         if(payload.hudRevision!==s.hudRevision) {emit('hud.receipt.stale',payload,'device',messageId);return;}s.receipts=[...s.receipts.filter(r=>r.target!==payload.target),payload];}
       else if(type==='device.status')s.device={...s.device,...payload};
-      else if(type==='capture.failed'){const w=s.work.find(w=>w.id===payload.workId);if(w&&pending(w)){this.finishIn(s,w,'failed',{reason:'capture_failed',applicationEffect:'not_applied',providerOutcomeKnown:true},emit);}}
+      else if(type==='capture.failed'){const w=s.work.find(w=>w.id===payload.workId);if(w&&pending(w)){this.finishIn(s,w,'failed',{reason:'capture_failed',instruction:'No image arrived because camera capture failed. Explain the camera connection failure and ask the learner to retry inspection. Do not imply the object was absent, obscured, or out of view; no visual evidence was received.',applicationEffect:'not_applied',providerOutcomeKnown:true},emit);}}
       else if(!['playback.metric','media.summary','clock.sample'].includes(type))throw new HttpError(400,'Unsupported device report');
       emit(type,payload,'device',messageId);
     });
@@ -204,6 +219,7 @@ export class Coordinator extends EventEmitter {
     if(bytes.length>2*1024*1024||bytes.length<8)throw new HttpError(413,'Frame outside size limits');
     if(mime!=='image/jpeg'&&mime!=='image/png')throw new HttpError(415,'Only JPEG/PNG frames supported');
     if(mime==='image/jpeg'&&(bytes[0]!==255||bytes[1]!==216)||mime==='image/png'&&bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')throw new HttpError(400,'Invalid image signature');
+    if(meta.liveVideo===true)return this.videoFrame(s,frameId,bytes,mime,meta);
     const digest=hash(bytes.toString('base64'));const previous=this.store.asset(id,frameId);
     if(previous){if(previous.hash!==digest)throw new HttpError(409,'Frame ID reused');return previous.frame;}
     const w=typeof meta.workId==='string'?s.work.find(w=>w.id===meta.workId):undefined;
@@ -227,6 +243,26 @@ export class Coordinator extends EventEmitter {
       state.latestFrame=frame;emit('frame.captured',{...frame});if(current){current.frameId=frameId;current.status='running';this.store.work(id,current);emit('work.running',{workId:current.id});}
     });
     if(w)this.background(this.inspect(id,w.id,frame,bytes,mime));return frame;
+  }
+  private videoFrame(s:Snapshot,frameId:string,bytes:Buffer,mime:string,meta:Record<string,unknown>) {
+    const rt=this.runtime.get(s.id),now=Date.now();
+    if(!s.liveVideo||s.config.provider!=='gemini'||s.status!=='active'||!rt?.ready||!rt.provider.sendVideo)throw new HttpError(409,'Live video is not active');
+    if(meta.liveVideoEpoch!==s.liveVideoEpoch)throw new HttpError(409,'Live video stream was replaced');
+    if(meta.workId)throw new HttpError(400,'Live video cannot fulfill a still inspection');
+    if(bytes.length>256*1024)throw new HttpError(413,'Live video frames must be at most 256 KiB');
+    const frameAgeMs=z.number().finite().min(0).parse(meta.frameAgeMs);
+    const reason=frameAgeMs>2000?'stale_frame':frameId===rt.video.lastId?'duplicate_frame':now-rt.video.lastAt<1000?'frame_rate':undefined;
+    const submitted=!reason&&rt.provider.sendVideo(bytes,mime),dropReason=reason??(submitted?undefined:'provider_backpressure');
+    if(submitted){
+      if(rt.video.stale)rt.provider.appendContext('Live video is receiving recent camera frames, sampled at most once per second. Answer visual questions from these frames without inspect_frame. Sensor capture time is unknown; do not claim continuous tracking.',null,false);
+      rt.video.lastAt=now;rt.video.lastId=frameId;rt.video.stale=false;
+    }
+    this.mutate(s.id,(state,emit)=>{
+      const stats=state.liveVideoStats??={submitted:0,dropped:0};
+      if(submitted){stats.submitted++;stats.lastFrameReceivedAt=now;}else stats.dropped++;
+      if(!rt.video.reportedAt||now-rt.video.reportedAt>=10000){emit('video.summary',{...stats,liveVideoEpoch:state.liveVideoEpoch,lastDropReason:dropReason,captureFreshness:'unknown',receiptAgeLimitMs:2000});rt.video.reportedAt=now;}
+    });
+    return {frameId,receivedAt:now,status:submitted?'submitted':'dropped',reason:dropReason,captureFreshness:'unknown'};
   }
   private async inspect(id:string,workId:string,frame:Frame,bytes:Buffer,mime:string) {
     const s=this.get(id),w=s.work.find(w=>w.id===workId),rt=this.runtime.get(id);if(!w||!rt)return;
@@ -299,7 +335,7 @@ export class Coordinator extends EventEmitter {
   async end(id:string) {
     const s=this.get(id);if(!active(s))return;
     const rt=this.runtime.get(id);if(rt)for(const a of rt.aborts.values())a.abort();
-    this.mutate(id,(state,emit)=>{state.status='ending';state.speechEpoch++;this.setHud(state,{},emit);for(const w of state.work.filter(pending))this.finishIn(state,w,'cancelled',{reason:'session_ended',applicationEffect:'not_applied',providerOutcomeKnown:false},emit);emit('session.ending',{});});
+    this.mutate(id,(state,emit)=>{if(state.liveVideoStats)emit('video.summary',{...state.liveVideoStats,liveVideoEpoch:state.liveVideoEpoch,reason:'session_ended'});state.status='ending';state.liveVideo=false;state.liveVideoEpoch=(state.liveVideoEpoch??0)+1;state.speechEpoch++;this.setHud(state,{},emit);for(const w of state.work.filter(pending))this.finishIn(state,w,'cancelled',{reason:'session_ended',applicationEffect:'not_applied',providerOutcomeKnown:false},emit);emit('session.ending',{});});
     this.emit('flush',{id,generation:s.generation,speechEpoch:this.get(id).speechEpoch});this.emit('snapshot',id);
     let finalization=rt?'complete':'incomplete';try{await rt?.provider.close();}catch{finalization='incomplete';}
     if(this.runtime.get(id)===rt)this.runtime.delete(id);
@@ -310,13 +346,19 @@ export class Coordinator extends EventEmitter {
     const asset=this.store.asset(id,assetId);if(!asset)throw new HttpError(404,'Unknown asset');const memory=this.transient.get(id+':'+assetId);if(memory)return memory;
     if(asset.path&&existsSync(asset.path))return{bytes:readFileSync(asset.path),mime:asset.mime as string};throw new HttpError(410,'Image was not retained or has expired');
   }
-  export(id:string) {const snapshot=this.get(id);const assets=this.store.assets(id).map(({path,...asset})=>({...asset,...(typeof path==='string'&&existsSync(path)?{base64:readFileSync(path).toString('base64')}:{} )}));return{schemaVersion:1,exportedAt:Date.now(),snapshot,events:this.store.events(id,0,1000000),assets,evidenceCoverage:{rawAudio:'not_recorded',images:snapshot.config.recordFrames?'selected_frames':'transient_only',transcripts:'provider_estimates',playback:'device_reports_not_acoustic_proof'},jsonl:this.store.events(id,0,1000000).map(e=>JSON.stringify(e)).join('\n')};}
+  export(id:string) {const snapshot=this.get(id);const assets=this.store.assets(id).map(({path,...asset})=>({...asset,...(typeof path==='string'&&existsSync(path)?{base64:readFileSync(path).toString('base64')}:{} )}));return{schemaVersion:1,exportedAt:Date.now(),snapshot,events:this.store.events(id,0,1000000),assets,evidenceCoverage:{rawAudio:'not_recorded',liveVideo:'streamed_not_recorded',liveVideoInterpretation:'native_gemini_without_separate_observer',images:snapshot.config.recordFrames?'selected_frames':'transient_only',transcripts:'provider_estimates',playback:'device_reports_not_acoustic_proof'},jsonl:this.store.events(id,0,1000000).map(e=>JSON.stringify(e)).join('\n')};}
   async delete(id:string) {await this.end(id);this.emit('deleted',id);this.store.delete(id);rmSync(join(this.dataDir,'media',id),{recursive:true,force:true});for(const key of this.transient.keys())if(key.startsWith(id+':'))this.transient.delete(key);}
   private sweep() {
     const now=Date.now();for(const [key,value]of this.transient)if(now-value.at>60000){this.transient.delete(key);const [sessionId,assetId]=key.split(':');const asset=this.store.asset(sessionId,assetId);if(asset&&!asset.path)this.store.putAsset(sessionId,assetId,asset.hash,{...asset,storageState:'expired'});}
     for(const s of this.store.list()){
       if(now-s.createdAt>86400000){this.background(this.delete(s.id));continue;}
       if(!active(s))continue;
+      const rt=this.runtime.get(s.id);
+      if(s.liveVideo&&rt?.video.lastAt&&!rt.video.stale&&now-rt.video.lastAt>5000){
+        rt.video.stale=true;
+        try{rt.provider.appendContext('Live video is stale: no recent camera frames have arrived. Do not describe earlier video as the current view. Ask the learner to resume the feed.',null,false);}catch{}
+        this.mutate(s.id,(_,emit)=>emit('video.stale',{lastFrameReceivedAt:rt.video.lastAt,...s.liveVideoStats}));
+      }
       if(now-s.createdAt>s.config.maxSessionMinutes*60000){this.background(this.end(s.id));continue;}
       const expired=s.work.filter(w=>pending(w)&&w.deadlineAt<now);const timer=s.hud.timer;const hudExpired=(s.hud.expiresAt??Infinity)<now||(timer&&timer.startedAt!+timer.durationMs<now);
       if(expired.length||hudExpired)this.mutate(s.id,(state,emit)=>{

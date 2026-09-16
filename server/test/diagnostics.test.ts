@@ -90,7 +90,7 @@ test('audio diagnostics retain only bounded structural measurements', t => {
   const details = { provider: 'gemini', model: 'gemini-3.8-live', device: 'phone', appVersion: '1.0', deviceModel: 'Pixel 9 Pro',
     androidApi: 35, inputRate: 16000, outputRate: 24000, queuedBytes: 640, droppedSamples: 0, underruns: 1,
     routeType: 7, durationMs: 500, capturedBytes: 32000, receivedBytes: 48000, writtenSamples: 24000,
-    pendingMs: 20, queueHighWaterMs: 80, queueBudgetMs: 250, shortWrites: 2, errorClass: 'java.io.IOException' };
+    pendingMs: 20, queueHighWaterMs: 80, queueBudgetMs: 250, shortWrites: 2, errorClass: 'java.io.IOException', cameraError: 'CaptureFailed' };
   diagnostics.ingest([report({ code: 'audio.status', stage: 'audio', details })]);
   assert.deepEqual(diagnostics.list()[0].details, details);
   for (const value of [-1, Infinity, NaN, 1e13]) assert.throws(() => diagnostics.ingest([report({ details: { capturedBytes: value } })]));

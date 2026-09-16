@@ -107,7 +107,9 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
       if(route[3]==='commands'&&req.method==='POST'){const command=commandSchema.parse(JSON.parse((await read(req)).toString()));json(res,200,coordinator.command(id,command));return;}
       if(route[3]==='frames'&&req.method==='POST'){
         const frameId=idSchema.parse(route[4]);const header=req.headers['x-frame-meta'];if(typeof header!=='string')throw new HttpError(400,'Missing frame metadata');
-        const meta=JSON.parse(header);const bytes=await read(req,2*1024*1024);const result=await coordinator.frame(id,frameId,bytes,String(req.headers['content-type']??''),meta);json(res,201,result);return;
+        const meta=JSON.parse(header),uploadStartedAt=Date.now();const bytes=await read(req,2*1024*1024);
+        if(meta.liveVideo===true&&typeof meta.frameAgeMs==='number')meta.frameAgeMs+=Date.now()-uploadStartedAt;
+        const result=await coordinator.frame(id,frameId,bytes,String(req.headers['content-type']??''),meta);json(res,201,result);return;
       }
       if(route[3]==='assets'&&req.method==='GET'){const data=coordinator.assetBytes(id,idSchema.parse(route[4]));res.writeHead(200,{'content-type':data.mime,'cache-control':'no-store','x-content-type-options':'nosniff'});res.end(data.bytes);return;}
       if(route[3]==='diagnostics'&&req.method==='GET'){coordinator.get(id);json(res,200,{reports:diagnostics.list({sessionId:id,limit:1000}),counts:diagnostics.counts({sessionId:id})});return;}

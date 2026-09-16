@@ -68,6 +68,17 @@ test('native inspection returns evidence once through its tool response without 
   assert.deepEqual(result.observation,evidence);assert.equal(result.frameId,request.frameId);assert.equal(h.instances[0].contexts.length,0);
 });
 
+test('camera failure tells the coach no image arrived, without inventing visual limitations',async t=>{
+  const h=await setup(t),instance=h.instances[0];
+  instance.callbacks.tool({id:'camera-failure',name:'inspect_frame',args:{question:'Describe my socks'}});await settle();
+  const work=h.coordinator.get(h.id).work[0];
+  h.coordinator.report(h.id,1,randomUUID(),'capture.failed',{workId:work.id,cameraSource:'meta_display'});await settle();
+  assert.equal(h.requests.length,0);assert.equal(instance.results.length,1);
+  const result=instance.results[0].result as Record<string,unknown>;
+  assert.equal(result.reason,'capture_failed');assert.match(String(result.instruction),/No image/);
+  assert.match(String(result.instruction),/camera/);assert.equal(result.observation,undefined);
+});
+
 for(const action of ['typed request','activity start','provider interruption','new native inspection','new direct inspection','end','reconnect'] as const)test(`${action} fences a late observer response`,async t=>{
   const h=await setup(t),request=await h.inspect('obsolete'),old=h.instances[0];
   if(action==='typed request')h.command('send_text',{text:'Actually, help me with something else.'});

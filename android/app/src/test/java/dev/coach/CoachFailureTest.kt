@@ -5,6 +5,13 @@ import org.junit.Test
 import java.net.ConnectException
 
 class CoachFailureTest {
+    @Test fun cameraFailuresExplainThatNoImageArrived() {
+        val issue = CoachFailure.from(CameraCaptureFailure("CaptureFailed"))
+        assertEquals("capture.failed", issue.code)
+        assertTrue(issue.message.contains("No image"))
+        assertTrue(issue.message.contains("restart the glasses"))
+        assertTrue(CoachFailure.from(BackendFailure(412)).message.contains("no recent frames"))
+    }
     @Test fun failuresGiveRecoveryStepsWithoutLeakingTransportContent() {
         val issue = CoachFailure.from(ConnectException("https://secret.example?key=do-not-log"))
         assertEquals("network.unavailable", issue.code)

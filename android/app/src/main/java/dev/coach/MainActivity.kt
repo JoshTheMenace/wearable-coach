@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -137,6 +138,20 @@ class MainActivity : ComponentActivity() {
                     if (state.providers.isNotEmpty()) Text(state.providers, style = MaterialTheme.typography.bodySmall)
                 } else {
                     Text("${state.sessionId.take(8)}  ·  ${state.provider} / ${state.device}", style = MaterialTheme.typography.bodySmall)
+                    Button({ session?.describeView() },
+                        enabled = state.status == "active" && !state.liveChanging && state.inspection?.status !in setOf("reserved", "running") &&
+                            (!state.liveVideo || state.lastLiveFrameAt > 0 && now - state.lastLiveFrameAt < 5000), modifier = Modifier.fillMaxWidth()) {
+                        Text("Tell me what you see")
+                    }
+                    Text(if (state.liveVideo) "Asks Gemini about the live camera view. Works with the mic muted." else "Captures a new camera frame and asks the coach to describe it. Works with the mic muted.", style = MaterialTheme.typography.bodySmall)
+                    if (state.provider == "gemini" && state.device == "meta_display") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Switch(state.liveVideo, { session?.setLiveVideo(it) }, enabled = state.status == "active" && !state.liveChanging)
+                            Text("Live camera", Modifier.padding(start = 12.dp))
+                        }
+                        Text(if (state.liveVideo) "${state.liveMessage} · ${state.liveFrames} frames sent. ${if (state.lastLiveFrameAt > 0) "Last upload ${(now - state.lastLiveFrameAt).coerceAtLeast(0) / 1000}s ago." else ""}"
+                            else state.liveMessage.ifBlank { "Continuously sends the camera view to Gemini, up to once per second." }, style = MaterialTheme.typography.bodySmall)
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button({ session?.mute() }) { Text(if (state.muted) "Unmute mic" else "Mute mic") }
                         Button({ session?.stopSpeech() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer)) { Text("Stop speech") }
@@ -160,7 +175,7 @@ class MainActivity : ComponentActivity() {
                         if (inspection.status == "completed") Text("This does not confirm speech or verify an action.", style = MaterialTheme.typography.bodySmall)
                         if (inspection.canRetry) OutlinedButton({ session?.command("inspect_frame", json("question" to inspection.question)) }, enabled = state.status == "active") { Text("Retry inspection") }
                     }
-                    Row { Switch(state.preview, { session?.setPreview(it) }); Text("Sample preview ≤1 fps", Modifier.padding(12.dp)) }
+                    Row { Switch(state.preview, { session?.setPreview(it) }, enabled = !state.liveVideo); Text("Sample preview ≤1 fps", Modifier.padding(12.dp)) }
                     state.frame?.let { bytes ->
                         val bitmap = remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
                         bitmap?.let { Image(it.asImageBitmap(), "Latest captured frame", Modifier.fillMaxWidth().heightIn(max = 250.dp)) }

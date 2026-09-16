@@ -120,7 +120,7 @@ The earlier [architecture](docs/architecture.md), [schema plan](docs/schema.md),
 
 ## Inspection flow
 
-Both live providers use the same structured image observer. Gemini waits for its blocking inspection tool response; GPT receives attributed evidence before the spoken instruction. The complete claims and limitations stay together, including when the response is longer than 1,400 characters.
+For single-image inspection, both live providers use the same structured image observer. Gemini waits for its blocking inspection tool response; GPT receives attributed evidence before the spoken instruction. The complete claims and limitations stay together, including when the response is longer than 1,400 characters.
 
 A newer inspection, typed question, explicit activity start, provider interruption, reconnect, or End cancels pending visual work. Cancellation aborts inference and checks the work again before dispatch, so an upstream request that finishes late cannot answer an obsolete question. Individual transcript fragments do not count as new questions because transcription can arrive late.
 
@@ -128,4 +128,8 @@ The phone and dashboard show capture, analysis, completion, and failure beside t
 
 Session exports include `observation.started`, `observation.completed`, `observation.rejected`, and one `inspection.summary` per terminal inspection. The summary records elapsed time, outcome, frame ID, and `audioWhilePendingMs`: provider PCM forwarded while the request was pending. This is a timing measurement, not proof of audible or ungrounded speech. Existing exports include the structured observation and observer usage.
 
-This iteration uses one explicitly requested image. It does not track scene changes after capture, infer task completion, or guarantee faithful spoken wording. A spoken correction that produces neither an interruption nor a new tool request cannot be reliably distinguished from delayed transcript fragments. Frame-age checks remain in force, and unknown capture timing is disclosed to the coach.
+Single-image inspection does not track scene changes after capture, infer task completion, or guarantee faithful spoken wording. A spoken correction that produces neither an interruption nor a new tool request cannot be reliably distinguished from delayed transcript fragments. Frame-age checks remain in force, and unknown capture timing is disclosed to the coach.
+
+## Gemini live camera
+
+On Android with **gemini / Meta**, enable **Live camera** to send new camera video frames directly to Gemini at up to one frame per second. **Tell me what you see** works with the mic muted. Video uses a bounded latest-frame buffer and drops stale or congested frames; it stops on failure, reconnect, or session end. Native video bypasses the structured observer and is not recorded. Exports contain frame counters, stale-feed events and device camera health. See [setup and the current glasses firmware limitation](docs/android-setup.md#gemini-live-camera).

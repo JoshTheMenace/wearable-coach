@@ -3,6 +3,7 @@ package dev.coach
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.*
+import android.os.SystemClock
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -21,6 +22,7 @@ import com.meta.wearable.dat.core.selectors.AutoDeviceSelector
 import com.meta.wearable.dat.core.session.DeviceSession
 import com.meta.wearable.dat.core.session.DeviceSessionState
 import com.meta.wearable.dat.core.types.Permission
+import com.meta.wearable.dat.core.types.LinkState
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
 import com.meta.wearable.dat.display.Display
@@ -39,7 +41,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 data class CapturedFrame(val jpeg: ByteArray, val width: Int, val height: Int, val source: String,
-    val earliestCapture: Long?, val latestCapture: Long?, val basis: String)
+    val earliestCapture: Long?, val latestCapture: Long?, val basis: String, val receivedAtMono: Long? = null)
 
 class DeviceBridge(private val context: Context, private val lifecycle: LifecycleOwner,
     private val scope: CoroutineScope, private val report: (String) -> Unit) {
@@ -49,6 +51,9 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var camera: Camera? = null
     private var display: Display? = null
     private var monitor: Job? = null
+    private var videoMonitor: Job? = null
+    private var videoFrames = VideoFrames()
+    private var videoError: String? = null
     var mode = "mock"; private set
     var displayAvailable = false; private set
 
@@ -77,9 +82,39 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                 monitor = scope.launch { created.errors.collect { report("Meta: ${it.description}") } }
                 created.start()
                 withTimeout(20_000) { created.state.first { it == DeviceSessionState.STARTED } }
-                val added = created.addCamera(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 2))
+                val added = created.addCamera(StreamConfiguration(videoQuality = VideoQuality.LOW, frameRate = 2, compressVideo = false))
                     .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
                 camera = added
+                val frames = videoFrames
+                videoMonitor = scope.launch {
+                    launch { added.stream.state.collect {
+                        if (it != StreamState.STREAMING) frames.reset()
+                        report("Meta video state: $it")
+                    } }
+                    launch { added.stream.errorStream.collect {
+                        videoError = it.name
+                        report("Meta video error: ${it.description}")
+                    } }
+                    try {
+                        added.stream.videoStream.collect { frame ->
+                            if (!frame.isCompressed && !frame.isCodecConfig) {
+                                try {
+                                    if (frames.receive(frame.buffer, frame.width, frame.height, SystemClock.elapsedRealtime(), frame.presentationTimeUs)) {
+                                        videoError = null
+                                        if (frames.current?.sequence == 1L) report("Meta video frames arriving: ${frame.width}x${frame.height}")
+                                    }
+                                } catch (_: IllegalArgumentException) {
+                                    if (videoError == null) report("Meta video frame layout unsupported: ${frame.width}x${frame.height}, bytes=${frame.buffer.remaining()}")
+                                    videoError = "UnsupportedVideoLayout"
+                                }
+                            }
+                        }
+                    } catch (error: CancellationException) { throw error }
+                    catch (error: Exception) {
+                        videoError = error.javaClass.simpleName
+                        report("Meta video stream failed: $videoError")
+                    }
+                }
                 added.stream.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
                 withTimeout(20_000) { added.stream.state.first { it == StreamState.STREAMING } }
                 // Ordinary Ray-Ban Meta can expose camera without a display. Report this honestly.
@@ -87,13 +122,13 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                     display = capability
                     displayAvailable = withTimeoutOrNull(12_000) { capability.state.first { it == DisplayState.STARTED } } != null
                 }.onFailure { error, _ -> report("Glasses display unavailable: ${error.description}; phone preview only") }
-                report("Meta camera ready; glasses display=$displayAvailable; photo capture clock unknown")
+                report("Meta camera ready; glasses display=$displayAvailable; using new video frames, sensor clock unknown")
             }
             else -> report("Mock camera and phone HUD ready; synthetic evidence is labeled")
         }
     }
 
-    suspend fun capture(): CapturedFrame = when (mode) {
+    suspend fun capture(allowPhotoFallback: Boolean = false): CapturedFrame = when (mode) {
         "phone" -> {
             val capture = checkNotNull(phoneCapture) { "Phone camera not ready" }
             val file = File.createTempFile("capture-", ".jpg", context.cacheDir)
@@ -111,17 +146,20 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             } finally { file.delete() }
         }
         "meta_display" -> {
-            val photo = checkNotNull(camera) { "Meta camera not ready" }.stream.capturePhoto()
-                .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-            withContext(Dispatchers.Default) {
-                val bitmap = when (photo) {
-                    is PhotoData.Bitmap -> photo.bitmap
-                    is PhotoData.HEIC -> {
-                        val buffer = photo.data.duplicate().apply { rewind() }
-                        decode(ByteArray(buffer.remaining()).also { buffer.get(it) })
-                    }
-                }
-                encoded(bitmap, "meta_display", null, null, "meta_photo_clock_unknown")
+            checkNotNull(camera) { "Meta camera not ready" }
+            val frame = videoFrames.next(SystemClock.elapsedRealtime())
+            if (frame == null && allowPhotoFallback) captureMetaPhoto()
+            else if (frame == null) throw CameraCaptureFailure(when (videoError) {
+                null -> "VideoFrameTimeout"
+                "UnsupportedVideoLayout" -> "UnsupportedVideoLayout"
+                else -> "VideoStreamFailed"
+            })
+            else withContext(Dispatchers.Default) {
+                val output = ByteArrayOutputStream()
+                check(YuvImage(frame.nv21, ImageFormat.NV21, frame.width, frame.height, null)
+                    .compressToJpeg(Rect(0, 0, frame.width, frame.height), 80, output)) { "JPEG encoding failed" }
+                CapturedFrame(output.toByteArray(), frame.width, frame.height, "meta_display", null, null,
+                    "meta_video_clock_unknown", frame.receivedAtMono)
             }
         }
         else -> withContext(Dispatchers.Default) {
@@ -169,7 +207,16 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         return result.fold(onSuccess = { "sdk_submitted" }, onFailure = { error, _ -> report("Meta HUD: ${error.description}"); "failed" })
     }
 
+    fun cameraStats(): JSONObject = JSONObject().put("streamState", camera?.stream?.state?.value?.name ?: "unavailable")
+        .put("framesReceived", videoFrames.receivedCount)
+        .put("lastFrameAgeMs", videoFrames.current?.let { SystemClock.elapsedRealtime() - it.receivedAtMono } ?: JSONObject.NULL)
+        .put("streamError", videoError ?: JSONObject.NULL)
+        .put("firmwareInfo", if (mode == "meta_display") Wearables.devicesMetadata.values.map { it.value }
+            .filter { it.linkState == LinkState.CONNECTED }.singleOrNull()?.firmwareInfo ?: JSONObject.NULL else JSONObject.NULL)
+
     fun close() {
+        videoMonitor?.cancel(); videoMonitor = null
+        videoFrames = VideoFrames(); videoError = null
         monitor?.cancel(); monitor = null
         runCatching { camera?.stop() }; camera = null
         runCatching { session?.removeDisplay() }; display = null; displayAvailable = false
@@ -185,6 +232,24 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             postRotate(exif.rotationDegrees.toFloat())
         }
         return if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true).also { bitmap.recycle() }
+    }
+    private suspend fun captureMetaPhoto(): CapturedFrame {
+        report("No video frame arrived; trying one still photo for this inspection")
+        val photo = withTimeoutOrNull(10_000) {
+            checkNotNull(camera).stream.capturePhoto().fold(onSuccess = { it },
+                onFailure = { error, _ -> throw CameraCaptureFailure(error.javaClass.simpleName) })
+        } ?: throw CameraCaptureFailure("CaptureFailed")
+        return when (photo) {
+            is PhotoData.Bitmap -> {
+                val owned = checkNotNull(photo.bitmap.copy(Bitmap.Config.ARGB_8888, false)) { "Image copying failed" }
+                withContext(Dispatchers.Default) { encoded(owned, "meta_display", null, null, "meta_photo_clock_unknown") }
+            }
+            is PhotoData.HEIC -> {
+                val buffer = photo.data.duplicate().apply { rewind() }
+                val owned = ByteArray(buffer.remaining()).also { buffer.get(it) }
+                withContext(Dispatchers.Default) { encoded(decode(owned), "meta_display", null, null, "meta_photo_clock_unknown") }
+            }
+        }
     }
     private fun encoded(bitmap: Bitmap, source: String, earliest: Long?, latest: Long?, basis: String): CapturedFrame {
         val scaled = if (bitmap.width > 1280) Bitmap.createScaledBitmap(bitmap, 1280, bitmap.height * 1280 / bitmap.width, true) else bitmap

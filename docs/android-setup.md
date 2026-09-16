@@ -50,13 +50,23 @@ First identify the hardware: **Meta Ray-Ban Display** has a display. Ordinary **
 5. Use **Choose audio route** to explicitly select the glasses communication route. Verify the shown route and test by speaking and listening. Android communication routing determines microphone and playback; attaching DAT camera does not prove the audio route changed.
 6. If DAT reports incompatible software, use **Glasses firmware update** or **Glasses DAT app update**. Recently updated firmware alone does not prove the DAT glasses app is current.
 
-The bridge uses one DAT `DeviceSession`, attaches the `Camera` stream and `Display` capability after session startup, waits for their actual state, and calls `capturePhoto()` for requested images. Display content uses DAT's `sendContent` flexbox, text and image primitives; HUD assets are fetched through the authenticated session endpoint. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Photo metadata exposes no established glasses-to-server capture clock, so Meta frames deliberately carry unknown capture age. Provider guidance must preserve that limitation.
+The bridge uses one DAT `DeviceSession`, attaches the `Camera` stream and `Display` capability, and copies decoded camera frames into one owned latest-frame buffer. Requested inspections wait for a new frame for up to four seconds, then may attempt one still photo with a ten-second timeout. Live mode never uses this photo fallback. Display content uses DAT's `sendContent` primitives. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Meta frames deliberately carry unknown sensor capture age; frame receipt time is measured separately.
+
+### Gemini live camera
+
+With **gemini** and **Meta** selected, start a session and enable **Live camera**. The app sends new video frames through Gemini's native realtime video input at up to one frame per second. **Tell me what you see** asks about that feed and works with the mic muted. With live mode off, the button requests a single inspection through the structured observer.
+
+Only the latest camera frame is kept. Duplicate presentation timestamps, stale uploads, and congested provider writes are dropped. A failed capture stops live mode with an error; reconnecting or ending a session also turns it off. Frame counters, frame age, firmware, stream state, errors, and aggregate upload/drop counts are available in session evidence. Live video is not recorded and does not pass through the separate structured observer.
+
+Physical testing on September 16 found the glasses reporting `STREAMING` with zero frames on firmware `68597370069500080`, matching the symptoms and build in [upstream issue 178](https://github.com/facebook/meta-wearables-dat-android/issues/178). This is evidence of a likely firmware problem, not a confirmed vendor diagnosis. Restarting the companion app and rebooting the glasses did not restore frames; the one-shot fallback also timed out after the reboot. An isolated real-Gemini test with 50 Hz silent microphone traffic correctly recognized two changing synthetic images through native video in about 1.4–1.5 seconds, with nine frames submitted, no drops and no observer calls. That verifies the provider path, not glasses delivery.
 
 Official references: [Meta Android DAT repository](https://github.com/facebook/meta-wearables-dat-android), [setup and Developer Mode](https://wearables.developer.meta.com/docs/getting-started-toolkit/), [version compatibility](https://wearables.developer.meta.com/docs/version-dependencies).
 
 ## Audio and recovery behavior
 
 Microphone PCM16 is recorded in 20 ms packets at the provider input rate. Playback uses the negotiated output rate. Android echo cancellation is enabled where supported, and its actual availability is logged. Capture continues during coach speech. Muting sends paced silence; it does not stop output.
+
+The chosen communication device is remembered by type and name across reconnects and app restarts. If that route disappears, playback pauses instead of intentionally falling back to the phone speaker. Use **Choose audio route** to select an available replacement.
 
 Every audio packet carries generation, speech epoch, sequence and timestamp. Playback rejects duplicate, old-generation and unexpected-epoch packets. **Stop speech** suppresses and flushes Android playback immediately; a newer server flush or new connection binding is required to resume. AudioTrack has a 500 ms hardware buffer and starts after 20 ms of audio. A dedicated writer retries partial writes from a bounded ten-second total playback queue. Upstream WebSocket buffering has a 250 ms budget. Overflow triggers an explicit discontinuity and reconnect instead of replaying old audio.
 

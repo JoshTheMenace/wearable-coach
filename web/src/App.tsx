@@ -58,6 +58,16 @@ function InspectionStatus({ work, simulated, canRetry, retry }: { work: Json; si
   </section>;
 }
 
+function LiveVideoStatus({ snapshot, now }: { snapshot: Snapshot; now: number }) {
+  const stats = snapshot.liveVideoStats;
+  const age = typeof stats?.lastFrameReceivedAt === 'number' ? Math.max(0, Math.floor((now - stats.lastFrameReceivedAt) / 1000)) : null;
+  return <section className="inspection-status" aria-label="Live camera status">
+    <div className="inspection-heading"><strong>Live camera · {snapshot.liveVideo ? 'Enabled' : 'Disabled'}</strong><span>{stats?.submitted ?? 0} submitted · {stats?.dropped ?? 0} dropped</span></div>
+    <p>{age === null ? 'No live frame received yet.' : `Last reported frame received ${age}s ago; sensor capture age unknown.`}</p>
+    <p>Gemini reads sampled video directly (≤1 fps), without a separate observer check. Live video is not recorded or shown in this preview. Start or stop it on Android.</p>
+  </section>;
+}
+
 function DiagnosticsPanel({ path, token, scope }: { path: string; token: string; scope: string }) {
   const [data, setData] = useState<{ reports: Json[]; counts: { total: number; bySeverity: Record<string, number>; byCode: Record<string, number> } } | null>(null);
   const [loading, setLoading] = useState(false);
@@ -248,12 +258,17 @@ export function App() {
     let socket: WebSocket;
     let retry: ReturnType<typeof setTimeout>;
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const data = await (await request(`/sessions/${session.sessionId}`, session.token)).json();
         if (!cancelled) setSnapshot(previous => latestSnapshot(previous, data.snapshot ?? data));
       } catch (error) { if (!cancelled) setError(errorMessage(error)); }
+      finally { refreshing = false; }
     };
+    const liveRefresh = setInterval(() => { if (snapshotRef.current?.liveVideo && document.visibilityState === 'visible') void refresh(); }, 2000);
     const connect = () => {
       setConnection('connecting');
       socket = new WebSocket(wsUrl(`/api/sessions/${session.sessionId}/events`));
@@ -281,7 +296,7 @@ export function App() {
       socket.onclose = () => { if (!cancelled) { setConnection('reconnecting'); retry = setTimeout(connect, 1500); } };
     };
     connect();
-    return () => { cancelled = true; clearTimeout(retry); clearTimeout(refreshTimer); socket?.close(); };
+    return () => { cancelled = true; clearTimeout(retry); clearTimeout(refreshTimer); clearInterval(liveRefresh); socket?.close(); };
   }, [session]);
 
   useEffect(() => {
@@ -444,6 +459,7 @@ export function App() {
       <div className="toolbar"><div className="session-info"><span className="badge">{snapshot?.config.provider ?? 'coach'}</span><span>{snapshot?.config.model}</span><span className="subtle">{snapshot?.config.device === 'mock' ? 'Artificial fixture · browser renderer' : snapshot?.config.device}</span></div><div className="toolbar-actions">{!session.readOnly && <><button onClick={toggleSound} className="plain">{sound ? 'Sound on' : 'Enable sound'}</button><button onClick={reconnect} disabled={busy || !active} className="secondary compact">Reconnect</button><button onClick={() => send('end_session')} disabled={!canControl} className="danger compact">End session</button></>}<button onClick={leave} className="plain">Leave view ↗</button></div></div>
       <div className="workspace-grid">
         <div className="panel frame-panel"><div className="panel-head"><h2>Shared view</h2><span className={`badge ${latestFrame ? 'accent' : ''}`}>{latestFrame?.cameraSource ?? 'NO CAMERA'}</span></div><div className="camera-view">{imageUrl ? <img src={imageUrl} alt={`${latestFrame?.cameraSource === 'mock' ? 'Artificial test fixture' : 'Latest selected camera frame'}`} /> : <div className="camera-empty"><span className="focus-corners">⌗</span><strong>{latestFrame ? 'Frame bytes unavailable' : 'Waiting for a fresh frame'}</strong><span>{latestFrame ? 'The frame metadata is preserved in the evidence log.' : 'Inspect the view to request an image from the device.'}</span></div>}<div className="camera-meta"><span><span className="dot" /> SAMPLED PREVIEW</span><span>{frameAge === null ? 'No capture yet' : `${frameAge}s ${latestFrame?.capturedAt ? 'since capture' : 'since received · capture age unknown'}`}</span></div></div><div className="frame-foot"><span>Freshness <strong>{freshness}</strong></span><span>{snapshot?.config.device === 'mock' ? 'SYNTHETIC / NOT REAL-WORLD EVIDENCE' : 'Capture timing includes device uncertainty'}</span></div>
+          {snapshot?.config.provider === 'gemini' && <LiveVideoStatus snapshot={snapshot} now={serverNow} />}
           {!session.readOnly && <div className="inspect-controls">{snapshot?.config.device === 'mock' && <label className="fixture-label">Artificial fixture<select value={zone} onChange={event => setZone(event.target.value)}><option value="A">Zone A</option><option value="B">Zone B</option><option value="occluded">Occluded view</option></select></label>}<label>Inspection question<input value={question} onChange={event => setQuestion(event.target.value)} maxLength={1000} /></label><button className="primary" disabled={!canControl || !question.trim()} onClick={() => send('inspect_frame', { question })}>Inspect current view <span>⌗</span></button></div>}
           {latestInspection && <InspectionStatus work={latestInspection} simulated={snapshot?.config.provider === 'mock'} canRetry={canControl} retry={question => send('inspect_frame', { question })} />}
         </div>

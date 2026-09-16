@@ -304,3 +304,42 @@ test('mock emits labeled audible PCM and close fences delayed tools and audio', 
   adapter.sendText('delayed card'); await adapter.close();
   const count = r.audio.length; await pause(60); assert.equal(r.audio.length, count); assert.equal(r.calls.length, 1);
 });
+
+test('Gemini video uses realtime input without starting a turn and drops congested frames', async t => {
+  process.env.GEMINI_KEY = 'test-only-gemini';
+  const fixture = await wire({ setupComplete: {} }); t.after(() => fixture.close());
+  const r = recorder();let client:WebSocket;
+  const adapter = createProvider({provider:'gemini',model:'gemini-3.8-live'},r.callbacks,{
+    ...fixture.options,socketFactory:(url,options)=>client=fixture.options.socketFactory!(url,options),
+  });
+  await adapter.connect();
+  assert.equal(adapter.sendVideo!(Buffer.from('camera-frame'),'image/jpeg'),true);
+  await until(()=>fixture.messages.length===2);
+  assert.deepEqual(fixture.messages[1],{realtimeInput:{video:{mimeType:'image/jpeg',data:Buffer.from('camera-frame').toString('base64')}}});
+  Object.defineProperty(client!,'bufferedAmount',{value:1000,configurable:true});
+  assert.equal(adapter.sendVideo!(Buffer.from('frame-with-audio'),'image/jpeg'),true);
+  await until(()=>fixture.messages.length===3);
+  Object.defineProperty(client!,'bufferedAmount',{value:11000});
+  assert.equal(adapter.sendVideo!(Buffer.from('dropped-frame'),'image/jpeg'),false);
+  assert.throws(()=>adapter.sendVideo!(Buffer.alloc(256*1024+1),'image/jpeg'),/256 KiB/);
+  await pause();assert.equal(fixture.messages.length,3);assert.equal(r.errors.length,0);
+  await adapter.close();
+});
+
+test('queued video does not consume the audio budget or conceal a growing audio queue', async t => {
+  process.env.GEMINI_KEY = 'test-only-gemini';
+  const fixture = await wire({ setupComplete: {} }); t.after(() => fixture.close());
+  const r=recorder();let client:WebSocket;
+  const adapter=createProvider({provider:'gemini',model:'gemini-3.8-live'},r.callbacks,{
+    ...fixture.options,socketFactory:(url,options)=>client=fixture.options.socketFactory!(url,options),
+  });
+  await adapter.connect();
+  // Simulate writes waiting on the transport; callbacks stay pending, including the video write.
+  t.mock.method(client!,'send',()=>{});
+  assert.equal(adapter.sendVideo!(Buffer.alloc(128*1024),'image/jpeg'),true);
+  assert.equal(adapter.sendVideo!(Buffer.from('second-pending-frame'),'image/jpeg'),false);
+  adapter.sendAudio(Buffer.alloc(3200));assert.equal(r.errors.length,0);
+  adapter.sendAudio(Buffer.alloc(3200));assert.equal(r.errors.length,0);
+  adapter.sendAudio(Buffer.alloc(3200));assert.match(r.errors[0].message,/250 ms/);
+  await adapter.close();
+});

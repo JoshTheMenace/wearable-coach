@@ -27,6 +27,7 @@ export interface ProviderAdapter {
   connect(): Promise<void>;
   sendAudio(pcm: Buffer): void;
   sendText(text: string): void;
+  sendVideo?(image: Buffer, mime: string): boolean;
   inspect(image: Buffer, mime: string, question: string): void;
   toolResult(id: string, result: unknown): void;
   activity(active: boolean): void;

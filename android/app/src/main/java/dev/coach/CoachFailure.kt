@@ -3,9 +3,13 @@ package dev.coach
 import java.io.IOException
 
 class BackendFailure(val status: Int) : IOException("Backend request failed ($status)")
+class CameraCaptureFailure(val cameraError: String) : IllegalStateException("Glasses camera capture failed")
 data class CoachFailure(val code: String, val message: String, val recovery: String = "user_action") {
     companion object {
         fun from(error: Throwable): CoachFailure = when {
+            error is CameraCaptureFailure && error.cameraError == "VideoFrameTimeout" -> CoachFailure("capture.failed", "No new video frames arrived from the glasses. Live camera stopped; wake the glasses and tap Live camera to retry. Camera diagnostics have been saved.")
+            error is CameraCaptureFailure -> CoachFailure("capture.failed", "No image arrived from the glasses camera. Wake the glasses and start a new session. If it repeats, restart the glasses; camera diagnostics have been saved.")
+            error is BackendFailure && error.status == 412 -> CoachFailure("request.failed", "Live camera has no recent frames. Wait for the feed to resume, then retry.")
             error is BackendFailure && error.status == 409 -> CoachFailure("request.failed", "The session changed. Reconnect, or start a new session if it has ended.")
             error is BackendFailure && error.status == 401 -> CoachFailure("request.failed", "The connection is no longer authorized. Start a new session.")
             error is BackendFailure && error.status == 429 -> CoachFailure("request.failed", "The server is busy. Wait a moment and retry.")

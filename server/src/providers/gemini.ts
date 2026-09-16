@@ -1,3 +1,4 @@
+import WebSocket from 'ws';
 import { COACH_PROMPT, SocketProvider, boundedText, imageCheck, numericUsage, type Wire } from './shared.ts';
 
 export const hudTools = [
@@ -87,6 +88,17 @@ export class GeminiProvider extends SocketProvider {
   }
   sendText(text: string) {
     this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text: boundedText(text) }] }], turnComplete: true } });
+  }
+  sendVideo(image: Buffer, mime: string) {
+    imageCheck(image, mime);
+    if (image.length > 256 * 1024) throw new Error('Live video frames must be at most 256 KiB');
+    if (!this.ready || this.closing || this.socket?.readyState !== WebSocket.OPEN) throw new Error('Provider is not ready');
+    // Permit the normal paced audio backlog, but never queue another video frame.
+    if (this.videoQueuedBytes || this.socket.bufferedAmount > Math.ceil(this.inputRate * 2 * 0.25 * 4 / 3)) return false;
+    const encoded = JSON.stringify({ realtimeInput: { video: { data: image.toString('base64'), mimeType: mime } } });
+    this.videoQueuedBytes = Buffer.byteLength(encoded);
+    this.socket.send(encoded, error => { this.videoQueuedBytes = 0; if (error && !this.closing) this.fail('Provider video transport failed'); });
+    return true;
   }
   inspect(image: Buffer, mime: string, question: string) {
     imageCheck(image, mime);
