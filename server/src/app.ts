@@ -46,7 +46,7 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
   const send=(ws:WebSocket|undefined,value:unknown)=>{if(ws?.readyState===WebSocket.OPEN){if(ws.bufferedAmount>256*1024){ws.close(1013,'Slow consumer; reconnect for snapshot');return;}ws.send(JSON.stringify(value));}};
   const snapshot=(id:string)=>({type:'snapshot',snapshot:coordinator.get(id),serverTime:Date.now()});
   const broadcast=(id:string,value:unknown)=>{send(controls.get(id),value);for(const ws of spectators.get(id)??[])send(ws,value);};
-  const listener=(event:SessionEvent)=>{if(['session.ending','session.ended','session.interrupted','connection.failed'].includes(event.type))clearGrace(event.sessionId);broadcast(event.sessionId,{type:'event',event});if(event.type==='hud.accepted')send(controls.get(event.sessionId),{type:'hud',generation:event.generation,...event.payload});};
+  const listener=(event:SessionEvent)=>{if(['session.ending','session.ended','session.interrupted','connection.failed'].includes(event.type))clearGrace(event.sessionId);broadcast(event.sessionId,{type:'event',event});if(event.type==='hud.accepted'&&!coordinator.get(event.sessionId).demonstration)send(controls.get(event.sessionId),{type:'hud',generation:event.generation,...event.payload});};
   coordinator.on('event',listener);
   coordinator.on('snapshot',(id:string)=>broadcast(id,snapshot(id)));
   coordinator.on('capture',({id,...message})=>send(controls.get(id),{type:'capture',...message}));
@@ -139,7 +139,7 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
           if(channel!=='events'){generation=z.number().int().positive().parse(hello.generation);coordinator.checkGeneration(s,generation);const map=channel==='control'?controls:audios;const prior=map.get(id);if(prior&&prior.readyState===WebSocket.OPEN)throw new HttpError(409,'Device channel already bound');map.set(id,ws);}
           else {const set=spectators.get(id)??new Set();set.add(ws);spectators.set(id,set);}
           authenticated=true;clearTimeout(timeout);send(ws,snapshot(id));
-          if(channel==='control'){clearGrace(id);send(ws,{type:'hud',generation:s.generation,hud:s.hud,hudRevision:s.hudRevision});}return;
+          if(channel==='control'){clearGrace(id);if(!s.demonstration)send(ws,{type:'hud',generation:s.generation,hud:s.hud,hudRevision:s.hudRevision});}return;
         }
         if(channel==='events')throw new HttpError(403,'Read-only stream');
         if(binary){

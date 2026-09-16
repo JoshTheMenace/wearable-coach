@@ -1,0 +1,222 @@
+{
+  "runAt": "2026-09-16T16:30:56.583Z",
+  "environment": "Isolated loopback server on 8791, browser simulator, synthetic 8-second 320x180 blue/green MP4; no physical glasses or clinical video.",
+  "checks": {
+    "automatedTests": 86,
+    "typecheck": true,
+    "build": true,
+    "mockCardMovieRestore": true,
+    "hudUpdateDuringMovie": true,
+    "repeatedMovie": true,
+    "manualStopRestore": true,
+    "mobileWidth390NoOverflow": true,
+    "geminiRecordedVideo": true,
+    "geminiHudTool": true,
+    "geminiMovieRestore": true,
+    "explicitCameraResume": true,
+    "oversizedDemoRejectedInBrowser": true,
+    "stoppedDemoStatusRestored": true,
+    "mockSmoke": true
+  },
+  "runs": [
+    {
+      "provider": "gemini",
+      "sessionId": "089a4cf4-c196-4386-8ad5-eb8af4f07598",
+      "status": "ended",
+      "generation": 2,
+      "coachText": "The visible color is a uniform, solid blue. What would you like to practice?",
+      "hudChanges": [
+        {
+          "seq": 15,
+          "hud": {
+            "card": {
+              "title": "VIDEO TEST",
+              "body": "Recorded feed received."
+            }
+          },
+          "hudRevision": 1
+        },
+        {
+          "seq": 56,
+          "hud": {},
+          "hudRevision": 2
+        }
+      ],
+      "videoSummaries": [
+        {
+          "submitted": 1,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576205314,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 265,
+          "liveVideoEpoch": 1,
+          "captureFreshness": "unknown",
+          "receiptAgeLimitMs": 2000
+        },
+        {
+          "submitted": 10,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576216100,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 3057,
+          "liveVideoEpoch": 1,
+          "captureFreshness": "unknown",
+          "receiptAgeLimitMs": 2000
+        },
+        {
+          "submitted": 19,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576226901,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 5851,
+          "liveVideoEpoch": 1,
+          "captureFreshness": "unknown",
+          "receiptAgeLimitMs": 2000
+        },
+        {
+          "submitted": 22,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576230503,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 1447,
+          "liveVideoEpoch": 1,
+          "reason": "demonstration_started"
+        },
+        {
+          "submitted": 1,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576240034,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 2570,
+          "liveVideoEpoch": 4,
+          "captureFreshness": "unknown",
+          "receiptAgeLimitMs": 2000
+        },
+        {
+          "submitted": 1,
+          "dropped": 0,
+          "lastFrameReceivedAt": 1789576240034,
+          "cameraSource": "recorded_video",
+          "sourcePositionMs": 2570,
+          "liveVideoEpoch": 4,
+          "reason": "session_ended"
+        }
+      ],
+      "demoEvents": [
+        {
+          "type": "demo.started",
+          "requestId": "4230c4fe-f5e0-49e3-b3bf-696e20461aae",
+          "assetId": "ac15396a-d2c0-4111-a597-0f04f88433e9",
+          "status": "starting",
+          "startedAt": 1789576231352,
+          "deadlineAt": 1789576254352
+        },
+        {
+          "type": "demo.playback",
+          "requestId": "4230c4fe-f5e0-49e3-b3bf-696e20461aae",
+          "status": "playing"
+        },
+        {
+          "type": "demo.playback",
+          "requestId": "4230c4fe-f5e0-49e3-b3bf-696e20461aae",
+          "status": "ended"
+        },
+        {
+          "type": "demo.finished",
+          "requestId": "4230c4fe-f5e0-49e3-b3bf-696e20461aae",
+          "reason": "ended",
+          "cameraResumeRequired": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "provider": "mock",
+      "sessionId": "a0c2cab0-5eb6-4c40-ae33-d5b497237643",
+      "status": "ended",
+      "generation": 3,
+      "coachText": "Simulated coach connected. Type “show card”, “clear”, or “inspect”. Audio is a test tone.Simulated coach connected. Type “show card”, “clear”, or “inspect”. Audio is a test tone.Simulated coach connected. Type “show card”, “clear”, or “inspect”. Audio is a test tone.",
+      "hudChanges": [
+        {
+          "seq": 9,
+          "hud": {
+            "card": {
+              "title": "CPR PRACTICE",
+              "body": "Prepare the manikin"
+            }
+          },
+          "hudRevision": 1
+        },
+        {
+          "seq": 15,
+          "hud": {
+            "card": {
+              "title": "CPR PRACTICE",
+              "body": "Review your practice"
+            }
+          },
+          "hudRevision": 2,
+          "deferred": true
+        },
+        {
+          "seq": 36,
+          "hud": {},
+          "hudRevision": 3
+        }
+      ],
+      "videoSummaries": [],
+      "demoEvents": [
+        {
+          "type": "demo.started",
+          "requestId": "81afc8e6-c2cb-4808-99b9-02063ef7ab80",
+          "assetId": "bc048402-e042-4ec8-8ef8-17e6878190cd",
+          "status": "starting",
+          "startedAt": 1789576150639,
+          "deadlineAt": 1789576173639
+        },
+        {
+          "type": "demo.playback",
+          "requestId": "81afc8e6-c2cb-4808-99b9-02063ef7ab80",
+          "status": "playing"
+        },
+        {
+          "type": "demo.playback",
+          "requestId": "81afc8e6-c2cb-4808-99b9-02063ef7ab80",
+          "status": "ended"
+        },
+        {
+          "type": "demo.finished",
+          "requestId": "81afc8e6-c2cb-4808-99b9-02063ef7ab80",
+          "reason": "ended",
+          "cameraResumeRequired": true
+        },
+        {
+          "type": "demo.started",
+          "requestId": "59a0501d-a927-4e7c-9e95-8e1c7f3e60f2",
+          "assetId": "bc048402-e042-4ec8-8ef8-17e6878190cd",
+          "status": "starting",
+          "startedAt": 1789576158722,
+          "deadlineAt": 1789576181722
+        },
+        {
+          "type": "demo.playback",
+          "requestId": "59a0501d-a927-4e7c-9e95-8e1c7f3e60f2",
+          "status": "playing"
+        },
+        {
+          "type": "demo.finished",
+          "requestId": "59a0501d-a927-4e7c-9e95-8e1c7f3e60f2",
+          "reason": "stopped",
+          "cameraResumeRequired": true
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "limits": [
+    "No CPR skill assessment or real learner tested.",
+    "Native glasses MP4 decoding, positioning, audio and cancellation remain unverified.",
+    "Browser microphone input and model-selected demonstration tools are not implemented; use typed input and Play demo.",
+    "The coaching progress engine and retrieval remain planned."
+  ]
+}

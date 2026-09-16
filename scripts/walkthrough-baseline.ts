@@ -1,0 +1,73 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createApp } from '../server/src/app.ts';
+
+// Diagnose the existing prototype; known gaps are observations, not passing safety tests.
+const results: { name: string; outcome: 'pass' | 'gap_present' | 'not_observed'; detail: string }[]=[];
+const pass=(name:string,detail:string,verify:()=>void)=>{verify();results.push({name,outcome:'pass',detail});};
+const gap=(name:string,present:boolean,detail:string)=>results.push({name,outcome:present?'gap_present':'not_observed',detail:present?detail:'Previous gap was not observed. Review the changed behavior before claiming support.'});
+const dir=mkdtempSync(join(tmpdir(),'coach-walkthrough-'));
+const app=createApp({dataDir:dir,operatorToken:randomUUID()});
+try {
+  await new Promise<void>(resolve=>app.server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${(app.server.address() as {port:number}).port}/api`;
+  const request=(path:string,body?:unknown)=>fetch(base+path,{method:body===undefined?'GET':'POST',headers:{authorization:'Bearer '+app.operatorToken,'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+  const wait=async(check:()=>boolean)=>{for(let n=0;n<200;n++){if(check())return;await new Promise(resolve=>setTimeout(resolve,20));}throw new Error('Baseline check timed out');};
+  const response=await request('/sessions',{createKey:randomUUID(),config:{provider:'mock',model:'mock-coach',device:'mock'}});
+  assert.equal(response.status,201);
+  const {sessionId:id}=await response.json() as {sessionId:string};
+  const state=()=>app.coordinator.get(id);
+  await wait(()=>state().status==='active');
+  const command=(type:string,payload:unknown={},generation=state().generation)=>request(`/sessions/${id}/commands`,{schemaVersion:1,sessionId:id,generation,messageId:randomUUID(),commandId:randomUUID(),type,payload});
+  const setHud=async(hud:unknown)=>assert.equal((await command('set_hud',{hud})).status,200);
+  const reconnect=async()=>{assert.equal((await request(`/sessions/${id}/reconnect`,{generation:state().generation,requestId:randomUUID()})).status,200);await wait(()=>state().status==='active');};
+  // Inject tool proposals directly into this isolated mock coordinator. No model runs.
+  const propose=(name:string,args:Record<string,unknown>,callId:string)=>
+    (app.coordinator as unknown as {tool:(id:string,call:{id:string;name:string;args:Record<string,unknown>})=>Promise<void>}).tool(id,{id:callId,name,args});
+  const steps=[{id:'setup',text:'Prepare the training manikin',checked:false},{id:'review',text:'Review the training goal',checked:false}];
+  const hud={card:{title:'Training setup',body:'Prepare your practice area.'},checklist:steps};
+  await setHud(hud);
+  pass('checklist_document','HTTP set_hud preserves row IDs and unchecked state.',()=>assert.deepEqual(state().hud.checklist,steps));
+  const completed={...hud,checklist:steps.map((step,index)=>({...step,checked:index===0}))};
+  await setHud(completed);
+  pass('checklist_replacement','A full replacement document can change a row to checked.',()=>assert.equal(state().hud.checklist![0].checked,true));
+  const saved=state().hud;
+  await reconnect();
+  pass('reconnect_preserves_document','Transport reconnect preserves the current HUD.',()=>assert.deepEqual(state().hud,saved));
+  const stale=await command('set_hud',{hud},1);
+  pass('stale_generation_rejected','An old-generation checklist mutation returns 409.',()=>assert.equal(stale.status,409));
+  const generation=state().generation;
+  assert.equal((await command('stop_speech')).status,200);
+  await wait(()=>state().status==='active');
+  gap('stop_is_not_coaching_pause',state().generation===generation+1,'Stop speech replaces the provider connection; it does not pause a lesson.');
+  const pause=await command('pause_coaching');
+  gap('no_pause_command',pause.status===400,'pause_coaching is rejected by command validation.');
+  await propose('set_hud',{card:{title:'Training setup',body:'All practice steps checked.'},checklist:steps.map(step=>({...step,checked:true}))},'baseline-complete-without-observation');
+  gap('no_completion_evidence_gate',state().hud.checklist?.every(step=>step.checked)===true&&state().work.every(work=>work.kind!=='inspect'),'A simulated provider checked every row without inspection, learner confirmation, or a step-order rule.');
+  await setHud({...completed,timer:{durationMs:1000}});
+  await new Promise(resolve=>setTimeout(resolve,2200));
+  gap('timer_expiry_erases_checklist',Object.keys(state().hud).length===0,'Countdown expiry clears the whole HUD, including its card and checklist.');
+  await setHud(completed);
+  assert.equal((await command('clear_hud')).status,200);
+  await reconnect();
+  gap('cleared_checklist_not_restored',Object.keys(state().hud).length===0,'After clear and reconnect, the current checklist is absent; this prototype has no lesson progress separate from presentation.');
+  gap('no_knowledge_endpoint',(await request('/knowledge')).status===404,'GET /api/knowledge returns 404. Source ingestion is deferred.');
+  await propose('retrieve_knowledge',{query:'Training manikin setup'},'baseline-missing-retrieval');
+  gap('no_retrieval_tool',app.store.events(id).some(event=>event.type==='provider.tool_result'&&event.payload.id==='baseline-missing-retrieval'&&(event.payload.result as {status?:string})?.status==='rejected'),'A simulated retrieve_knowledge proposal is rejected.');
+  const mode=await request('/sessions',{createKey:randomUUID(),config:{provider:'mock',model:'mock-coach',device:'mock',mode:'walkthrough',lessonId:'practice'}});
+  gap('no_walkthrough_config',mode.status===400,'mode and lessonId are rejected as unknown session config fields.');
+  const hudVideo=await command('set_hud',{hud:{videoAssetId:randomUUID()}});
+  pass('hud_video_field_rejected','Video playback uses the separate demonstration contract; HUD documents cannot claim video display ownership.',()=>assert.equal(hudVideo.status,400));
+  const exported=await request(`/sessions/${id}/export`);
+  assert.equal(exported.status,200);
+  const evidence=await exported.json() as ReturnType<typeof app.coordinator.export>;
+  pass('export_history','Export retains accepted HUD versions, tool rejections, and explicit unrecorded-video coverage.',()=>{assert.ok(evidence.events.filter(event=>event.type==='hud.accepted').length>=5);assert.equal(evidence.evidenceCoverage.liveVideo,'streamed_not_recorded');assert.equal(evidence.snapshot.hudRevision,state().hudRevision);});
+  const report={runAt:new Date().toISOString(),head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),environment:'Temporary SQLite, ephemeral loopback port, mock provider; no device, external API, or running backend',counts:{passed:results.filter(result=>result.outcome==='pass').length,presentGaps:results.filter(result=>result.outcome==='gap_present').length,previousGapsNotObserved:results.filter(result=>result.outcome==='not_observed').length},results,limits:['No Gemini reasoning, clinical assessment, acoustic output, or physical HUD layout is tested.','Injected provider proposals demonstrate application validation, not observed model behavior.','Exit zero means the diagnostic completed; it does not mean coaching is ready.']};
+  mkdirSync('.tools/walkthrough-baseline',{recursive:true});
+  writeFileSync('.tools/walkthrough-baseline/result.json',JSON.stringify(report,null,2)+'\n');
+  console.log(JSON.stringify(report,null,2));
+} finally {await app.close();rmSync(dir,{recursive:true,force:true});}

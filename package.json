@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test server/test/*.test.ts",
     "start": "tsx server/src/index.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "walkthrough:baseline": "tsx scripts/walkthrough-baseline.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.0",

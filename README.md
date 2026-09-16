@@ -4,6 +4,8 @@ A native Android device bridge, a TypeScript session server, and a browser opera
 
 This is a working integration prototype. No training exercise, rubric, scoring system, or independent evaluator is included yet.
 
+The working glasses build is preserved on `main` and `codex/grounded-live-coaching` at `7d19ac6`. The `codex/coaching-walkthrough` branch adds a [browser glasses simulator](docs/glasses-simulator.md), [repeatable coaching baseline](docs/walkthrough-baseline.md), and [AI-led manikin practice plan](docs/coaching-walkthrough-plan.md). Source ingestion and clinical lesson content are deferred.
+
 ## Run the server and dashboard
 
 Requires Node.js 24 or newer. From this directory:
@@ -28,7 +30,7 @@ The existing `.env` is preserved. On a new checkout, create it using `.env.examp
 | `COACH_DATA_DIR` | Defaults `.runtime`. SQLite, credential and retained media live here. |
 | `TLS_CERT` / `TLS_KEY` | PEM files for remote HTTPS/WSS access. |
 
-Start with **mock** provider and **Browser mock device**, then try `show card`, `timer`, `inspect`, `invalid`, and `delayed card`. Select zone A, zone B, or occlusion for synthetic image capture. The mock audio is a test tone and does not transcribe speech or interpret images. Enable sound with the dashboard button.
+Start with **mock** provider and **Glasses simulator**, then try `show card`, `timer`, `inspect`, `invalid`, and `delayed card`. Select zone A, zone B, or occlusion for synthetic image capture. The mock audio is a test tone and does not transcribe speech or interpret images. Enable sound with the dashboard button. Select **Gemini Live** with the same simulator to stream a local recording as camera input; a separate demo file can temporarily replace its HUD. See [simulator setup and limits](docs/glasses-simulator.md).
 
 The dashboard can export a session or share a session ID and read-only spectator token. Open the spectator on the projector laptop. Spectator credentials cannot operate the device or invoke models. Audience audio is off; captions avoid microphone feedback.
 
@@ -57,7 +59,8 @@ The Android build is configured for local USB testing. Its credential-free setup
 
 | Path | Evidence |
 | --- | --- |
-| Server contracts and provider wire protocols | `npm test`: 71 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads and teardown. |
+| Server contracts and provider wire protocols | `npm test`: 86 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads, demonstration lifecycle, recorded-source attribution and teardown. |
+| Glasses simulator | Browser card/movie/card transitions, deferred HUD changes, repeat and stop, mobile layout, and a real Gemini session with 23 recorded frames and zero drops. [Simulator evidence](docs/simulator-validation.json). |
 | Complete mock pipeline | `npm run smoke`: PCM received, HUD tool accepted, requested frame uploaded, selected image exported, connection replaced, session ended. |
 | Browser UI | Actual desktop/mobile browser runs: start, tools, inspection, timer expiry, clear, stop, reconnect, refresh, read-only spectator, export download and end. The inspection iteration also passed in-place cancellation, retry, and missing-camera timeout checks. |
 | Gemini adapter | Live synthetic image/audio/tool tests, ordinary observer and task handler, native resumption, silent seeded history. See [provider results](docs/provider-validation.md). |
