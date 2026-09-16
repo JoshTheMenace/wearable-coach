@@ -1,0 +1,2804 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "vision_delivery",
+    "mode": "atomic",
+    "setup": {
+      "setupComplete": {}
+    },
+    "turns": [
+      {
+        "frame": "left",
+        "transcript": "Zone A contains the blue strap.",
+        "statuses": [],
+        "audio_bytes": 115202,
+        "turn_completes": 1,
+        "first_audio_ms": 675,
+        "elapsed_ms": 3130
+      },
+      {
+        "frame": "center",
+        "transcript": "Zone B contains the blue strap.",
+        "statuses": [],
+        "audio_bytes": 130560,
+        "turn_completes": 1,
+        "first_audio_ms": 717,
+        "elapsed_ms": 3447
+      },
+      {
+        "frame": "occluded",
+        "transcript": "I cannot determine the current zone of the blue strap.",
+        "statuses": [],
+        "audio_bytes": 147360,
+        "turn_completes": 1,
+        "first_audio_ms": 869,
+        "elapsed_ms": 3959
+      }
+    ],
+    "events": [
+      {
+        "ms": 261,
+        "setupComplete": {}
+      },
+      {
+        "ms": 280,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 936
+      },
+      {
+        "ms": 937
+      },
+      {
+        "ms": 937,
+        "serverContent": {}
+      },
+      {
+        "ms": 937,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "Zone A contains "
+          }
+        }
+      },
+      {
+        "ms": 971
+      },
+      {
+        "ms": 977,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1000
+      },
+      {
+        "ms": 1006,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1089
+      },
+      {
+        "ms": 1101,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1118
+      },
+      {
+        "ms": 1123,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1211
+      },
+      {
+        "ms": 1221,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "the blue strap."
+          }
+        }
+      },
+      {
+        "ms": 1265
+      },
+      {
+        "ms": 1277,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1353
+      },
+      {
+        "ms": 1364,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1472
+      },
+      {
+        "ms": 1492,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1501
+      },
+      {
+        "ms": 1507,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1532,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 3391,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 882,
+          "responseTokenCount": 66,
+          "totalTokenCount": 948,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 377
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 66
+            }
+          ],
+          "thoughtsTokenCount": 61
+        }
+      },
+      {
+        "ms": 4096
+      },
+      {
+        "ms": 4096
+      },
+      {
+        "ms": 4097
+      },
+      {
+        "ms": 4101,
+        "serverContent": {}
+      },
+      {
+        "ms": 4109,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "Zone B contains "
+          }
+        }
+      },
+      {
+        "ms": 4112,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4162
+      },
+      {
+        "ms": 4164,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4183
+      },
+      {
+        "ms": 4188,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4243
+      },
+      {
+        "ms": 4248,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4318
+      },
+      {
+        "ms": 4329,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "the blue strap."
+          }
+        }
+      },
+      {
+        "ms": 4393
+      },
+      {
+        "ms": 4398,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4510
+      },
+      {
+        "ms": 4520,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4596
+      },
+      {
+        "ms": 4604,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4655
+      },
+      {
+        "ms": 4665,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4686,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 6839,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 1276,
+          "responseTokenCount": 68,
+          "totalTokenCount": 1344,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 418
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 271
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 546
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 68
+            }
+          ],
+          "thoughtsTokenCount": 56
+        }
+      },
+      {
+        "ms": 7707
+      },
+      {
+        "ms": 7709,
+        "serverContent": {}
+      },
+      {
+        "ms": 7709
+      },
+      {
+        "ms": 7709,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 5280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "I cannot determine the current "
+          }
+        }
+      },
+      {
+        "ms": 7739
+      },
+      {
+        "ms": 7744,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7797
+      },
+      {
+        "ms": 7838,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7838
+      },
+      {
+        "ms": 7840,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7855
+      },
+      {
+        "ms": 7875,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 1920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8019
+      },
+      {
+        "ms": 8036,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 30720,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "zone of the blue"
+          }
+        }
+      },
+      {
+        "ms": 8091
+      },
+      {
+        "ms": 8099,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8284
+      },
+      {
+        "ms": 8298,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 30720,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " strap."
+          }
+        }
+      },
+      {
+        "ms": 8328
+      },
+      {
+        "ms": 8336,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8417
+      },
+      {
+        "ms": 8426,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8447,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 10799,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 1672,
+          "responseTokenCount": 83,
+          "totalTokenCount": 1755,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 459
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 339
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 819
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 83
+            }
+          ],
+          "thoughtsTokenCount": 62
+        }
+      },
+      {
+        "ms": 10850,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "vision_delivery",
+    "mode": "atomic",
+    "setup": {
+      "setupComplete": {}
+    },
+    "turns": [
+      {
+        "frame": "left",
+        "transcript": "The blue strap is located in zone A.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 117600,
+        "turn_completes": 1,
+        "first_audio_ms": 1390,
+        "elapsed_ms": 3758
+      },
+      {
+        "frame": "center",
+        "transcript": "The blue strap is located in zone B.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 112320,
+        "turn_completes": 1,
+        "first_audio_ms": 1303,
+        "elapsed_ms": 3549
+      },
+      {
+        "frame": "occluded",
+        "transcript": "I cannot determine the current zone of the blue strap.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 138242,
+        "turn_completes": 1,
+        "first_audio_ms": 1493,
+        "elapsed_ms": 4352
+      }
+    ],
+    "events": [
+      {
+        "ms": 201,
+        "setupComplete": {}
+      },
+      {
+        "ms": 220,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 1374
+      },
+      {
+        "ms": 1376,
+        "serverContent": {}
+      },
+      {
+        "ms": 1586
+      },
+      {
+        "ms": 1592,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 10080,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 1696
+      },
+      {
+        "ms": 1703,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1897
+      },
+      {
+        "ms": 1912,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 2338
+      },
+      {
+        "ms": 2351,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 28800,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "located in zone A."
+          }
+        }
+      },
+      {
+        "ms": 2937
+      },
+      {
+        "ms": 2943,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3255
+      },
+      {
+        "ms": 3267,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3576
+      },
+      {
+        "ms": 3586,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3942,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 3959,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 4112,
+          "responseTokenCount": 62,
+          "totalTokenCount": 4174,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2685
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 222
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 1092
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 62
+            }
+          ],
+          "thoughtsTokenCount": 89
+        }
+      },
+      {
+        "ms": 5068
+      },
+      {
+        "ms": 5071,
+        "serverContent": {}
+      },
+      {
+        "ms": 5260
+      },
+      {
+        "ms": 5263,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 6720,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 5307
+      },
+      {
+        "ms": 5312,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5466
+      },
+      {
+        "ms": 5471,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5703
+      },
+      {
+        "ms": 5710,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6060
+      },
+      {
+        "ms": 6069,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "located in zone B."
+          }
+        }
+      },
+      {
+        "ms": 6461
+      },
+      {
+        "ms": 6464,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6700
+      },
+      {
+        "ms": 6711,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7180
+      },
+      {
+        "ms": 7198,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7501,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 7509,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 5323,
+          "responseTokenCount": 59,
+          "totalTokenCount": 5382,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2728
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 284
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 2184
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 59
+            }
+          ],
+          "thoughtsTokenCount": 61
+        }
+      },
+      {
+        "ms": 8826
+      },
+      {
+        "ms": 8837,
+        "serverContent": {}
+      },
+      {
+        "ms": 9002
+      },
+      {
+        "ms": 9002,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "I cannot determine the current "
+          }
+        }
+      },
+      {
+        "ms": 9071
+      },
+      {
+        "ms": 9077,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9291
+      },
+      {
+        "ms": 9302,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9651
+      },
+      {
+        "ms": 9653,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 3840,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9731
+      },
+      {
+        "ms": 9741,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "zone of the blue"
+          }
+        }
+      },
+      {
+        "ms": 10211
+      },
+      {
+        "ms": 10219,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 10576
+      },
+      {
+        "ms": 10600,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 26880,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " strap."
+          }
+        }
+      },
+      {
+        "ms": 11133
+      },
+      {
+        "ms": 11142,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 11452
+      },
+      {
+        "ms": 11459,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 11770
+      },
+      {
+        "ms": 11773,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 3840,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 11852,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 11861,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 6531,
+          "responseTokenCount": 78,
+          "totalTokenCount": 6609,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2771
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 343
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 3276
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 78
+            }
+          ],
+          "thoughtsTokenCount": 93
+        }
+      },
+      {
+        "ms": 11897,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live",
+    "kind": "vision_delivery",
+    "mode": "realtime",
+    "setup": {
+      "setupComplete": {}
+    },
+    "turns": [
+      {
+        "frame": "left",
+        "transcript": "The blue strap is located in zone A.",
+        "statuses": [],
+        "audio_bytes": 134402,
+        "turn_completes": 1,
+        "first_audio_ms": 607,
+        "elapsed_ms": 3485
+      },
+      {
+        "frame": "center",
+        "transcript": "The blue strap is now located in zone B.",
+        "statuses": [],
+        "audio_bytes": 151680,
+        "turn_completes": 1,
+        "first_audio_ms": 768,
+        "elapsed_ms": 4026
+      },
+      {
+        "frame": "occluded",
+        "transcript": "I cannot determine the current zone of the blue strap as it is not visible.",
+        "statuses": [],
+        "audio_bytes": 193922,
+        "turn_completes": 1,
+        "first_audio_ms": 712,
+        "elapsed_ms": 4772
+      }
+    ],
+    "events": [
+      {
+        "ms": 209,
+        "setupComplete": {}
+      },
+      {
+        "ms": 224,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 3018
+      },
+      {
+        "ms": 3020
+      },
+      {
+        "ms": 3020,
+        "serverContent": {}
+      },
+      {
+        "ms": 3020,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 3077
+      },
+      {
+        "ms": 3087,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3143
+      },
+      {
+        "ms": 3151,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3173
+      },
+      {
+        "ms": 3180,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3312
+      },
+      {
+        "ms": 3326,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "located in zone A."
+          }
+        }
+      },
+      {
+        "ms": 3372
+      },
+      {
+        "ms": 3379,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3461
+      },
+      {
+        "ms": 3469,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3525
+      },
+      {
+        "ms": 3533,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3610
+      },
+      {
+        "ms": 3615,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3699
+      },
+      {
+        "ms": 3707,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3726,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 5898,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 958,
+          "responseTokenCount": 76,
+          "totalTokenCount": 1034,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 429
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 76
+            }
+          ],
+          "thoughtsTokenCount": 73
+        }
+      },
+      {
+        "ms": 8722
+      },
+      {
+        "ms": 8723,
+        "serverContent": {}
+      },
+      {
+        "ms": 8866
+      },
+      {
+        "ms": 8871,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 5760,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 8910
+      },
+      {
+        "ms": 8917,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8943
+      },
+      {
+        "ms": 8950,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8997
+      },
+      {
+        "ms": 9000
+      },
+      {
+        "ms": 9002,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9002,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 3840,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9101
+      },
+      {
+        "ms": 9110,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "now located in zone"
+          }
+        }
+      },
+      {
+        "ms": 9202
+      },
+      {
+        "ms": 9213,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9292
+      },
+      {
+        "ms": 9301,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9395
+      },
+      {
+        "ms": 9405,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " B."
+          }
+        }
+      },
+      {
+        "ms": 9497
+      },
+      {
+        "ms": 9506,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9585
+      },
+      {
+        "ms": 9585
+      },
+      {
+        "ms": 9594,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9594,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 1920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9624,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 12129,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 1168,
+          "responseTokenCount": 84,
+          "totalTokenCount": 1252,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 472
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 281
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 333
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 84
+            }
+          ],
+          "thoughtsTokenCount": 75
+        }
+      },
+      {
+        "ms": 15043
+      },
+      {
+        "ms": 15044
+      },
+      {
+        "ms": 15044
+      },
+      {
+        "ms": 15045,
+        "serverContent": {}
+      },
+      {
+        "ms": 15045,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "I cannot determine the "
+          }
+        }
+      },
+      {
+        "ms": 15045,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 5760,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15113
+      },
+      {
+        "ms": 15116,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15134
+      },
+      {
+        "ms": 15168,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15222
+      },
+      {
+        "ms": 15258,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15326
+      },
+      {
+        "ms": 15336,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "current zone of the"
+          }
+        }
+      },
+      {
+        "ms": 15397
+      },
+      {
+        "ms": 15407,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15456
+      },
+      {
+        "ms": 15460,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15641
+      },
+      {
+        "ms": 15641
+      },
+      {
+        "ms": 15649,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " blue strap as it is"
+          }
+        }
+      },
+      {
+        "ms": 15653,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15722
+      },
+      {
+        "ms": 15730,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15849
+      },
+      {
+        "ms": 15857,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " not visible."
+          }
+        }
+      },
+      {
+        "ms": 15928
+      },
+      {
+        "ms": 15934,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 16018
+      },
+      {
+        "ms": 16025,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 16048,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 19105,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 1603,
+          "responseTokenCount": 107,
+          "totalTokenCount": 1710,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 516
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 365
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 606
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 107
+            }
+          ],
+          "thoughtsTokenCount": 71
+        }
+      },
+      {
+        "ms": 19148,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "vision_delivery",
+    "mode": "realtime",
+    "setup": {
+      "setupComplete": {}
+    },
+    "turns": [
+      {
+        "frame": "left",
+        "transcript": "The blue strap is in zone A.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 108482,
+        "turn_completes": 1,
+        "first_audio_ms": 570,
+        "elapsed_ms": 2774
+      },
+      {
+        "frame": "center",
+        "transcript": "The blue strap is in zone B.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 102722,
+        "turn_completes": 1,
+        "first_audio_ms": 738,
+        "elapsed_ms": 2778
+      },
+      {
+        "frame": "occluded",
+        "transcript": "I cannot determine the current zone of the blue strap.",
+        "statuses": [
+          "IDLE"
+        ],
+        "audio_bytes": 134402,
+        "turn_completes": 1,
+        "first_audio_ms": 705,
+        "elapsed_ms": 3399
+      }
+    ],
+    "events": [
+      {
+        "ms": 229,
+        "setupComplete": {}
+      },
+      {
+        "ms": 258,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 3001
+      },
+      {
+        "ms": 3001
+      },
+      {
+        "ms": 3003,
+        "serverContent": {}
+      },
+      {
+        "ms": 3003,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 3036
+      },
+      {
+        "ms": 3044,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 10560,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3158
+      },
+      {
+        "ms": 3166,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3398
+      },
+      {
+        "ms": 3402,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 3598
+      },
+      {
+        "ms": 3613,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "in zone A."
+          }
+        }
+      },
+      {
+        "ms": 3995
+      },
+      {
+        "ms": 4003,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4156
+      },
+      {
+        "ms": 4168,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4516
+      },
+      {
+        "ms": 4527,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4836
+      },
+      {
+        "ms": 4847,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5205,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 5207,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3369,
+          "responseTokenCount": 62,
+          "totalTokenCount": 3431,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2737
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 222
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 62
+            }
+          ],
+          "thoughtsTokenCount": 63
+        }
+      },
+      {
+        "ms": 8146
+      },
+      {
+        "ms": 8146
+      },
+      {
+        "ms": 8147
+      },
+      {
+        "ms": 8149,
+        "serverContent": {}
+      },
+      {
+        "ms": 8149,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The blue strap is "
+          }
+        }
+      },
+      {
+        "ms": 8154,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 6720,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8185
+      },
+      {
+        "ms": 8192,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8385
+      },
+      {
+        "ms": 8397,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8705
+      },
+      {
+        "ms": 8710,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8864
+      },
+      {
+        "ms": 8872,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9024
+      },
+      {
+        "ms": 9034,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "in zone B."
+          }
+        }
+      },
+      {
+        "ms": 9264
+      },
+      {
+        "ms": 9269,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9425
+      },
+      {
+        "ms": 9432,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9707
+      },
+      {
+        "ms": 9711,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9865
+      },
+      {
+        "ms": 9876,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 10186,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 10188,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3566,
+          "responseTokenCount": 58,
+          "totalTokenCount": 3624,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2779
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 284
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 333
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 58
+            }
+          ],
+          "thoughtsTokenCount": 53
+        }
+      },
+      {
+        "ms": 13097
+      },
+      {
+        "ms": 13097
+      },
+      {
+        "ms": 13097
+      },
+      {
+        "ms": 13097,
+        "serverContent": {}
+      },
+      {
+        "ms": 13097,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "I cannot determine the "
+          }
+        }
+      },
+      {
+        "ms": 13099,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 5760,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 13105
+      },
+      {
+        "ms": 13113,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 13348
+      },
+      {
+        "ms": 13352,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 13546
+      },
+      {
+        "ms": 13552,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 13745
+      },
+      {
+        "ms": 13758,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "current zone of the"
+          }
+        }
+      },
+      {
+        "ms": 14186
+      },
+      {
+        "ms": 14195,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 14505
+      },
+      {
+        "ms": 14524,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 28800,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " blue strap."
+          }
+        }
+      },
+      {
+        "ms": 15106
+      },
+      {
+        "ms": 15116,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15466
+      },
+      {
+        "ms": 15474,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 15787,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 15791,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3969,
+          "responseTokenCount": 76,
+          "totalTokenCount": 4045,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2821
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 342
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 606
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 76
+            }
+          ],
+          "thoughtsTokenCount": 69
+        }
+      }
+    ]
+  }
+]

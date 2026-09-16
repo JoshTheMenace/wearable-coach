@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.runtime/
+.tools/
+output/
+*.log
+.DS_Store
+android/.gradle/
+android/**/build/
+android/local.properties
+*.jks
+*.keystore
+
+.playwright-cli/

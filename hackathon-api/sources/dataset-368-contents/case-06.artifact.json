@@ -1,0 +1,914 @@
+{
+  "schemaVersion": "1.0",
+  "artifactId": "ART-THR-CASE-06",
+  "sessionId": "SES-THR-CASE-06",
+  "sourceSystem": "threshold",
+  "sourceVersion": "0.0.0-synthetic",
+  "synthetic": true,
+  "exerciseTemplateVersionId": "TPL-DEMO-THEATER-WATCH-v1",
+  "participants": [
+    {
+      "id": "P-01",
+      "displayLabel": "Trainee A (synthetic)"
+    },
+    {
+      "id": "P-02",
+      "displayLabel": "Trainee B (synthetic)"
+    },
+    {
+      "id": "P-03",
+      "displayLabel": "Facilitator (synthetic)"
+    }
+  ],
+  "roleAssignments": [
+    {
+      "participantId": "P-01",
+      "role": "intel_west",
+      "fromSimMs": 0,
+      "toSimMs": null
+    },
+    {
+      "participantId": "P-02",
+      "role": "operations",
+      "fromSimMs": 0,
+      "toSimMs": 1000000
+    },
+    {
+      "participantId": "P-03",
+      "role": "facilitator",
+      "fromSimMs": 0,
+      "toSimMs": null
+    },
+    {
+      "participantId": "P-01",
+      "role": "operations",
+      "fromSimMs": 1000000,
+      "toSimMs": null
+    }
+  ],
+  "coverage": {
+    "categories": [
+      "collection_requests",
+      "assessments",
+      "taskings",
+      "outcomes",
+      "facilitator_notes",
+      "learner_reflection"
+    ],
+    "startedAtSimMs": 0,
+    "endedAtSimMs": 1680000,
+    "gaps": [
+      "Voice and chat traffic between participants was not captured.",
+      "Pre-exercise brief content is not included; learner references to 'the brief' cannot be resolved.",
+      "Facilitator notes carry impressions, not timed observations, except where an interval is given.",
+      "Synthetic variation: role transition conversation was not captured."
+    ],
+    "status": "partial"
+  },
+  "items": [
+    {
+      "id": "EV-001",
+      "kind": "game_event",
+      "eventType": "exercise_start",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 0,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:00:00Z",
+      "text": "Exercise START. Roles assigned; initial theater picture published.",
+      "payload": {
+        "phase": "start"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-001",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations",
+          "facilitator"
+        ],
+        "availableFromSimMs": 0,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-002",
+      "kind": "game_event",
+      "eventType": "report_received",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 190000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:03:00Z",
+      "text": "Contact CON-3 reported: possible mobile launcher, grid vicinity ALPHA. Single source, low confidence.",
+      "payload": {
+        "contactId": "CON-3",
+        "sourceQuality": "low",
+        "reportedGrid": "ALPHA"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-002",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 190000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-003",
+      "kind": "game_event",
+      "eventType": "collection_request_created",
+      "actorId": "P-01",
+      "actorRole": "intel_west",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 250000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:04:00Z",
+      "text": "Created collection request CR-17: confirm CON-3 launcher location.",
+      "payload": {
+        "requestId": "CR-17",
+        "contactId": "CON-3",
+        "status": "open",
+        "expectedReturnSimMs": 900000
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-003",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-002"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 250000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-004",
+      "kind": "game_event",
+      "eventType": "report_received",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 380000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:06:00Z",
+      "text": "Second source places CON-3 approximately 12 km east of the ALPHA report. Conflicts with EV-002.",
+      "payload": {
+        "contactId": "CON-3",
+        "sourceQuality": "medium",
+        "reportedGrid": "BRAVO",
+        "generatedAtSimMs": 380000,
+        "deliveryDelayMs": 30000,
+        "conflictsWith": "EV-002"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-004",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-002"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 410000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-005",
+      "kind": "game_event",
+      "eventType": "assessment_committed",
+      "actorId": "P-01",
+      "actorRole": "intel_west",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 612000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:10:00Z",
+      "text": "Assessed CON-3 as confirmed hostile launcher at grid ALPHA. Confidence stated as high.",
+      "payload": {
+        "contactId": "CON-3",
+        "assessedIdentity": "hostile_launcher",
+        "statedConfidence": "high",
+        "openRequestIds": [
+          "CR-17"
+        ],
+        "unresolvedConflictIds": [
+          "EV-004"
+        ],
+        "citedEvidenceIds": [
+          "EV-002"
+        ]
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-005",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-002",
+        "EV-003",
+        "EV-004"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 612000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-006",
+      "kind": "game_event",
+      "eventType": "assessment_published",
+      "actorId": "P-01",
+      "actorRole": "intel_west",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 618000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:10:00Z",
+      "text": "Assessment published to Operations. Published summary did not include the open request or the conflicting report.",
+      "payload": {
+        "contactId": "CON-3",
+        "includedCaveats": false,
+        "omittedIds": [
+          "CR-17",
+          "EV-004"
+        ]
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-006",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-005"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 618000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-007",
+      "kind": "game_event",
+      "eventType": "tasking_committed",
+      "actorId": "P-02",
+      "actorRole": "operations",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3",
+        "TSK-04"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 735000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:12:00Z",
+      "text": "Committed strike tasking TSK-04 against CON-3 at grid ALPHA.",
+      "payload": {
+        "taskingId": "TSK-04",
+        "contactId": "CON-3",
+        "basisEvidenceIds": [
+          "EV-006"
+        ],
+        "assetCommitted": "STRIKE-1",
+        "reversible": false
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-007",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-006"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 735000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-008",
+      "kind": "game_event",
+      "eventType": "collection_request_returned",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [
+        "CON-3",
+        "CR-17"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 900000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:15:00Z",
+      "text": "CR-17 returned: CON-3 located at grid BRAVO, 12 km from the ALPHA report. Confidence medium-high.",
+      "payload": {
+        "requestId": "CR-17",
+        "contactId": "CON-3",
+        "status": "returned",
+        "resultGrid": "BRAVO",
+        "supportsEvidenceIds": [
+          "EV-004"
+        ],
+        "contradictsEvidenceIds": [
+          "EV-002",
+          "EV-005"
+        ]
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-008",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-003",
+        "EV-004",
+        "EV-005"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 900000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-009",
+      "kind": "game_event",
+      "eventType": "assessment_revised",
+      "actorId": "P-01",
+      "actorRole": "intel_west",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1020000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:17:00Z",
+      "text": "Revised CON-3 assessment to grid BRAVO; confidence lowered to moderate.",
+      "payload": {
+        "contactId": "CON-3",
+        "assessedIdentity": "hostile_launcher",
+        "assessedGrid": "BRAVO",
+        "statedConfidence": "moderate",
+        "previousItemId": "EV-005",
+        "citedEvidenceIds": [
+          "EV-008"
+        ]
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-009",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-005",
+        "EV-008"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 1020000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-010",
+      "kind": "game_event",
+      "eventType": "actor_idle_interval",
+      "actorId": "P-02",
+      "actorRole": "operations",
+      "actorKind": "learner",
+      "subjectIds": [],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1050000,
+        "endSimMs": 1150000,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:17:00Z",
+      "text": "No recorded action by Operations between 17:30 and 19:10.",
+      "payload": {
+        "intervalMs": 100000,
+        "precedingItemId": "EV-009",
+        "followingItemId": "EV-011",
+        "detector": "idle_gap"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-010",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 1050000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-011",
+      "kind": "game_event",
+      "eventType": "tasking_amended",
+      "actorId": "P-02",
+      "actorRole": "operations",
+      "actorKind": "learner",
+      "subjectIds": [
+        "TSK-04"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1150000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:19:00Z",
+      "text": "Amended TSK-04 to hold pending re-identification.",
+      "payload": {
+        "taskingId": "TSK-04",
+        "newStatus": "hold",
+        "reasonGiven": null
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-011",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-007",
+        "EV-009"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 1150000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-012",
+      "kind": "game_event",
+      "eventType": "tasking_declined",
+      "actorId": "P-02",
+      "actorRole": "operations",
+      "actorKind": "learner",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1290000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:21:00Z",
+      "text": "Declined to commit STRIKE-2 against CON-3; recorded reason: identification not confirmed at grid BRAVO.",
+      "payload": {
+        "contactId": "CON-3",
+        "assetWithheld": "STRIKE-2",
+        "reasonGiven": "identification_unconfirmed",
+        "openRequestIds": [
+          "CR-22"
+        ]
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-012",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-009"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 1290000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-013",
+      "kind": "game_event",
+      "eventType": "outcome_resolved",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [
+        "CON-3",
+        "TSK-04"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1470000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:24:00Z",
+      "text": "TSK-04 struck an unoccupied revetment at grid ALPHA. CON-3 displaced before STRIKE-2 could be retasked.",
+      "payload": {
+        "taskingId": "TSK-04",
+        "effect": "no_target_present",
+        "tempoPenaltyApplied": true
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-013",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-007",
+        "EV-012"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations"
+        ],
+        "availableFromSimMs": 1470000,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-014",
+      "kind": "game_event",
+      "eventType": "ground_truth_revealed",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "automation",
+      "subjectIds": [
+        "CON-3"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1680000,
+        "endSimMs": null,
+        "precision": "exact"
+      },
+      "recordedAtUtc": "2026-09-12T14:28:00Z",
+      "text": "Scenario ground truth: CON-3 at grid ALPHA was a decoy. The live launcher was at grid BRAVO throughout.",
+      "payload": {
+        "contactId": "CON-3",
+        "truth": "decoy_at_ALPHA",
+        "liveAtGrid": "BRAVO"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-014",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-002",
+        "EV-008"
+      ],
+      "epistemicStatus": "recorded_action",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": true
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-015",
+      "kind": "facilitator_note",
+      "eventType": "observation",
+      "actorId": "P-03",
+      "actorRole": "facilitator",
+      "actorKind": "instructor",
+      "subjectIds": [
+        "P-01"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T14:00:00Z",
+      "text": "Intel West seemed to settle on the ALPHA location early and did not revisit it until the request came back.",
+      "payload": {
+        "confidence": "impression"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-015",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-005"
+      ],
+      "epistemicStatus": "observation",
+      "visibility": {
+        "availableToRoles": [
+          "facilitator"
+        ],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-016",
+      "kind": "facilitator_note",
+      "eventType": "observation",
+      "actorId": "P-03",
+      "actorRole": "facilitator",
+      "actorKind": "instructor",
+      "subjectIds": [
+        "P-02"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": 1050000,
+        "endSimMs": 1150000,
+        "precision": "approximate"
+      },
+      "recordedAtUtc": "2026-09-12T14:17:00Z",
+      "text": "Operations went quiet for a stretch in the back half. Did not see what they were doing.",
+      "payload": {
+        "confidence": "impression"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-016",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-010"
+      ],
+      "epistemicStatus": "observation",
+      "visibility": {
+        "availableToRoles": [
+          "facilitator"
+        ],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "EV-017",
+      "kind": "learner_reflection",
+      "eventType": "post_exercise_written",
+      "actorId": "P-01",
+      "actorRole": "intel_west",
+      "actorKind": "learner",
+      "subjectIds": [],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T14:00:00Z",
+      "text": "I thought the first report was good enough to act on because the grid matched what we expected from the brief. When the request came back I realized I had already told Operations it was confirmed.",
+      "payload": {
+        "prompt": "What would you do differently?"
+      },
+      "source": {
+        "artifactId": "ART-THR-CASE-06",
+        "itemId": "EV-017",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "EV-005",
+        "EV-006"
+      ],
+      "epistemicStatus": "self_report",
+      "visibility": {
+        "availableToRoles": [
+          "intel_west",
+          "operations",
+          "facilitator"
+        ],
+        "availableFromSimMs": null,
+        "revealedAfterward": true
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    }
+  ],
+  "syntheticNotice": "SYNTHETIC — NOT AN ACTUAL TRAINEE EVALUATION",
+  "syntheticCaseId": "CASE-06"
+}

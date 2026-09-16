@@ -1,0 +1,70 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "text_output",
+    "ready": {
+      "setupComplete": {}
+    },
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "error": "The requested combination of response modalities (TEXT) is not supported by the model. models/gemini_api_beyond_live_rev25_",
+      "elapsed_ms": 398
+    },
+    "events": [
+      {
+        "ms": 447,
+        "setupComplete": {}
+      },
+      {
+        "ms": 460,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 845,
+        "closed": true,
+        "code": 1007,
+        "reason": "The requested combination of response modalities (TEXT) is not supported by the model. models/gemini_api_beyond_live_rev25_"
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "text_output",
+    "ready": {
+      "setupComplete": {}
+    },
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "error": "The requested combination of response modalities (AUDIO, TEXT) is not supported by the model. models/gemini_api_beyond_live",
+      "elapsed_ms": 130
+    },
+    "events": [
+      {
+        "ms": 216,
+        "setupComplete": {}
+      },
+      {
+        "ms": 238,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 347,
+        "closed": true,
+        "code": 1007,
+        "reason": "The requested combination of response modalities (AUDIO, TEXT) is not supported by the model. models/gemini_api_beyond_live"
+      }
+    ]
+  }
+]

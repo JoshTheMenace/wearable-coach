@@ -1,0 +1,519 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audio_delivery",
+    "mode": "manual",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 690,
+    "input_end_ms": 5521,
+    "result": {
+      "transcript": "The letter above the blue rectangle is B.",
+      "statuses": [],
+      "audio_bytes": 132482,
+      "turn_completes": 1,
+      "input_transcript": "Look at the board. Tell me the letter above the blue rectangle.",
+      "first_audio_ms": 988,
+      "elapsed_ms": 3761
+    },
+    "events": [
+      {
+        "ms": 386,
+        "setupComplete": {}
+      },
+      {
+        "ms": 406,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 5775,
+        "serverContent": {
+          "inputTranscription": {
+            "text": "Look at the board. Tell me the letter above the blue rectangle."
+          }
+        }
+      },
+      {
+        "ms": 6509
+      },
+      {
+        "ms": 6511
+      },
+      {
+        "ms": 6511
+      },
+      {
+        "ms": 6513,
+        "serverContent": {}
+      },
+      {
+        "ms": 6516,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The letter above "
+          }
+        }
+      },
+      {
+        "ms": 6521,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6564
+      },
+      {
+        "ms": 6599,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6603
+      },
+      {
+        "ms": 6630,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6645
+      },
+      {
+        "ms": 6649,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 3840,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6800
+      },
+      {
+        "ms": 6806,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "the blue rectangle"
+          }
+        }
+      },
+      {
+        "ms": 6890
+      },
+      {
+        "ms": 6906,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 24960,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7220
+      },
+      {
+        "ms": 7234,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 32640,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " is B."
+          }
+        }
+      },
+      {
+        "ms": 7259
+      },
+      {
+        "ms": 7268,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7345
+      },
+      {
+        "ms": 7350,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7354,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 9287,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 1083,
+          "responseTokenCount": 76,
+          "totalTokenCount": 1159,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 439
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 316
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 76
+            }
+          ],
+          "thoughtsTokenCount": 67
+        }
+      },
+      {
+        "ms": 9338,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audio_delivery",
+    "mode": "manual",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 642,
+    "input_end_ms": 5445,
+    "result": {
+      "transcript": "The letter above the blue rectangle is B.",
+      "statuses": [
+        "IDLE"
+      ],
+      "audio_bytes": 125282,
+      "turn_completes": 1,
+      "input_transcript": "Look at the board. Tell me the letter above the blue rectangle.",
+      "first_audio_ms": 1008,
+      "elapsed_ms": 3533
+    },
+    "events": [
+      {
+        "ms": 337,
+        "setupComplete": {}
+      },
+      {
+        "ms": 356,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 5721,
+        "serverContent": {
+          "inputTranscription": {
+            "text": "Look at the board. Tell me the letter above the blue rectangle."
+          }
+        }
+      },
+      {
+        "ms": 6450
+      },
+      {
+        "ms": 6450
+      },
+      {
+        "ms": 6451,
+        "serverContent": {}
+      },
+      {
+        "ms": 6455,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The letter above "
+          }
+        }
+      },
+      {
+        "ms": 6455
+      },
+      {
+        "ms": 6456,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2400,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6487
+      },
+      {
+        "ms": 6495,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6576
+      },
+      {
+        "ms": 6623,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6805
+      },
+      {
+        "ms": 6817,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6997
+      },
+      {
+        "ms": 7014,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "the blue rectangle"
+          }
+        }
+      },
+      {
+        "ms": 7436
+      },
+      {
+        "ms": 7452,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7761
+      },
+      {
+        "ms": 7776,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 30720,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " is B."
+          }
+        }
+      },
+      {
+        "ms": 8450
+      },
+      {
+        "ms": 8457,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8869
+      },
+      {
+        "ms": 8878,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 5760,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8965,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 8980,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3495,
+          "responseTokenCount": 74,
+          "totalTokenCount": 3569,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2747
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 333
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 74
+            }
+          ],
+          "thoughtsTokenCount": 72
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "label": "standard-thinking-low",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "Thinking level is not supported for this model."
+    }
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "label": "extended-thinking-minimal",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "Thinking level MINIMAL is not supported for this model. Please retry with other thinking level."
+    }
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "label": "extended-blocking-tool",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "BLOCKING function calls are not supported for this model."
+    }
+  },
+  {
+    "model": "gemini-3.8-live",
+    "label": "standard-proactivity-false",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "Explicitly disabling proactive audio is not supported for this model."
+    }
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "label": "extended-proactivity-false",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "Explicitly disabling proactive audio is not supported for this model."
+    }
+  },
+  {
+    "model": "gemini-3.8-live",
+    "label": "standard-text-only",
+    "ready": {
+      "setupComplete": {}
+    }
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "label": "extended-text-only",
+    "ready": {
+      "closed": true,
+      "code": 1007,
+      "reason": "Thinking level must be specified for this model."
+    }
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-16T03:35:38.590Z",
+  "model": "gemini-3.8-live",
+  "hardware": "synthetic fixture, no physical glasses",
+  "connected": true,
+  "imageAnswer": "The letter above the blue rectangle is B. What would you like to practice?",
+  "imageAudioBytes": 197282,
+  "correctVisualAnswer": true,
+  "audioInputBytes": 124332,
+  "audioReply": [
+    {
+      "speaker": "user",
+      "text": "Look at the board. Tell me the letter above the blue rectangle."
+    },
+    {
+      "speaker": "assistant",
+      "text": "The letter above the "
+    },
+    {
+      "speaker": "assistant",
+      "text": "blue rectangle is"
+    },
+    {
+      "speaker": "assistant",
+      "text": " B. What would you like"
+    },
+    {
+      "speaker": "assistant",
+      "text": " to practice?"
+    }
+  ],
+  "hud": {
+    "card": {
+      "title": "Setup",
+      "body": "Inspect the blue block."
+    }
+  },
+  "totalOutputAudioBytes": 390244,
+  "errors": [],
+  "ended": true
+}

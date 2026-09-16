@@ -1,0 +1,307 @@
+{
+  "schemaVersion": "1.0",
+  "artifactId": "ART-TTX-0001",
+  "sessionId": "SES-TTX-2026-09-12-01",
+  "sourceSystem": "manual_upload",
+  "sourceVersion": "tabletop-adapter-0.1",
+  "synthetic": true,
+  "exerciseTemplateVersionId": "TPL-DEMO-TABLETOP-v1",
+  "participants": [
+    {
+      "id": "TTX-P-02",
+      "displayLabel": "Participant 2 (synthetic)"
+    },
+    {
+      "id": "F-01",
+      "displayLabel": "Facilitator (synthetic)"
+    }
+  ],
+  "roleAssignments": [
+    {
+      "participantId": "TTX-P-02",
+      "role": "blue_cell",
+      "fromSimMs": 0,
+      "toSimMs": null
+    },
+    {
+      "participantId": "F-01",
+      "role": "facilitator",
+      "fromSimMs": 0,
+      "toSimMs": null
+    }
+  ],
+  "coverage": {
+    "categories": [
+      "written_aar",
+      "facilitator_notes",
+      "learner_reflection"
+    ],
+    "startedAtSimMs": null,
+    "endedAtSimMs": null,
+    "gaps": [
+      "No decision log. Individual decisions, their timing, and their sequence were not recorded.",
+      "No simulation clock. Nothing in this artifact can be placed on a timeline.",
+      "No visibility data. What any participant could see at any moment is unknown.",
+      "Attribution is to the cell, not to individuals, except where a facilitator named a participant.",
+      "Narrative text is retrospective interpretation, not a record of action."
+    ],
+    "status": "partial"
+  },
+  "items": [
+    {
+      "id": "TT-001",
+      "kind": "written_aar",
+      "eventType": "aar_paragraph",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "unknown",
+      "subjectIds": [
+        "blue_cell"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "The blue cell spent most of the first hour establishing the picture and was slow to commit. Several participants later said they were waiting for the logistics estimate before deciding.",
+      "payload": {
+        "section": "Summary of play"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-001",
+        "locator": {
+          "page": 1,
+          "regionId": null,
+          "startChar": 0,
+          "endChar": 214
+        }
+      },
+      "relatedItemIds": [],
+      "epistemicStatus": "interpretation",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "TT-002",
+      "kind": "written_aar",
+      "eventType": "aar_paragraph",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "unknown",
+      "subjectIds": [
+        "blue_cell"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "When the port closure was injected, the cell reorganized quickly and produced a revised scheme of support within roughly twenty minutes.",
+      "payload": {
+        "section": "Summary of play",
+        "injectReferenced": "port_closure"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-002",
+        "locator": {
+          "page": 1,
+          "regionId": null,
+          "startChar": 215,
+          "endChar": 356
+        }
+      },
+      "relatedItemIds": [],
+      "epistemicStatus": "interpretation",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "TT-003",
+      "kind": "facilitator_note",
+      "eventType": "observation",
+      "actorId": "F-01",
+      "actorRole": "facilitator",
+      "actorKind": "instructor",
+      "subjectIds": [
+        "TTX-P-02"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "P-02 pushed the group toward a decision before the estimate was finished. Hard to tell whether that was impatience or a read that the estimate would not change the answer.",
+      "payload": {
+        "confidence": "impression"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-003",
+        "locator": {
+          "page": 2,
+          "regionId": null,
+          "startChar": 0,
+          "endChar": 168
+        }
+      },
+      "relatedItemIds": [
+        "TT-001"
+      ],
+      "epistemicStatus": "observation",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "TT-004",
+      "kind": "facilitator_note",
+      "eventType": "observation",
+      "actorId": "F-01",
+      "actorRole": "facilitator",
+      "actorKind": "instructor",
+      "subjectIds": [
+        "blue_cell"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "Nobody restated assumptions after the inject. I flagged it in the hotwash.",
+      "payload": {
+        "confidence": "impression"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-004",
+        "locator": {
+          "page": 2,
+          "regionId": null,
+          "startChar": 169,
+          "endChar": 242
+        }
+      },
+      "relatedItemIds": [
+        "TT-002"
+      ],
+      "epistemicStatus": "observation",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "TT-005",
+      "kind": "written_aar",
+      "eventType": "aar_paragraph",
+      "actorId": null,
+      "actorRole": null,
+      "actorKind": "unknown",
+      "subjectIds": [
+        "blue_cell"
+      ],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "Recommend the next iteration force an explicit assumptions check after each inject.",
+      "payload": {
+        "section": "Recommendations"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-005",
+        "locator": {
+          "page": 3,
+          "regionId": null,
+          "startChar": 0,
+          "endChar": 84
+        }
+      },
+      "relatedItemIds": [
+        "TT-004"
+      ],
+      "epistemicStatus": "interpretation",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    },
+    {
+      "id": "TT-006",
+      "kind": "learner_reflection",
+      "eventType": "post_exercise_written",
+      "actorId": "TTX-P-02",
+      "actorRole": "blue_cell",
+      "actorKind": "learner",
+      "subjectIds": [],
+      "occurredAt": {
+        "wallUtc": null,
+        "simMs": null,
+        "endSimMs": null,
+        "precision": "unknown"
+      },
+      "recordedAtUtc": "2026-09-12T19:40:00Z",
+      "text": "I pushed for a call because we were burning time. I still think it was right but I did not say out loud what I was assuming about the port.",
+      "payload": {
+        "prompt": "What would you do differently?"
+      },
+      "source": {
+        "artifactId": "ART-TTX-0001",
+        "itemId": "TT-006",
+        "locator": {
+          "page": null,
+          "regionId": null,
+          "startChar": null,
+          "endChar": null
+        }
+      },
+      "relatedItemIds": [
+        "TT-003"
+      ],
+      "epistemicStatus": "self_report",
+      "visibility": {
+        "availableToRoles": [],
+        "availableFromSimMs": null,
+        "revealedAfterward": false
+      },
+      "reviewStatus": "original",
+      "synthetic": true
+    }
+  ],
+  "syntheticNotice": "SYNTHETIC — NOT AN ACTUAL TRAINEE EVALUATION",
+  "syntheticCaseId": "CASE-07"
+}

@@ -1,0 +1,30 @@
+{
+  "name": "wearable-coach",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "dev": "tsx watch server/src/index.ts",
+    "build": "tsc --noEmit && vite build --config web/vite.config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test server/test/*.test.ts",
+    "start": "tsx server/src/index.ts",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "ws": "^8.18.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/ws": "^8.18.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  }
+}

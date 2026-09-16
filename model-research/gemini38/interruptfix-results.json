@@ -1,0 +1,375 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audioInterrupt",
+    "rep": 2,
+    "setup": {
+      "setupComplete": {}
+    },
+    "pre_interrupt_event": {
+      "serverContent": {
+        "modelTurn": {
+          "parts": [
+            {
+              "audioBytes": 8640,
+              "mimeType": "audio/pcm;rate=24000"
+            }
+          ]
+        },
+        "outputTranscription": {
+          "text": "To effectively observe "
+        }
+      }
+    },
+    "interrupt_at_ms": 1804,
+    "result": {
+      "transcript": "a training task, focus",
+      "statuses": [],
+      "audio_bytes": 94080,
+      "turn_completes": 1,
+      "first_audio_ms": 0,
+      "interrupted_ms": 0,
+      "timeout": true,
+      "elapsed_ms": 18001
+    },
+    "events": [
+      {
+        "ms": 252,
+        "setupComplete": {}
+      },
+      {
+        "ms": 268,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 1231
+      },
+      {
+        "ms": 1233,
+        "serverContent": {}
+      },
+      {
+        "ms": 1598
+      },
+      {
+        "ms": 1604,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 8640,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "To effectively observe "
+          }
+        }
+      },
+      {
+        "ms": 1607
+      },
+      {
+        "ms": 1619,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1632
+      },
+      {
+        "ms": 1639,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1814
+      },
+      {
+        "ms": 1827,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 24960,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "a training"
+          }
+        }
+      },
+      {
+        "ms": 1870
+      },
+      {
+        "ms": 1870
+      },
+      {
+        "ms": 1881,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1881,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 1920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 2063
+      },
+      {
+        "ms": 2072,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " task, focus"
+          }
+        }
+      },
+      {
+        "ms": 2072,
+        "serverContent": {
+          "interrupted": true
+        }
+      },
+      {
+        "ms": 2107,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 608,
+          "responseTokenCount": 60,
+          "totalTokenCount": 668,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 378
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 60
+            }
+          ],
+          "thoughtsTokenCount": 238
+        }
+      },
+      {
+        "ms": 23163,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audioInterrupt",
+    "rep": 2,
+    "level": "LOW",
+    "setup": {
+      "setupComplete": {}
+    },
+    "pre_interrupt_event": {
+      "serverContent": {
+        "modelTurn": {
+          "parts": [
+            {
+              "audioBytes": 2,
+              "mimeType": "audio/pcm;rate=24000"
+            }
+          ]
+        },
+        "outputTranscription": {
+          "text": "To begin observing, ensure "
+        }
+      }
+    },
+    "interrupt_at_ms": 1205,
+    "result": {
+      "transcript": "",
+      "statuses": [
+        "IDLE"
+      ],
+      "audio_bytes": 30720,
+      "turn_completes": 1,
+      "first_audio_ms": 0,
+      "interrupted_ms": 0,
+      "timeout": true,
+      "elapsed_ms": 18001
+    },
+    "events": [
+      {
+        "ms": 288,
+        "setupComplete": {}
+      },
+      {
+        "ms": 308,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 789
+      },
+      {
+        "ms": 789,
+        "serverContent": {}
+      },
+      {
+        "ms": 1002
+      },
+      {
+        "ms": 1002
+      },
+      {
+        "ms": 1004,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "To begin observing, ensure "
+          }
+        }
+      },
+      {
+        "ms": 1009,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1063
+      },
+      {
+        "ms": 1069,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1262
+      },
+      {
+        "ms": 1274,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1470,
+        "serverContent": {
+          "interrupted": true
+        }
+      },
+      {
+        "ms": 1547,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3002,
+          "responseTokenCount": 22,
+          "totalTokenCount": 3024,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2686
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 22
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

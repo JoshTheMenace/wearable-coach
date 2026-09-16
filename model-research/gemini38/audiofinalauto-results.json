@@ -1,0 +1,70 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audio_delivery",
+    "mode": "auto-silence",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 651,
+    "input_end_ms": 5421,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10001
+    },
+    "events": [
+      {
+        "ms": 349,
+        "setupComplete": {}
+      },
+      {
+        "ms": 375,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 15474,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audio_delivery",
+    "mode": "auto-silence",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 522,
+    "input_end_ms": 5284,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10001
+    },
+    "events": [
+      {
+        "ms": 220,
+        "setupComplete": {}
+      },
+      {
+        "ms": 234,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      }
+    ]
+  }
+]

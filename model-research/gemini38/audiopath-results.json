@@ -1,0 +1,908 @@
+[
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audio_delivery",
+    "mode": "manual",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 595,
+    "input_end_ms": 2693,
+    "result": {
+      "transcript": "The training board does not contain any songs.",
+      "statuses": [],
+      "audio_bytes": 140160,
+      "turn_completes": 1,
+      "input_transcript": "Which song contains the blue",
+      "first_audio_ms": 1698,
+      "elapsed_ms": 4650
+    },
+    "events": [
+      {
+        "ms": 292,
+        "setupComplete": {}
+      },
+      {
+        "ms": 302,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 2910,
+        "serverContent": {
+          "inputTranscription": {
+            "text": "Which song contains the blue"
+          }
+        }
+      },
+      {
+        "ms": 4070
+      },
+      {
+        "ms": 4073,
+        "serverContent": {}
+      },
+      {
+        "ms": 4385
+      },
+      {
+        "ms": 4392,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The training board "
+          }
+        }
+      },
+      {
+        "ms": 4428
+      },
+      {
+        "ms": 4443,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4457
+      },
+      {
+        "ms": 4460,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 1920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4625
+      },
+      {
+        "ms": 4640,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 26880,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "does not contain"
+          }
+        }
+      },
+      {
+        "ms": 4663
+      },
+      {
+        "ms": 4672,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4891
+      },
+      {
+        "ms": 4908,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 28800,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " any songs."
+          }
+        }
+      },
+      {
+        "ms": 4908
+      },
+      {
+        "ms": 4909,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4990
+      },
+      {
+        "ms": 4995,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5017,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 7344,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 994,
+          "responseTokenCount": 79,
+          "totalTokenCount": 1073,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 425
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 253
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 79
+            }
+          ],
+          "thoughtsTokenCount": 157
+        }
+      },
+      {
+        "ms": 7388,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audio_delivery",
+    "mode": "manual",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 501,
+    "input_end_ms": 2606,
+    "result": {
+      "transcript": "The training board displays no musical information, so I cannot identify any songs.",
+      "statuses": [
+        "IDLE"
+      ],
+      "audio_bytes": 254880,
+      "turn_completes": 1,
+      "input_transcript": "Which song contains the blue",
+      "first_audio_ms": 1684,
+      "elapsed_ms": 6904
+    },
+    "events": [
+      {
+        "ms": 201,
+        "setupComplete": {}
+      },
+      {
+        "ms": 216,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 2800,
+        "serverContent": {
+          "inputTranscription": {
+            "text": "Which song contains the blue"
+          }
+        }
+      },
+      {
+        "ms": 4043
+      },
+      {
+        "ms": 4043,
+        "serverContent": {}
+      },
+      {
+        "ms": 4278
+      },
+      {
+        "ms": 4291,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 12960,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "The training board "
+          }
+        }
+      },
+      {
+        "ms": 4450
+      },
+      {
+        "ms": 4462,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4929
+      },
+      {
+        "ms": 4931,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 1920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 4968
+      },
+      {
+        "ms": 4981,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "displays no musical"
+          }
+        }
+      },
+      {
+        "ms": 5371
+      },
+      {
+        "ms": 5387,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5729
+      },
+      {
+        "ms": 5733,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 11520,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 5968
+      },
+      {
+        "ms": 5977,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 15360,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " information, so"
+          }
+        }
+      },
+      {
+        "ms": 6288
+      },
+      {
+        "ms": 6301,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 23040,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6769
+      },
+      {
+        "ms": 6773,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 6969
+      },
+      {
+        "ms": 6983,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 28800,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " I cannot identify"
+          }
+        }
+      },
+      {
+        "ms": 7570
+      },
+      {
+        "ms": 7577,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 19200,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 7970
+      },
+      {
+        "ms": 7981,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 21120,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": " any songs."
+          }
+        }
+      },
+      {
+        "ms": 8408
+      },
+      {
+        "ms": 8418,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 17280,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 8768
+      },
+      {
+        "ms": 8781,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 24960,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9289
+      },
+      {
+        "ms": 9293,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 9491,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 9511,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 3406,
+          "responseTokenCount": 138,
+          "totalTokenCount": 3544,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2733
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 270
+            },
+            {
+              "modality": "IMAGE",
+              "tokenCount": 273
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 138
+            }
+          ],
+          "thoughtsTokenCount": 202
+        }
+      },
+      {
+        "ms": 9546,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audio_delivery",
+    "mode": "auto-silence",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 555,
+    "input_end_ms": 3697,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10002
+    },
+    "events": [
+      {
+        "ms": 253,
+        "setupComplete": {}
+      },
+      {
+        "ms": 271,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 13747,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audio_delivery",
+    "mode": "auto-silence",
+    "setup": {
+      "setupComplete": {}
+    },
+    "input_start_ms": 505,
+    "input_end_ms": 3654,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10001
+    },
+    "events": [
+      {
+        "ms": 203,
+        "setupComplete": {}
+      },
+      {
+        "ms": 230,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 13689,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live",
+    "kind": "audio_delivery",
+    "mode": "auto-warmed",
+    "setup": {
+      "setupComplete": {}
+    },
+    "warmup": {
+      "transcript": "Ready.",
+      "statuses": [],
+      "audio_bytes": 32642,
+      "turn_completes": 1,
+      "first_audio_ms": 513,
+      "elapsed_ms": 1246
+    },
+    "input_start_ms": 1751,
+    "input_end_ms": 4891,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10001
+    },
+    "events": [
+      {
+        "ms": 203,
+        "setupComplete": {}
+      },
+      {
+        "ms": 223,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 563
+      },
+      {
+        "ms": 565,
+        "serverContent": {}
+      },
+      {
+        "ms": 716
+      },
+      {
+        "ms": 716,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "Ready."
+          }
+        }
+      },
+      {
+        "ms": 749
+      },
+      {
+        "ms": 757,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 778
+      },
+      {
+        "ms": 784,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 838
+      },
+      {
+        "ms": 842,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 867
+      },
+      {
+        "ms": 872,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 897,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 1449,
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 577,
+          "responseTokenCount": 23,
+          "totalTokenCount": 600,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 347
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 23
+            }
+          ],
+          "thoughtsTokenCount": 25
+        }
+      },
+      {
+        "ms": 14924,
+        "closed": true,
+        "code": 1000,
+        "reason": ""
+      }
+    ]
+  },
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "audio_delivery",
+    "mode": "auto-warmed",
+    "setup": {
+      "setupComplete": {}
+    },
+    "warmup": {
+      "transcript": "Ready.",
+      "statuses": [
+        "IDLE"
+      ],
+      "audio_bytes": 0,
+      "turn_completes": 1,
+      "elapsed_ms": 1735
+    },
+    "input_start_ms": 2361,
+    "input_end_ms": 5502,
+    "result": {
+      "transcript": "",
+      "statuses": [],
+      "audio_bytes": 0,
+      "turn_completes": 0,
+      "timeout": true,
+      "elapsed_ms": 10001
+    },
+    "events": [
+      {
+        "ms": 323,
+        "setupComplete": {}
+      },
+      {
+        "ms": 337,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 2012
+      },
+      {
+        "ms": 2013,
+        "serverContent": {}
+      },
+      {
+        "ms": 2058
+      },
+      {
+        "ms": 2058,
+        "serverContent": {
+          "outputTranscription": {
+            "text": "Ready."
+          }
+        }
+      },
+      {
+        "ms": 2058,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 2058,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 2988,
+          "totalTokenCount": 2988,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2655
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 222
+            }
+          ],
+          "thoughtsTokenCount": 45
+        }
+      }
+    ]
+  }
+]

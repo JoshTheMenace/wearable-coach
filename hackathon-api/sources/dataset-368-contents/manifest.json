@@ -1,0 +1,61 @@
+{
+  "packageVersion": "1.0",
+  "notice": "SYNTHETIC — NOT AN ACTUAL TRAINEE EVALUATION",
+  "generatedFrom": "fixtures/syntheticCaseCatalog.ts",
+  "files": [
+    {
+      "file": "case-01.artifact.json",
+      "sha256": "4ace735796c26b735ad8f55959c418b41ec7a7341088bcdb601f5c685793d757",
+      "kind": "Threshold artifact",
+      "description": "Prompt coordination and evidence-based revision"
+    },
+    {
+      "file": "case-02.artifact.json",
+      "sha256": "917ac19cc7922dd5406589a9924e0a2f931d78ccf886214ccaf9651a167be5d8",
+      "kind": "Threshold artifact",
+      "description": "Open request with observed reluctance to delegate"
+    },
+    {
+      "file": "case-03.artifact.json",
+      "sha256": "bc11cde759e0cd15fdf1b5b8ced460d60d46e9332898ffdf37fd97ad6b92fd14",
+      "kind": "Threshold artifact",
+      "description": "Same apparent delay with deliberate prioritization"
+    },
+    {
+      "file": "case-04.artifact.json",
+      "sha256": "c3fe655221da8296b159a232a6e24a8cc53f7deff5c567aa4467eccf4d817850",
+      "kind": "Threshold artifact",
+      "description": "Successful scenario outcome with incomplete coordination"
+    },
+    {
+      "file": "case-05.artifact.json",
+      "sha256": "47b7b75a24750175c598da229cbe7256431cc44f1ee925a06e0ec04ec0d14de1",
+      "kind": "Threshold artifact",
+      "description": "Unsuccessful scenario outcome with documented reasonable process"
+    },
+    {
+      "file": "case-06.artifact.json",
+      "sha256": "b9cba26ea475c06edc1aa0f76d2d0a39e16b1276777507e37d6ac645559d3900",
+      "kind": "Threshold artifact",
+      "description": "Partial capture, contradiction, and role change"
+    },
+    {
+      "file": "case-07-tabletop.artifact.json",
+      "sha256": "54cb1ac08a0879920576437c6fae9d5ae82122e6c3995bf924e9c20d59e12b64",
+      "kind": "Tabletop artifact",
+      "description": "Narrative-only tabletop case with no decision-time telemetry"
+    },
+    {
+      "file": "evaluator-keys.json",
+      "sha256": "cad89ff291b01e753c5a2501bd2598d9db058ff30d4b1415989cdcb375e47692",
+      "kind": "Evaluator-only key",
+      "description": "Expected observations and prohibited claims"
+    },
+    {
+      "file": "README.md",
+      "sha256": "1570a8f53f42cf28ac09ab1336d3b4bf8c6c8fbe3a6e1874ad17cba170b69e53",
+      "kind": "Package documentation",
+      "description": "Synthetic-data provenance and review instructions"
+    }
+  ]
+}

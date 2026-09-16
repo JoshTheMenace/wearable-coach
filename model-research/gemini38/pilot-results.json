@@ -1,0 +1,178 @@
+[
+  {
+    "model": "gemini-3.8-live-extended-thinking",
+    "kind": "simple",
+    "rep": 1,
+    "level": "LOW",
+    "setup": {
+      "setupComplete": {}
+    },
+    "result": {
+      "transcript": "Ready when you are.",
+      "statuses": [
+        "IDLE"
+      ],
+      "audio_bytes": 54242,
+      "turn_completes": 1,
+      "first_audio_ms": 719,
+      "elapsed_ms": 1819
+    },
+    "events": [
+      {
+        "ms": 302,
+        "setupComplete": {}
+      },
+      {
+        "ms": 327,
+        "sessionResumptionUpdate": {
+          "newHandle": "[REDACTED]",
+          "resumable": true
+        }
+      },
+      {
+        "ms": 842
+      },
+      {
+        "ms": 844,
+        "serverContent": {}
+      },
+      {
+        "ms": 1021
+      },
+      {
+        "ms": 1021,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 2,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "Ready when "
+          }
+        }
+      },
+      {
+        "ms": 1086
+      },
+      {
+        "ms": 1098,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13920,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1276
+      },
+      {
+        "ms": 1283,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1477
+      },
+      {
+        "ms": 1486,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 9600,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1676
+      },
+      {
+        "ms": 1686,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 13440,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "ms": 1957
+      },
+      {
+        "ms": 1962,
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "audioBytes": 7680,
+                "mimeType": "audio/pcm;rate=24000"
+              }
+            ]
+          },
+          "outputTranscription": {
+            "text": "you are."
+          }
+        }
+      },
+      {
+        "ms": 2117,
+        "serverContent": {
+          "generationComplete": true
+        }
+      },
+      {
+        "ms": 2121,
+        "serverContent": {
+          "turnComplete": true,
+          "interactionStatus": "IDLE"
+        },
+        "usageMetadata": {
+          "promptTokenCount": 2975,
+          "responseTokenCount": 34,
+          "totalTokenCount": 3009,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2659
+            },
+            {
+              "modality": "AUDIO",
+              "tokenCount": 205
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 34
+            }
+          ],
+          "thoughtsTokenCount": 42
+        }
+      }
+    ]
+  }
+]

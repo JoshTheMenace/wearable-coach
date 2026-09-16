@@ -1,0 +1,91 @@
+{
+  "notice": "SYNTHETIC — NOT AN ACTUAL TRAINEE EVALUATION. EVALUATOR-ONLY MATERIAL.",
+  "evaluatorKeys": [
+    {
+      "id": "CASE-01",
+      "title": "Prompt coordination and evidence-based revision",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "information_seeking",
+          "revision_on_new_evidence"
+        ],
+        "prohibitedClaims": [
+          "mission success proves competency",
+          "later truth was known at the original decision"
+        ],
+        "reviewFocus": "Confirm that the revision is discussed as a response to newly available evidence."
+      }
+    },
+    {
+      "id": "CASE-02",
+      "title": "Open request with observed reluctance to delegate",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "committed_at_low_information",
+          "long_hold"
+        ],
+        "prohibitedClaims": [
+          "the instructor note proves intent",
+          "the hold alone proves disengagement"
+        ],
+        "reviewFocus": "Use the facilitator observation as attributed context; do not turn it into a game-recorded action."
+      }
+    },
+    {
+      "id": "CASE-03",
+      "title": "Same apparent delay with deliberate prioritization",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "long_hold"
+        ],
+        "prohibitedClaims": [
+          "the hold proves disengagement",
+          "the note establishes all unrecorded actions"
+        ],
+        "reviewFocus": "An instructor answer should qualify the delay as deliberate prioritization, not erase the coverage gap."
+      }
+    },
+    {
+      "id": "CASE-04",
+      "title": "Successful scenario outcome with incomplete coordination",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "committed_at_low_information"
+        ],
+        "prohibitedClaims": [
+          "successful outcome validates the decision process"
+        ],
+        "reviewFocus": "Keep scenario outcome separate from the coordination evidence."
+      }
+    },
+    {
+      "id": "CASE-05",
+      "title": "Unsuccessful scenario outcome with documented reasonable process",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "information_seeking",
+          "restraint_with_stated_reason"
+        ],
+        "prohibitedClaims": [
+          "unsuccessful outcome makes the earlier process poor"
+        ],
+        "reviewFocus": "Assess information seeking and stated restraint against what was available at the time."
+      }
+    },
+    {
+      "id": "CASE-06",
+      "title": "Partial capture, contradiction, and role change",
+      "evaluatorKey": {
+        "expectedMomentKinds": [
+          "ignored_contradiction",
+          "long_hold"
+        ],
+        "prohibitedClaims": [
+          "missing capture is zero performance",
+          "a role change is an individual failure"
+        ],
+        "reviewFocus": "Present contradictory evidence and coverage gaps without filling them with inference."
+      }
+    }
+  ]
+}

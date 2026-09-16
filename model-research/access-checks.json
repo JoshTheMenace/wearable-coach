@@ -1,0 +1,99 @@
+{
+  "date": "2026-09-15",
+  "note": "One-shot synthetic smoke tests; no microphone, camera, interruption, tool-call, or quality benchmark.",
+  "results": [
+    {
+      "label": "OpenRouter key",
+      "status": 200,
+      "elapsed_ms": 186,
+      "authenticated": true
+    },
+    {
+      "label": "Gemini 3.5 Flash evidence test",
+      "status": 200,
+      "elapsed_ms": 1613,
+      "output": [
+        {
+          "text": "Here is the JSON requested:\n"
+        }
+      ],
+      "usage": {
+        "promptTokenCount": 82,
+        "candidatesTokenCount": 8,
+        "totalTokenCount": 334,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 82
+          }
+        ],
+        "thoughtsTokenCount": 244,
+        "serviceTier": "standard"
+      }
+    },
+    {
+      "label": "GPT 5.6 Luna evidence test via OpenRouter",
+      "status": 200,
+      "elapsed_ms": 5109,
+      "output": "{\"assessable\":false,\"reason\":\"Tightness cannot be determined: the strap is only partially visible, one frame is obscured, and no force sensor exists.\",\"coach_question\":\"Can you provide an unobstructed view or describe how the strap feels?\"}",
+      "usage": {
+        "prompt_tokens": 84,
+        "completion_tokens": 134,
+        "total_tokens": 218,
+        "cost": 0.0001776,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001776,
+          "upstream_inference_prompt_cost": 0.0000168,
+          "upstream_inference_completions_cost": 0.0001608
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 74,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    {
+      "label": "gemini-3.1-flash-live-preview",
+      "setup": true,
+      "audio_bytes": 78242,
+      "first_audio_ms": 662,
+      "transcript": "Training coach connected.",
+      "elapsed_ms": 2652
+    },
+    {
+      "label": "gemini-3.8-live",
+      "setup": true,
+      "audio_bytes": 99842,
+      "first_audio_ms": 823,
+      "transcript": "Training coach connected.",
+      "elapsed_ms": 3268
+    },
+    {
+      "label": "Gemini 3.5 Flash explicit schema + sufficient output budget",
+      "status": 200,
+      "elapsed_ms": 2841,
+      "output": "{\n  \"assessable\": false,\n  \"reason\": \"Visuals are obscured by a hand and no force sensor data exists to measure strap tension.\",\n  \"coach_question\": \"Can you adjust your hand so I can see the strap clearly, or describe how tight it feels?\"\n}",
+      "finish_reason": "STOP",
+      "usage": {
+        "promptTokenCount": 82,
+        "candidatesTokenCount": 63,
+        "totalTokenCount": 145,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 82
+          }
+        ],
+        "serviceTier": "standard"
+      }
+    }
+  ]
+}

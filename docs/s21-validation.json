@@ -1,0 +1,33 @@
+{
+  "testedAt": "2026-09-16T04:18:35.661Z",
+  "device": "Galaxy S21 SM-G991U / Android API33",
+  "backendTests": 42,
+  "androidTests": 9,
+  "offlineReportsSurvivedRestartAndSynced": true,
+  "gemini": {
+    "sessionId": "4f7cd0ba-b8ab-4a0e-b61b-d4670fb60d2b",
+    "playedSamples": 241441,
+    "peakQueuedMs": 7620,
+    "droppedSamples": 0
+  },
+  "finalStopEnd": {
+    "sessionId": "c068fb28-0128-4a87-96e8-803bea635b05",
+    "status": "ended",
+    "generation": 2,
+    "counts": {
+      "total": 9,
+      "bySeverity": {
+        "info": 9,
+        "warning": 0,
+        "error": 0
+      },
+      "byCode": {
+        "app.lifecycle": 1,
+        "audio.status": 4,
+        "session.active": 2,
+        "session.created": 1,
+        "session.ended": 1
+      }
+    }
+  }
+}

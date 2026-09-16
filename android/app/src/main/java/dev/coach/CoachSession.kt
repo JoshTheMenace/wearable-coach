@@ -1,0 +1,567 @@
+package dev.coach
+
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.os.SystemClock
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resumeWithException
+
+fun json(vararg values: Pair<String, Any?>) = JSONObject().apply { values.forEach { (key, value) -> if (value != null) put(key, value) } }
+fun id(): String = UUID.randomUUID().toString()
+data class Settings(val provider: String = "mock", val model: String = "mock-coach", val device: String = "mock",
+    val recordFrames: Boolean = false, val manualActivity: Boolean = false, val observerModel: String = "") {
+    val url get() = "http://127.0.0.1:8787"
+}
+data class CoachState(val status: String = "idle", val sessionId: String = "", val generation: Int = 0,
+    val provider: String = "mock", val device: String = "mock", val manualActivity: Boolean = false,
+    val muted: Boolean = false, val hud: String = "{}", val hudRevision: Int = -1,
+    val captions: List<String> = emptyList(), val diagnostics: List<String> = emptyList(),
+    val error: String? = null, val route: String = "System default", val frame: ByteArray? = null,
+    val hudImage: ByteArray? = null,
+    val spectatorToken: String = "", val providers: String = "", val preview: Boolean = false)
+
+class CoachSession(private val context: Context, lifecycle: LifecycleOwner, private val scope: CoroutineScope) {
+    val telemetry = DeviceTelemetry(context, scope)
+    private val _state = MutableStateFlow(CoachState())
+    val state: StateFlow<CoachState> = _state
+    private val client = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).pingInterval(15, TimeUnit.SECONDS).build()
+    private val audio = AudioEngine(context, ::audioReport)
+    private val device = DeviceBridge(context, lifecycle, scope, ::log)
+    private var config = Settings()
+    private var token = ""
+    private var control: WebSocket? = null
+    private var media: WebSocket? = null
+    @Volatile private var binding = 0
+    private var generation = 0
+    private var epoch = 0
+    private var inputRate = 16000
+    private var outputRate = 24000
+    @Volatile private var closed = true
+    @Volatile private var ending = false
+    @Volatile private var expectedRebind = false
+    private var rebindWaitJob: Job? = null
+    private var recoveries = 0
+    private var recoveryWindowAt = 0L
+    private var activeStage = "bootstrap"
+    private var reconnectJob: Job? = null
+    private var startJob: Job? = null
+    private var previewJob: Job? = null
+    private var timerJob: Job? = null
+    private var rendererId = id()
+    private var clearLatchRevision: Int? = null
+    private val captureMutex = Mutex()
+    private val renderMutex = Mutex()
+    private var clockOffset = 0.0
+    private var clockUncertainty = Double.POSITIVE_INFINITY
+    private val clockId = id()
+    private var throughSeq = 0L
+    private var healthJob: Job? = null
+    private var endWatchJob: Job? = null
+    val sessionId get() = _state.value.sessionId
+    init { telemetry.record("app.lifecycle", "app") }
+
+    private fun audioReport(message: String) {
+        val sourceBinding = binding
+        val shuttingDownAudio = ending || closed || expectedRebind
+        scope.launch {
+        if (sourceBinding != binding || shuttingDownAudio || ending || closed || expectedRebind) return@launch
+        log(message)
+        if (message.startsWith("Audio route changed:")) {
+            _state.update { it.copy(route = audio.routeDescription()) }
+            report("device.status", json("audioRoute" to audio.routeDescription(), "observedAt" to System.currentTimeMillis()))
+        }
+        if (message.contains("discontinuity")) {
+            diagnostic("audio.discontinuity", "audio", "warning", "retrying", JSONObject(audio.metricsSnapshot()))
+            reconnect()
+        } else diagnostic("audio.status", "audio", details = JSONObject(audio.metricsSnapshot()))
+    } }
+
+    fun log(message: String) {
+        _state.update { it.copy(diagnostics = (it.diagnostics + "${System.currentTimeMillis()} $message").takeLast(150)) }
+    }
+    private fun diagnostic(code: String, stage: String, severity: String = "info", recovery: String = "none", details: JSONObject = JSONObject()) {
+        telemetry.record(code, stage, severity, recovery, sessionId, generation,
+            details.put("provider", config.provider).put("model", config.model.takeIf { it in setOf("mock-coach", "gemini-3.8-live", "gemini-3.8-live-extended-thinking", "gpt-live-1") } ?: "custom-model").put("device", config.device))
+    }
+    fun failed(error: Throwable, stage: String = activeStage) {
+        if (error is CancellationException && error !is TimeoutCancellationException) return
+        val issue = CoachFailure.from(error)
+        val details = json("errorClass" to error.javaClass.simpleName.ifEmpty { "Throwable" })
+        if (error is BackendFailure) details.put("httpStatus", error.status)
+        diagnostic(issue.code, stage, "error", issue.recovery, details)
+        log("${issue.code}: ${issue.message}")
+        _state.update { it.copy(error = issue.message) }
+    }
+    fun dismissError() { _state.update { it.copy(error = null) } }
+    suspend fun exportDiagnostics() = telemetry.export(context)
+
+    suspend fun providers(settings: Settings): String {
+        config = settings
+        return request("/api/providers", settings = settings).toString(2).also { value ->
+            diagnostic("app.lifecycle", "bootstrap", recovery = "recovered")
+            _state.update { it.copy(providers = value, error = null) }
+        }
+    }
+
+    suspend fun start(settings: Settings) {
+        if (!closed) return
+        config = settings
+        ending = false; expectedRebind = false; recoveries = 0; activeStage = "bootstrap"
+        telemetry.newRun()
+        _state.value = CoachState(status = "starting", provider = config.provider, device = config.device,
+            manualActivity = config.manualActivity, diagnostics = _state.value.diagnostics)
+        generation = 0; epoch = 0; throughSeq = 0; clearLatchRevision = null
+        diagnostic("session.start_requested", "session")
+        rendererId = id(); clockUncertainty = Double.POSITIVE_INFINITY; clockOffset = 0.0
+        closed = false
+        startJob = currentCoroutineContext()[Job]
+        try {
+            val started = System.currentTimeMillis()
+            val response = request("/api/sessions", json("createKey" to id(), "config" to json("provider" to config.provider,
+                "model" to config.model, "device" to config.device, "recordFrames" to config.recordFrames,
+                "manualActivity" to config.manualActivity, "observerModel" to config.observerModel.ifBlank { null })))
+            updateClock(response, started)
+            token = response.getString("token")
+            generation = response.getJSONObject("snapshot").getInt("generation")
+            _state.update { it.copy(sessionId = response.getString("sessionId"), spectatorToken = response.optString("spectatorToken")) }
+            diagnostic("session.created", "session")
+            activeStage = "camera"
+            device.start(config.device)
+            activeStage = "control"
+            applySnapshot(response.getJSONObject("snapshot"))
+            connect()
+        } catch (error: Throwable) {
+            if (error is CancellationException && error !is TimeoutCancellationException) {
+                withContext(NonCancellable) { if (sessionId.isNotEmpty()) withTimeoutOrNull(2500) { runCatching { endRemote() } } }
+                closed = true; release(); _state.update { it.copy(status = "ended") }
+                throw error
+            }
+            failed(error)
+            if (sessionId.isNotEmpty()) runCatching { endRemote() }
+            closed = true; release()
+            _state.update { it.copy(status = "failed") }
+        } finally { startJob = null }
+    }
+
+    private fun updateClock(response: JSONObject, sent: Long) {
+        if (!response.has("serverTime")) return
+        val received = System.currentTimeMillis()
+        val uncertainty = (received - sent).coerceAtLeast(0) / 2.0
+        if (uncertainty < clockUncertainty) {
+            clockOffset = response.getDouble("serverTime") - (sent + received) / 2.0
+            clockUncertainty = uncertainty
+        }
+    }
+
+    private fun connect() {
+        val activeBinding = ++binding
+        val controlRequest = Request.Builder().url(wsUrl("control")).build()
+        control = client.newWebSocket(controlRequest, object : WebSocketListener() {
+            override fun onOpen(socket: WebSocket, response: Response) {
+                if (activeBinding != binding || closed || ending) { socket.cancel(); return }
+                socket.send(json("type" to "hello", "token" to token, "generation" to generation).toString())
+            }
+            override fun onMessage(socket: WebSocket, text: String) { scope.launch {
+                if (activeBinding == binding && !closed) runCatching { onControl(JSONObject(text), activeBinding) }.onFailure { failed(it) }
+            } }
+            override fun onFailure(socket: WebSocket, error: Throwable, response: Response?) { scope.launch { if (activeBinding == binding && !closed && !ending && !expectedRebind) { transportLost(error); reconnect() } } }
+            override fun onClosing(socket: WebSocket, code: Int, reason: String) { socket.close(code, reason); scope.launch { if (activeBinding == binding && !closed && !ending && !expectedRebind) { diagnostic("transport.closed", "network", "warning", "retrying", json("closeCode" to code)); reconnect() } } }
+            override fun onClosed(socket: WebSocket, code: Int, reason: String) { scope.launch { if (activeBinding == binding && !closed && !ending && !expectedRebind) { diagnostic("transport.closed", "network", "warning", "retrying", json("closeCode" to code)); reconnect() } } }
+        })
+    }
+
+    private fun transportLost(error: Throwable) {
+        diagnostic("transport.failure", "network", "warning", "retrying", json("errorClass" to error.javaClass.simpleName.ifEmpty { "Throwable" }))
+    }
+
+    private suspend fun onControl(message: JSONObject, activeBinding: Int) {
+        if (ending && !(message.optString("type") == "snapshot" && message.optJSONObject("snapshot")?.optString("status") in terminalStates)) return
+        when (message.optString("type")) {
+            "snapshot" -> {
+                applySnapshot(message.getJSONObject("snapshot"))
+                if (_state.value.status in terminalStates) { closed = true; release(); return }
+                if (_state.value.status == "active" && media == null) connectAudio(activeBinding)
+                report("device.status", json("cameraSource" to config.device, "hudTarget" to if (device.displayAvailable) "glasses" else "phone",
+                    "glassesDisplayAvailable" to device.displayAvailable, "audioRoute" to audio.routeDescription(),
+                    "foregroundService" to true, "sdkVersion" to "0.9.0", "observedAt" to System.currentTimeMillis()))
+            }
+            "event" -> {
+                val event = message.getJSONObject("event")
+                if (event.optInt("generation") != generation || event.optLong("seq") <= throughSeq) return
+                throughSeq = event.optLong("seq")
+                val payload = event.optJSONObject("payload") ?: JSONObject()
+                when (event.optString("type")) {
+                    "transcript.fragment" -> _state.update { it.copy(captions = (it.captions + "${payload.optString("speaker")}: ${payload.optString("text")}").takeLast(80)) }
+                    "session.ended", "session.failed", "session.interrupted" -> {
+                        _state.update { it.copy(status = event.getString("type").substringAfter('.'), error = if (event.optString("type") == "session.ended") null else it.error) }; closed = true; release()
+                    }
+                    "error", "connection.failed" -> {
+                        diagnostic("session.failed", "provider", "error", "user_action")
+                        _state.update { it.copy(error = "The coach provider failed. Check access and try starting a new session.") }
+                    }
+                    "connection.opened" -> log("Provider connection opened")
+                }
+            }
+            "hud" -> if (message.optInt("generation") == generation) applyHud(message.optJSONObject("hud") ?: JSONObject(), message.getInt("hudRevision"))
+            "flush" -> if (message.optInt("generation") == generation) {
+                val nextEpoch = message.getInt("speechEpoch")
+                if (nextEpoch > epoch) { epoch = nextEpoch; audio.flush(generation, epoch); log("Playback flush applied: epoch $epoch") }
+            }
+            "capture" -> if (message.optInt("generation") == generation) scope.launch { capture(message.optString("workId").ifEmpty { null }) }
+            "reconnect_required" -> reconnect()
+            "rebind" -> {
+                expectedRebind = false; rebindWaitJob?.cancel()
+                audio.suppress(); audio.close(false)
+                ++binding; control?.cancel(); control = null; media?.cancel(); media = null
+                reconnectJob?.cancel()
+                applySnapshot(message.getJSONObject("snapshot"))
+                connect()
+            }
+            "error" -> if (!ending && !closed) {
+                if (message.optInt("code") == 409) reconnect() else failed(BackendFailure(message.optInt("code", 500)), "control")
+            }
+            "command.result" -> {
+                if (message.optString("status") == "effect_failed") {
+                    diagnostic("command.failed", "control", "error", "user_action")
+                    _state.update { it.copy(error = "The coach did not accept this action. Retry after the connection recovers.") }
+                } else log("Command ${message.optString("commandId")}: ${message.optString("status", "received")}")
+            }
+        }
+    }
+
+    private suspend fun applySnapshot(snapshot: JSONObject) {
+        val nextGeneration = snapshot.getInt("generation")
+        if (nextGeneration < generation) return
+        if (nextGeneration != generation) {
+            audio.suppress(); val oldMedia = media; media = null; oldMedia?.cancel()
+            generation = nextGeneration; rendererId = id()
+            _state.update { it.copy(hudRevision = -1) }
+        }
+        epoch = snapshot.optInt("speechEpoch")
+        inputRate = snapshot.optInt("inputRate", 16000); outputRate = snapshot.optInt("outputRate", 24000)
+        throughSeq = snapshot.optLong("throughSeq")
+        val transcripts = snapshot.optJSONArray("transcripts") ?: JSONArray()
+        val status = snapshot.optString("status", "active")
+        if (status == "ending") { ending = true; audio.close(); previewJob?.cancel(); watchEnd() }
+        if (status != _state.value.status) {
+            diagnostic(when (status) { "active" -> "session.active"; "ended" -> "session.ended"; "failed", "interrupted" -> "session.failed"; else -> "app.lifecycle" }, "session",
+                if (status in setOf("failed", "interrupted")) "error" else "info")
+        }
+        _state.update { it.copy(status = status, generation = generation,
+            error = when (status) { "active", "ended" -> null; "failed" -> "The coach could not start. Check provider access and try again."; else -> it.error },
+            captions = (0 until transcripts.length()).map { index -> transcripts.getJSONObject(index).let { "${it.optString("speaker")}: ${it.optString("text")}" } }) }
+        // Render receipts must follow authenticated control binding, including initial empty HUD.
+        if (control != null) applyHud(snapshot.optJSONObject("hud") ?: JSONObject(), snapshot.optInt("hudRevision"))
+    }
+
+    private fun connectAudio(activeBinding: Int) {
+        media = client.newWebSocket(Request.Builder().url(wsUrl("audio")).build(), object : WebSocketListener() {
+            override fun onOpen(socket: WebSocket, response: Response) { scope.launch {
+                if (activeBinding != binding || closed || ending) { socket.cancel(); return@launch }
+                socket.send(json("type" to "hello", "token" to token, "generation" to generation).toString())
+                try {
+                    audio.start(inputRate, outputRate, generation, epoch) { packet ->
+                        !closed && activeBinding == binding && socket.queueSize() < (inputRate * 2 / 4) && socket.send(packet.toByteString())
+                    }
+                    audio.muted = _state.value.muted
+                    _state.update { it.copy(route = audio.routeDescription()) }
+                    healthJob?.cancel()
+                    healthJob = scope.launch {
+                        while (isActive && activeBinding == binding && !closed && !ending) {
+                            delay(5000)
+                            if (activeBinding != binding || closed || ending) break
+                            val metrics = JSONObject(audio.metricsSnapshot())
+                            report("playback.metric", json("metrics" to metrics, "measurementBasis" to "android_playback_head_estimate"))
+                            diagnostic("audio.status", "audio", details = metrics)
+                        }
+                    }
+                } catch (error: Throwable) { transportLost(error); reconnect() }
+            } }
+            override fun onMessage(socket: WebSocket, bytes: ByteString) {
+                if (activeBinding != binding || closed || ending) return
+                audio.receive(bytes.toByteArray())
+            }
+            override fun onFailure(socket: WebSocket, error: Throwable, response: Response?) { scope.launch { if (activeBinding == binding && media === socket && !closed && !ending && !expectedRebind) { transportLost(error); reconnect() } } }
+            override fun onClosing(socket: WebSocket, code: Int, reason: String) { socket.close(code, reason); scope.launch { if (activeBinding == binding && media === socket && !closed && !ending && !expectedRebind) { diagnostic("transport.closed", "network", "warning", "retrying", json("closeCode" to code)); reconnect() } } }
+            override fun onClosed(socket: WebSocket, code: Int, reason: String) { scope.launch { if (activeBinding == binding && media === socket && !closed && !ending && !expectedRebind) { diagnostic("transport.closed", "network", "warning", "retrying", json("closeCode" to code)); reconnect() } } }
+        })
+    }
+
+    fun reconnect() {
+        if (closed || ending || startJob?.isActive == true || reconnectJob?.isActive == true) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - recoveryWindowAt > 60_000) { recoveryWindowAt = now; recoveries = 0 }
+        if (++recoveries > 5) {
+            audio.close(false); ++binding; control?.cancel(); control = null; media?.cancel(); media = null
+            diagnostic("reconnect.exhausted", "network", "error", "user_action")
+            _state.update { it.copy(status = "disconnected", error = "The connection keeps failing. Check USB and the audio route, then tap Reconnect.") }
+            return
+        }
+        audio.suppress(); audio.close(false)
+        ++binding; control?.cancel(); control = null; media?.cancel(); media = null
+        _state.update { it.copy(status = "reconnecting", error = null) }
+        reconnectJob = scope.launch {
+            val requestId = id()
+            val previousGeneration = generation
+            repeat(5) { attempt ->
+                try {
+                    diagnostic("reconnect.attempt", "network", "info", "retrying", json("attempt" to attempt + 1))
+                    val sent = System.currentTimeMillis()
+                    val response = request("/api/sessions/$sessionId/reconnect", json("requestId" to requestId, "generation" to previousGeneration), token)
+                    updateClock(response, sent)
+                    applySnapshot(response.getJSONObject("snapshot"))
+                    diagnostic("reconnect.recovered", "network", "info", "recovered")
+                    connect(); return@launch
+                } catch (error: Throwable) {
+                    if (error is CancellationException) throw error
+                    if (error is BackendFailure && error.status == 409) {
+                        val current = runCatching { request("/api/sessions/$sessionId", auth = token) }.getOrNull()
+                        if (current != null) {
+                            applySnapshot(current.getJSONObject("snapshot"))
+                            if (_state.value.status in terminalStates) { closed = true; release(); return@launch }
+                            connect(); return@launch
+                        }
+                    }
+                    diagnostic("reconnect.attempt", "network", "warning", "retrying", json("attempt" to attempt + 1, "errorClass" to error.javaClass.simpleName))
+                    delay(1000L shl attempt)
+                }
+            }
+            diagnostic("reconnect.exhausted", "network", "error", "user_action")
+            _state.update { it.copy(status = "disconnected", error = "Reconnect failed. Check USB and the server, then tap Reconnect.") }
+        }
+    }
+
+    fun retryConnection() { recoveries = 0; reconnect() }
+
+    fun command(type: String, payload: JSONObject = JSONObject()): Boolean {
+        if (closed || ending && type != "end_session" || control == null) return false
+        val envelope = envelope(type, payload).put("commandId", id())
+        val sent = control?.send(envelope.toString()) == true
+        if (!sent) failed(IllegalStateException("Control disconnected; $type was not sent"))
+        return sent
+    }
+    private fun envelope(type: String, payload: JSONObject) = json("schemaVersion" to 1, "sessionId" to sessionId,
+        "generation" to generation, "messageId" to id(), "type" to type, "payload" to payload,
+        "sourceClock" to json("clockId" to clockId, "monoMs" to SystemClock.elapsedRealtime()))
+    private fun report(type: String, payload: JSONObject) { if (!closed && !ending) control?.send(envelope(type, payload).toString()) }
+
+    fun mute() {
+        val muted = !_state.value.muted
+        audio.muted = muted; _state.update { it.copy(muted = muted) }
+        command("set_mic", json("muted" to muted))
+    }
+    fun stopSpeech() {
+        audio.suppress(); expectedRebind = true
+        command("stop_speech")
+        rebindWaitJob?.cancel()
+        rebindWaitJob = scope.launch {
+            delay(3000)
+            if (expectedRebind && !closed && !ending) { expectedRebind = false; reconnect() }
+        }
+        log("Speech stopped locally; waiting for server recovery barrier")
+    }
+    fun clearHud() {
+        clearLatchRevision = _state.value.hudRevision
+        _state.update { it.copy(hud = "{}", hudImage = null) }
+        timerJob?.cancel()
+        scope.launch { renderMutex.withLock { device.render(JSONObject()) } }
+        command("clear_hud")
+    }
+    fun routes(): List<AudioDeviceInfo> = audio.routes()
+    fun route(deviceId: Int) {
+        runCatching { audio.route(deviceId) }.onFailure { failed(it) }
+        _state.update { it.copy(route = audio.routeDescription()) }
+        report("device.status", json("audioRoute" to audio.routeDescription(), "observedAt" to System.currentTimeMillis()))
+    }
+
+    private suspend fun applyHud(hud: JSONObject, revision: Int) {
+        if (revision < _state.value.hudRevision) return
+        val clearAt = clearLatchRevision
+        if (clearAt != null && revision <= clearAt) return
+        clearLatchRevision = null
+        if (revision == _state.value.hudRevision) return
+        _state.update { it.copy(hud = hud.toString(), hudRevision = revision, hudImage = null) }
+        timerJob?.cancel()
+        val expectedGeneration = generation
+        val expectedRenderer = rendererId
+        val imageBytes = hud.optString("imageAssetId").takeIf { it.isNotEmpty() }?.let { assetId ->
+            runCatching { withContext(Dispatchers.IO) {
+                awaitResponse(Request.Builder().url("${config.url}/api/sessions/$sessionId/assets/$assetId")
+                    .header("Authorization", "Bearer $token").build()).use { response ->
+                    if (!response.isSuccessful) throw BackendFailure(response.code)
+                    checkNotNull(response.body).bytes()
+                }
+            } }.onFailure { failed(it) }.getOrNull()
+        }
+        if (generation == expectedGeneration && _state.value.hudRevision == revision) _state.update { it.copy(hudImage = imageBytes) }
+        var lastReceipt: String? = null
+        suspend fun renderCurrent() {
+            renderMutex.withLock {
+                if (closed || generation != expectedGeneration || _state.value.hudRevision != revision || clearLatchRevision != null) return@withLock
+                val expires = hud.optLong("expiresAt", Long.MAX_VALUE)
+                val expired = expires <= serverNow()
+                val displayHud = if (expired) JSONObject() else JSONObject(hud.toString()).apply {
+                    // DAT timer renderer uses local wall time; map server-owned deadline to it.
+                    optJSONObject("timer")?.let { it.put("startedAt", it.getLong("startedAt") - clockOffset.toLong()) }
+                }
+                if (expired) _state.update { it.copy(hud = "{}", hudImage = null) }
+                val status = device.render(displayHud, if (expired) null else imageBytes)
+                if (generation == expectedGeneration && _state.value.hudRevision == revision && clearLatchRevision == null && status != lastReceipt) {
+                    lastReceipt = status
+                    report("hud.receipt", json("hudRevision" to revision, "rendererInstanceId" to expectedRenderer,
+                        "target" to if (config.device == "meta_display") "glasses" else if (config.device == "mock") "mock" else "phone", "status" to status))
+                }
+            }
+        }
+        renderCurrent()
+        if (hud.has("timer") || hud.has("expiresAt")) timerJob = scope.launch {
+            while (isActive && !closed && generation == expectedGeneration && _state.value.hudRevision == revision) {
+                delay(1000); renderCurrent()
+                if (hud.optLong("expiresAt", Long.MAX_VALUE) <= serverNow()) break
+            }
+        }
+    }
+
+    fun setPreview(enabled: Boolean) {
+        previewJob?.cancel()
+        _state.update { it.copy(preview = enabled) }
+        if (enabled) previewJob = scope.launch { while (isActive && !closed) { if (!captureMutex.isLocked) capture(null); delay(1000) } }
+    }
+
+    suspend fun capture(workId: String?) {
+        val expectedGeneration = generation
+        captureMutex.withLock {
+            if (closed || ending || expectedGeneration != generation) return
+            try {
+                val frame = withTimeout(15_000) { device.capture() }
+                if (closed || ending || expectedGeneration != generation) return
+                _state.update { it.copy(frame = frame.jpeg) }
+                val metadata = json("generation" to generation, "workId" to workId, "cameraSource" to frame.source,
+                    "captureTimeBasis" to frame.basis, "width" to frame.width, "height" to frame.height)
+                if (frame.earliestCapture != null && frame.latestCapture != null && clockUncertainty.isFinite()) {
+                    metadata.put("capturedAt", ((frame.earliestCapture + frame.latestCapture) / 2.0 + clockOffset).toLong())
+                    metadata.put("clockUncertaintyMs", kotlin.math.ceil(clockUncertainty + (frame.latestCapture - frame.earliestCapture) / 2.0).toLong())
+                }
+                val response = withContext(Dispatchers.IO) {
+                    awaitResponse(Request.Builder().url("${config.url}/api/sessions/$sessionId/frames/${id()}")
+                        .header("Authorization", "Bearer $token").header("x-frame-meta", metadata.toString())
+                        .post(frame.jpeg.toRequestBody("image/jpeg".toMediaType())).build()).use {
+                        if (!it.isSuccessful) throw BackendFailure(it.code)
+                        it.code
+                    }
+                }
+                log("${if (workId == null) "Preview" else "Inspect"} frame uploaded ($response), ${frame.width}×${frame.height}, ${frame.basis}")
+            } catch (error: Throwable) {
+                if (error is CancellationException && error !is TimeoutCancellationException) throw error
+                if (closed || ending || expectedGeneration != generation) return
+                diagnostic("capture.failed", "camera", "error", "user_action")
+                failed(error, "camera")
+                report("capture.failed", json("reason" to "Device capture failed; see diagnostics", "workId" to workId, "cameraSource" to config.device))
+            }
+        }
+    }
+
+    private fun watchEnd() {
+        if (endWatchJob?.isActive == true) return
+        endWatchJob = scope.launch {
+            val confirmed = withTimeoutOrNull(10_000) {
+                while (!closed) {
+                    val snapshot = runCatching { request("/api/sessions/$sessionId", auth = token).getJSONObject("snapshot") }.getOrNull()
+                    if (snapshot?.optString("status") in terminalStates) {
+                        applySnapshot(snapshot!!); closed = true; ending = false; release()
+                        return@withTimeoutOrNull true
+                    }
+                    delay(500)
+                }
+                true
+            }
+            if (confirmed != true && !closed) {
+                ending = false; release()
+                diagnostic("request.failed", "session", "warning", "user_action")
+                _state.update { it.copy(status = "disconnected", error = "Stopped on phone. Restore USB, then tap End session to confirm shutdown.") }
+            }
+        }
+    }
+
+    suspend fun end() {
+        if (closed || ending) return
+        ending = true
+        diagnostic("audio.status", "audio", details = JSONObject(audio.metricsSnapshot()))
+        audio.suppress(); audio.muted = true
+        startJob?.cancelAndJoin()
+        if (closed) return
+        _state.update { it.copy(status = "ending", error = null) }
+        val command = envelope("end_session", json("reason" to "operator")).put("commandId", id())
+        control?.send(command.toString())
+        // Keep control alive for final receipts, but stop mic before closing its transport.
+        audio.close(); reconnectJob?.cancel(); previewJob?.cancel()
+        delay(250)
+        var confirmed = true
+        if (!closed) runCatching { endRemote(command) }.onFailure { error ->
+            val current = runCatching { request("/api/sessions/$sessionId", auth = token) }.getOrNull()?.optJSONObject("snapshot")
+            if (current?.optString("status") !in terminalStates + "ending") { confirmed = false; failed(error, "session") }
+        }
+        closed = confirmed; ending = false; release()
+        if (confirmed && _state.value.status != "ended") diagnostic("session.ended", "session")
+        _state.update { it.copy(status = if (confirmed) "ended" else "disconnected", hud = "{}", preview = false,
+            error = if (confirmed) null else "Stopped on phone, but the server has not confirmed the end. Restore USB, then tap End session again.") }
+    }
+    private suspend fun endRemote(command: JSONObject = envelope("end_session", json("reason" to "operator")).put("commandId", id())) {
+        request("/api/sessions/$sessionId/commands", command, token)
+    }
+    fun release() {
+        ++binding; reconnectJob?.cancel(); previewJob?.cancel(); timerJob?.cancel(); healthJob?.cancel(); endWatchJob?.cancel(); rebindWaitJob?.cancel(); expectedRebind = false
+        audio.close(); device.close()
+        control?.cancel(); control = null; media?.cancel(); media = null
+    }
+    suspend fun export(): File {
+        check(sessionId.isNotEmpty()) { "Create a session first" }
+        return withContext(Dispatchers.IO) {
+            val file = File(context.filesDir, "session-$sessionId.json")
+            awaitResponse(Request.Builder().url("${config.url}/api/sessions/$sessionId/export").header("Authorization", "Bearer $token").build())
+                .use { response ->
+                    if (!response.isSuccessful) throw BackendFailure(response.code)
+                    file.writeBytes(checkNotNull(response.body).bytes())
+                }
+            file
+        }
+    }
+    private suspend fun request(path: String, body: JSONObject? = null, auth: String = "", settings: Settings = config): JSONObject = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(settings.url + path)
+        if (auth.isEmpty()) request.header("X-Coach-Local", "1") else request.header("Authorization", "Bearer $auth")
+        if (body != null) request.post(body.toString().toRequestBody("application/json".toMediaType()))
+        awaitResponse(request.build()).use { response ->
+            val content = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw BackendFailure(response.code)
+            JSONObject(content)
+        }
+    }
+    private suspend fun awaitResponse(request: Request): Response = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: IOException) { if (continuation.isActive) continuation.resumeWithException(error) }
+            override fun onResponse(call: Call, response: Response) { continuation.resume(response) { _, value, _ -> value.close() } }
+        })
+    }
+    private fun wsUrl(channel: String) = config.url.replaceFirst("http", "ws") + "/api/sessions/$sessionId/$channel"
+    fun serverNow() = (System.currentTimeMillis() + clockOffset).toLong()
+    companion object { val terminalStates = setOf("ended", "failed", "interrupted") }
+}
