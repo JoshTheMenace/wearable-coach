@@ -57,14 +57,14 @@ The Android build is configured for local USB testing. Its credential-free setup
 
 | Path | Evidence |
 | --- | --- |
-| Server contracts and provider wire protocols | `npm test`: 60 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads and teardown. |
+| Server contracts and provider wire protocols | `npm test`: 71 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads and teardown. |
 | Complete mock pipeline | `npm run smoke`: PCM received, HUD tool accepted, requested frame uploaded, selected image exported, connection replaced, session ended. |
 | Browser UI | Actual desktop/mobile browser runs: start, tools, inspection, timer expiry, clear, stop, reconnect, refresh, read-only spectator, export download and end. The inspection iteration also passed in-place cancellation, retry, and missing-camera timeout checks. |
 | Gemini adapter | Live synthetic image/audio/tool tests, ordinary observer and task handler, native resumption, silent seeded history. See [provider results](docs/provider-validation.md). |
 | Full Gemini server relay | Synthetic image question correctly answered B, paced microphone fixture correctly transcribed/answered, HUD tool applied, 390,244 output PCM bytes received, zero provider errors. [Recorded result](docs/live-relay-result.json). |
-| Android | APK compilation, 12 passing JVM audio/recovery/inspection tests, lint with zero errors, emulator mock flow and real CameraX phone-mode capture. [Android results](docs/android-setup.md). |
+| Android | APK compilation, 24 passing JVM tests including display wire format and overflow, lint with zero errors, emulator mock flow and real CameraX phone-mode capture. [Android results](docs/android-setup.md). |
 | GPT Live-1 | Wire tests and a real authenticated GPT Live-1 startup/clean shutdown passed. Full audio/delegation rehearsal remains pending. |
-| Galaxy S21 + glasses | Physical S21 mock/Gemini playback, Stop/End and offline diagnostic recovery verified. Meta glasses and Bluetooth quality still require hardware rehearsal. [S21 results](docs/s21-validation.json). |
+| Galaxy S21 + glasses | Production Gemini video, glasses speech and readable HUD worked together. The wearer also confirmed a four-line silent HUD update. Before the Home interaction: 1,827 camera frames, 81 Gemini uploads, zero drops/errors. Camera and HUD recovered afterward; the wearer also confirmed the card returned after ten seconds of sleep. [Video results](docs/glasses-video-result.json), [display evidence](docs/glasses-display-video-result.json). |
 
 Run the reproducible checks:
 
@@ -107,6 +107,7 @@ The server owns desired state; Android owns immediate hardware control. This sep
 
 ## Operational limits
 
+- **Glasses display:** the workaround remains experimental on `codex/grounded-live-coaching`: SDK 0.8 handles legacy video and display startup; the display bridge sends modern Bloks content. A centered 600×600 canvas fixed low placement. Camera startup then hid the card; reissuing the same session start restored a readable HUD while frames continued. The wearer confirmed production live video, glasses speech and readable HUD together, including a silent four-line update. Opening glasses Home can interrupt the experience; the wearer confirmed restoration afterward and after ten seconds of sleep. Long glasses cards use an estimated 400-unit height budget and an “… More on phone” notice; the phone retains the full HUD.
 - **Hands-free reliability:** Gemini automatic activity detection is selectable, but real-person and real-glasses interruption/recovery have not been validated. The proven synthetic audio path uses manual activity boundaries.
 - **Explicit stop:** currently replaces the provider binding, cancels pending work, and restores explicit history. It is deterministic about discarding old output but may introduce a conversational gap. Natural full-duplex speech does not automatically cancel work.
 - **Camera freshness:** phone captures include an estimated capture interval and clock uncertainty. Meta photo capture time is currently unknown; guidance must refer to the last received frame, not assert the current scene. This blocks the strict current-view hardware acceptance gate.
@@ -132,4 +133,4 @@ Single-image inspection does not track scene changes after capture, infer task c
 
 ## Gemini live camera
 
-On Android with **gemini / Meta**, enable **Live camera** to send new camera video frames directly to Gemini at up to one frame per second. **Tell me what you see** works with the mic muted. Video uses a bounded latest-frame buffer and drops stale or congested frames; it stops on failure, reconnect, or session end. Native video bypasses the structured observer and is not recorded. Exports contain frame counters, stale-feed events and device camera health. See [setup, tested video workaround, and display limitation](docs/android-setup.md#gemini-live-camera).
+On Android with **gemini / Meta**, enable **Live camera** to send new camera video frames directly to Gemini at up to one frame per second. **Tell me what you see** works with the mic muted. Video uses a bounded latest-frame buffer and drops stale or congested frames; it stops on failure, reconnect, or session end. Native video bypasses the structured observer and is not recorded. Exports contain frame counters, stale-feed events and device camera health. See [setup and experimental display startup](docs/android-setup.md#gemini-live-camera). Working camera video does not establish that the glasses HUD is readable.

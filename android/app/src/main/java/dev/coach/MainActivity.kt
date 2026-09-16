@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
                 Text(telemetryStatus, style = MaterialTheme.typography.bodySmall)
                 Text("Test ${session?.telemetry?.runId?.take(8).orEmpty()} · ${state.sessionId.take(8)}", style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton({ lifecycleScope.launch { session?.telemetry?.sync() } }) { Text("Sync diagnostics") }
+                    OutlinedButton({ lifecycleScope.launch { session?.telemetry?.sync(retryRejected = true) } }) { Text("Sync diagnostics") }
                     OutlinedButton({ lifecycleScope.launch {
                         runCatching { session?.exportDiagnostics() }.onSuccess { file -> exportFile = file; exportDestination.launch("coach-diagnostics.json") }
                             .onFailure { session?.failed(it, "storage") }

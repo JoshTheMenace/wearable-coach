@@ -1,0 +1,210 @@
+{
+  "testedOn": "2026-09-16",
+  "branch": "codex/grounded-live-coaching",
+  "status": "experimental; production live video, glasses audio, readable HUD, silent updates and wearer-confirmed sleep/wake recovery",
+  "phone": "Samsung Galaxy S21, Android 13",
+  "glasses": "Meta Ray-Ban Display",
+  "firmwareBuild": "68597370069500080",
+  "metaDatVersion": "0.8.0",
+  "confirmedVideoAndAudioEvidence": "glasses-video-result.json",
+  "combinedLegacyTrial": {
+    "sessionId": "c285307d-356c-41fa-af25-2e128ef6bb5b",
+    "provider": "gemini",
+    "damStartup": "false at session creation; true for session/display start; false for legacy stream start",
+    "cameraFramesReceivedAtLastStatus": 5307,
+    "geminiFramesUploaded": 265,
+    "geminiFramesDropped": 0,
+    "backendErrorOrFailureEvents": 0,
+    "diagnosticWarnings": 0,
+    "diagnosticErrors": 0,
+    "hudReceiptCount": 12,
+    "hudReceiptStatus": "sdk_submitted",
+    "hudRevisions": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "wearerReportedVisibleCard": false,
+    "readableHudWithVideoValidated": false,
+    "enduranceSnapshots": {
+      "source": ".tools/display-video-probes/combined-endurance.json",
+      "count": 11,
+      "firstCheckedAt": "2026-09-16T15:00:06.756Z",
+      "lastCheckedAt": "2026-09-16T15:05:07.070Z",
+      "elapsedSeconds": 300.314,
+      "firstCameraFrameCount": 572,
+      "lastCameraFrameCount": 5183
+    }
+  },
+  "laterDisplayProbes": {
+    "transportSdk": "0.8.0",
+    "payloadFormat": "SDK 0.9 Bloks JSON, gzip compressed",
+    "testTextReportedVisible": true,
+    "exactSdk09GoldenCard": {
+      "payloadSha256": "87416202f55f60a7841c9c977fbf725858444e2d4ef5b0b767ced61c4d2e2a23",
+      "expectedHeading": "COACH DISPLAY TEST",
+      "expectedBody": "Can you read this while looking at it?",
+      "wearerReport": "White heading visible; card and body not visible. Direct viewing remained difficult compared with looking away.",
+      "readabilityValidated": false
+    },
+    "cause": "Display recording confirms both lines render in a short card anchored at the bottom; wearer has difficulty reading the bottom region, including a Meta system button.",
+    "centeredCanvas": {
+      "payloadSha256": "1a8fdf6dc32cb84d23dfa46384d0947b36e19754c73b35f4df7e872925f6e776",
+      "rootWidth": "600",
+      "rootHeight": "600",
+      "rootJustifyContent": "center",
+      "layout": "SDK 0.9 nested clickable CARD with custom root dimensions",
+      "heading": "CENTERED COACH",
+      "body": "This card is in the middle",
+      "wearerConfirmedBothLinesVisible": true,
+      "transportSdk": "0.8.0",
+      "productionCombinedValidation": false
+    }
+  },
+  "officialDisplayAccessComparison": {
+    "sdkVersion": "0.9.0",
+    "sourceCommit": "974e05c569da8be01c0c9ce8bc5bc79b73ff8540",
+    "sampleSourceUnmodified": true,
+    "apkBuild": "passed",
+    "hardwareResult": "wearer confirmed unmodified car-maintenance cards readable normally",
+    "readabilityValidated": true,
+    "nativeSimpleCard": {
+      "expectedHeading": "NATIVE SDK TEST",
+      "wearerReport": "Only heading visible; too low in the display to see properly.",
+      "readabilityValidated": false
+    },
+    "nativeFocusedCard": {
+      "wearerReport": "Still too low; heading only visible comfortably.",
+      "recordingConfirms": "Both lines rendered in a card near the bottom of the display canvas."
+    },
+    "fiveTextCards": {
+      "wearerReadableRows": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "imagesIncluded": false
+    }
+  },
+  "evidenceLimits": [
+    "SDK acceptance and a glasses target do not establish visible pixels or readability.",
+    "Production video, glasses speech and HUD were wearer-confirmed together; Home visual return, full sleep/wake recovery and prolonged-use reliability remain unverified.",
+    "Frame counters and server submissions establish receipt/delivery, not known sensor capture time.",
+    "Wearer observations are reported feedback; no optical measurement was recorded."
+  ],
+  "productionImplementation": {
+    "sdkVersion": "0.8.0",
+    "camera": "legacy transport",
+    "displayStartup": "internal DAM override, false/true/false sequence",
+    "displayWire": "DisplayRequestPayload field 3 -> DisplayRequest field 3 -> gzip Bloks JSON",
+    "sdkVersionsMixed": false,
+    "rootCanvas": "600x600 centered",
+    "overflow": {
+      "estimatedCardHeightLimit": 400,
+      "headingCodePointsPerRow": 18,
+      "bodyCodePointsPerRow": 26,
+      "notice": "\u2026 More on phone",
+      "fullPhoneHudPreserved": true,
+      "fontWidthsMeasured": false
+    },
+    "displayRestoreAfterFirstCameraFrame": "implemented: restoreAfterCameraStart reissues the existing session start with usesDam=true after a fresh frame, then sends current HUD",
+    "videoStartTimeoutRetry": "one bounded retry"
+  },
+  "verification": {
+    "apkBuild": "passed",
+    "jvmTestsPassed": 24,
+    "androidLint": "passed with zero errors",
+    "serverTestsPassed": 71,
+    "typeScript": "passed",
+    "rejectedDeviceReportsRecovered": 2,
+    "finalDeviceReportsPending": 0,
+    "finalDeviceReportsRejected": 0
+  },
+  "productionTrial": {
+    "sessionId": "5ceed970-84c2-4ad0-a109-73977ce4adaf",
+    "cameraFramesReachingGemini": true,
+    "sentCardHeading": "LIVE COACH",
+    "wearerConfirmation": "Nothing visible while live camera runs",
+    "sleepWakeValidation": "Not tested in this earlier failed-visibility trial."
+  },
+  "cameraDisplayConflict": {
+    "exactCenteredPayload": true,
+    "cardVisibleBeforeCamera": true,
+    "cardDisappearsWhenCameraStarts": true,
+    "cameraFramesReceived": 2452,
+    "log": ".tools/display-video-probes/card-disappears-on-video.log",
+    "inference": "Camera startup displaced the visible card. Reissuing the same existing session start restored visibility while frames continued; foreground ownership is the working explanation, not a direct measurement.",
+    "displayStartOnly": {
+      "requestAccepted": true,
+      "wearerReportedVisible": false
+    }
+  },
+  "simultaneousHudVideoProbe": {
+    "log": ".tools/display-video-probes/resend-restores-visible-hud.log",
+    "sessionId": "45237559-8076-402e-81d5-eaf638d9a1ed",
+    "requestAtPhoneLogTime": "2026-09-16 11:54:50.874",
+    "action": "Reissue SessionStartRequest(usesDam=true) for the same existing session; then resend centered card",
+    "newSessionCreated": false,
+    "sessionSnapshotUsesDam": false,
+    "sessionManagerUsesDam": false,
+    "cameraFramesBefore": 1873,
+    "cameraFramesAfter": 2222,
+    "framesBeforeAtPhoneLogTime": "2026-09-16 11:54:50.545",
+    "framesAfterAtPhoneLogTime": "2026-09-16 11:55:06.965",
+    "streamStateBeforeAndAfter": "STREAMING",
+    "displayStateBeforeAndAfter": "STARTED",
+    "wearerReport": "Now its there!",
+    "readableHudAndVideoConfirmed": true,
+    "productionGeminiIntegrationValidated": false,
+    "sleepWakeValidated": false
+  },
+  "confirmedProductionTrial": {
+    "sessionId": "0c78b226-f4dd-4033-b475-4f4fbae9cb35",
+    "wearerConfirmed": {
+      "liveCoachBothLinesVisible": true,
+      "geminiSpeechThroughGlasses": true,
+      "silentUpdateAllFourLinesReadable": true,
+      "silentUpdateRequiredSpeech": false
+    },
+    "beforeHomeInteraction": {
+      "nativeCameraFramesReceived": 1827,
+      "geminiFramesUploaded": 81,
+      "geminiFramesDropped": 0,
+      "backendErrors": 0
+    },
+    "homeInteraction": {
+      "actualAction": "opened glasses Home",
+      "fullSleepWakeTestCompleted": false,
+      "cameraAutomaticallyRebuilt": true,
+      "sameGeminiSessionRetained": true,
+      "subsequentUploadCounts": [
+        95,
+        100
+      ],
+      "wearerConfirmedVisualReturn": true
+    },
+    "sdkWearState": "DON_STATE_UNKNOWN while visible HUD was working",
+    "wearStateIsReliableVisibilityGate": false,
+    "sleepWake": {
+      "durationSeconds": 10,
+      "wearerConfirmedCardReturned": true,
+      "wearerReport": "Yes it was back and when I put the glasses to sleep for 10 and then woke it back up it returned successfully",
+      "verifiedBeforeFinalFollowupHardening": true
+    }
+  },
+  "finalFollowupChanges": {
+    "diagnosticSchema": "Four known camera startup errors accepted; manual Sync diagnostics retries saved rejected reports without duplicate event IDs.",
+    "recovery": "One retry for video startup with no frames; HUD replay after hardware rebuild or spontaneous resume; recovered display errors clear.",
+    "validationLimit": "Core video/audio/HUD and sleep/wake were physically confirmed. Final follow-up hardening passed automated checks; no further glasses tests after user placed them on charge."
+  }
+}

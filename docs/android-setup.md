@@ -50,7 +50,7 @@ First identify the hardware: **Meta Ray-Ban Display** has a display. Ordinary **
 5. Use **Choose audio route** to explicitly select the glasses communication route. Verify the shown route and test by speaking and listening. Android communication routing determines microphone and playback; attaching DAT camera does not prove the audio route changed.
 6. If DAT reports incompatible software, use **Glasses firmware update** or **Glasses DAT app update**. Recently updated firmware alone does not prove the DAT glasses app is current.
 
-The bridge uses one DAT `DeviceSession`, attaches the legacy `Stream` and `Display` capability, and copies decoded camera frames into one owned latest-frame buffer. Requested inspections wait for a new frame for up to four seconds, then may attempt one still photo with a ten-second timeout. Live mode never uses this photo fallback. Display content uses DAT's `sendContent` primitives. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Meta frames deliberately carry unknown sensor capture age; frame receipt time is measured separately.
+The bridge uses one DAT `DeviceSession`, starts the `Display` capability before the legacy `Stream`, and copies decoded camera frames into one owned latest-frame buffer. Requested inspections wait for a new frame for up to four seconds, then may attempt one still photo with a ten-second timeout. Live mode never uses this photo fallback. The display bridge sends modern Bloks content through the pinned SDK 0.8 channel. A successful send is recorded as `sdk_submitted`, never as pixels observed by the learner. Meta frames deliberately carry unknown sensor capture age; frame receipt time is measured separately.
 
 ### Gemini live camera
 
@@ -64,7 +64,28 @@ On September 16, 2026, the official SDK 0.9 CameraAccess demo reported `STREAMIN
 
 The S21 test recorded 3,667 received camera frames, 189 Gemini uploads, zero upload drops, and no backend errors. Gemini described the physical scene and the wearer confirmed hearing it through the glasses with the mic muted. See [test evidence summary](glasses-video-result.json). The SDK version label in that trial's raw telemetry was stale; the installed APK used 0.8.0, and the label is corrected in this build.
 
-**Current limitation:** the glasses display service was unavailable with this transport. Cards remain on the phone, and the app reports that status. Local bitmap HUD output is also unsupported by SDK 0.8. A separate attempt to combine display startup with legacy video did not sustain a session and is excluded from this build. Simultaneous live video and glasses HUD remains unverified.
+### Experimental combined display and video startup
+
+The wearer confirmed production live video, Gemini speech through the glasses, and a readable HUD together, followed by a readable four-line silent update. Return from glasses Home and actual sleep/wake still need visual verification. The work on `codex/grounded-live-coaching` remains experimental. The legacy-only configuration restored video but left the display service unavailable. The combined startup uses SDK 0.8's internal DAM override in this order:
+
+1. Set DAM **false** before creating `DeviceSession`. The session retains this choice for the legacy video implementation.
+2. Set DAM **true** while starting that session and attaching display. This launches the glasses app that serves HUD content.
+3. Restore DAM **false** before adding and starting the camera stream. This lets the legacy camera perform its own startup. Leaving it true produced zero frames; adding a DWA camera handshake also produced zero frames.
+4. After a fresh camera frame, call `restoreAfterCameraStart` to reissue the same session start with DAM enabled, then submit the current HUD. Startup makes one bounded retry for `VideoStartTimeout`.
+
+A 60-second isolated test delivered 1,446 decoded video frames while the SDK accepted repeated HUD requests. A subsequent full-app run recorded 5,307 received camera frames, 265 Gemini uploads, zero drops and 12 `sdk_submitted` HUD receipts. The wearer reported seeing no legacy card. These results establish video delivery and SDK acceptance, not visible HUD output. See [combined test evidence](glasses-display-video-result.json).
+
+The display protocol also changed: SDK 0.8's old layout requests were accepted but appeared blank; SDK 0.9 sends gzip-compressed Bloks JSON in `DisplayRequest.bloks_payload` (field 3). The bridge uses that format without loading a second SDK version. The official SDK 0.9 list was readable, but a short native card reproduced the low-position problem. A display recording showed both lines rendered near the bottom. Giving the root an explicit 600×600 size and centering its nested card fixed the test: the wearer confirmed both “CENTERED COACH” lines were visible through the SDK 0.8 transport.
+
+The production encoder uses that confirmed structure. It wraps heading/body text at approximately 18/26 Unicode characters per line and limits estimated card height to 400, including padding and spacing. Overflow ends with “… More on phone”; the full phone HUD is unchanged. Character widths are estimates, so maximum-length layouts still need a physical clipping check. The first updated production trial delivered camera video to Gemini, but the wearer reported no visible HUD.
+
+A controlled test kept the centered card visible before camera startup, then the wearer observed it disappear when streaming began. Sending a display-start request alone was accepted but did not restore visibility. On September 16 at 11:54:50.874 phone-log time, the isolated probe reissued `SessionStartRequest(usesDam=true)` for the **same existing session**, then resent the card. The wearer confirmed it was visible again while received camera frames increased from 1,873 to 2,222 with `STREAMING` unchanged. This established simultaneous HUD/video in the probe. The production bridge now performs that restoration after a fresh camera frame.
+
+In production session `0c78b226-f4dd-4033-b475-4f4fbae9cb35`, the wearer confirmed both LIVE COACH lines and Gemini speech through the glasses, then all four SILENT UPDATE lines without speech. Before opening glasses Home, telemetry showed 1,827 camera frames, 81 Gemini uploads, zero drops and zero backend errors. Home interrupted the experience; camera rebuilding restored uploads to 95, then 100, under the same Gemini session. The wearer subsequently confirmed visual return, then put the glasses to sleep for ten seconds and confirmed the card returned after waking.
+
+This is a version-specific workaround using an internal SDK method, guarded to DAT 0.8.0. The override is process-wide, so startup must remain single-flight. `finally` restores false after display bootstrap, including failures or cancellation, and normal session cleanup stops both capabilities. Do not initialize another DAT session concurrently. Local bitmap HUD output remains unsupported by SDK 0.8. Two checklist rows were readable in the four-line card. Maximum-length layouts, timer/clear behavior and prolonged use still need wearer-visible verification on this firmware.
+
+The session evidence includes the SDK's reported wear state when available. `DON_STATE_UNKNOWN` was reported while the wearer could see the working HUD, so it is not a reliable visibility gate or evidence that the glasses are off. A native camera-start response of `ERROR_CODE_DOFF` means the glasses reported not being worn; check physical fit/wake state before diagnosing another transport failure.
 
 Keep the glasses on and awake when starting. Select **gemini / Meta**, start the session, mute the mic if needed, enable **Live camera**, and wait for the sent-frame counter to increase before tapping **Tell me what you see**. A `STREAMING` state alone does not prove that frames are arriving. Do not upgrade the DAT libraries independently: repeat the official CameraAccess test, native frame/upload checks, audible glasses playback, and HUD checks before removing this compatibility configuration.
 
@@ -84,7 +105,7 @@ On transport loss, playback stops, sockets close, and the app requests a new gen
 
 ## Verification and remaining hardware gates
 
-`./android/build.sh` compiles the actual DAT artifacts, packages an installable debug APK and runs 19 JVM tests covering stale/future/duplicate audio, local stop recovery barriers, binary packet round-trips, burst/partial playback writes and safe error messages. Android lint also passes with zero errors and 15 dependency-version/Kotlin shorthand warnings (`./android/build.sh :app:lintDebug`).
+The updated APK compiled, all 24 JVM tests passed, and Android lint passed with zero errors. Tests cover audio/recovery, camera-frame handling, safe errors, exact confirmed display JSON, SDK 0.8 protobuf compatibility, Unicode wrapping and HUD overflow. Run `./android/build.sh :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` to repeat these checks.
 
 On September 15, 2026, an API 35 arm64 emulator completed an isolated mock-backend run: native audio initialization, session start, text-to-HUD, correlated mock-image inspection, manual HUD replacement, clear, speech stop with server rebind, explicit reconnect, background/resume and session end. After two binding replacements the server showed generation 3, clear HUD and a fresh renderer receipt. A second session used CameraX with the emulator's rear camera: the server accepted a 1280×1706 JPEG, correlated work ID, phone capture interval and 196 ms clock/capture uncertainty as fresh. These are emulator results, not physical-camera or audible Bluetooth tests.
 
@@ -102,3 +123,5 @@ No screenshot or emulator result proves physical glasses rendering, Bluetooth ti
 ## Persistent diagnostics
 
 The phone Diagnostics section includes a short test ID, sync status and local JSON export. Reports queue on disk while USB/backend connectivity is unavailable and sync every ten seconds when reachable. The desktop Testing diagnostics panel and session evidence exports provide the same correlated data. Normal ending no longer raises stale-generation errors; recoverable transport warnings stay in diagnostics while the app retries. Five recoveries within a minute stop automatic retry and leave Reconnect/End session controls available. See [physical S21 findings](s21-diagnostics.md).
+
+Manual **Sync diagnostics** retries reports rejected by an older server schema, preserving their event IDs. Automatic syncing leaves rejected entries saved for inspection. Four camera startup error codes are now accepted by the server; the regression test also checks duplicate suppression.

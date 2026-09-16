@@ -29,18 +29,20 @@ import com.meta.wearable.dat.display.Display
 import com.meta.wearable.dat.display.addDisplay
 import com.meta.wearable.dat.display.removeDisplay
 import com.meta.wearable.dat.display.types.DisplayState
-import com.meta.wearable.dat.display.views.Direction
-import com.meta.wearable.dat.display.views.TextStyle
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.Closeable
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 data class CapturedFrame(val jpeg: ByteArray, val width: Int, val height: Int, val source: String,
     val earliestCapture: Long?, val latestCapture: Long?, val basis: String, val receivedAtMono: Long? = null)
+
+enum class VideoRecovery { RECOVERED, WAITING, FAILED }
 
 class DeviceBridge(private val context: Context, private val lifecycle: LifecycleOwner,
     private val scope: CoroutineScope, private val report: (String) -> Unit) {
@@ -49,6 +51,9 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var session: DeviceSession? = null
     private var stream: Stream? = null
     private var display: Display? = null
+    private var displayObserver: Closeable? = null
+    private var lastDisplayError: String? = null
+    private var lastDisplayErrorAt = 0L
     private var monitor: Job? = null
     private var videoMonitor: Job? = null
     private var videoFrames = VideoFrames()
@@ -73,15 +78,28 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                 report("Phone camera ready; HUD target is phone")
             }
             "meta_display" -> {
-                check(Wearables.registrationState.value == RegistrationState.REGISTERED) { "Register with Meta AI first" }
+                if (Wearables.registrationState.value != RegistrationState.REGISTERED) throw CameraCaptureFailure("MetaRegistrationRequired")
                 val permission = Wearables.checkPermissionStatus(Permission.CAMERA).fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                check(permission == PermissionStatus.Granted) { "Grant Meta camera access using the Meta permission button" }
+                if (permission != PermissionStatus.Granted) throw CameraCaptureFailure("MetaPermissionRequired")
+                setDamBootstrap(false)
                 val created = Wearables.createSession(AutoDeviceSelector()).fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
                 session = created
                 monitor = scope.launch { created.errors.collect { report("Meta: ${it.description}") } }
-                created.start()
-                withTimeoutOrNull(20_000) { created.state.first { it == DeviceSessionState.STARTED } }
-                    ?: throw CameraCaptureFailure("DeviceStartTimeout")
+                // DAT 0.8 snapshots legacy video at creation; display needs DAM at session start.
+                // Restore legacy lifecycle handling before adding the stream, or video never arrives.
+                try {
+                    setDamBootstrap(true)
+                    created.start()
+                    withTimeoutOrNull(20_000) { created.state.first { it == DeviceSessionState.STARTED } }
+                        ?: throw CameraCaptureFailure("DeviceStartTimeout")
+                    created.addDisplay().onSuccess { capability ->
+                        display = capability
+                        displayAvailable = withTimeoutOrNull(12_000) { capability.state.first { it == DisplayState.STARTED } } != null
+                        if (displayAvailable) displayObserver = GlassesHudTransport.observeErrors(created) { code ->
+                            scope.launch(Dispatchers.Main.immediate) { if (session === created) reportDisplayError(code) }
+                        }
+                    }.onFailure { error, _ -> report("Glasses display unavailable: ${error.description}; phone preview only") }
+                } finally { setDamBootstrap(false) }
                 val added = created.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 24, compressVideo = false))
                     .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
                 stream = added
@@ -116,16 +134,64 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                     }
                 }
                 added.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                withTimeout(20_000) { added.state.first { it == StreamState.STREAMING } }
-                // Ordinary Ray-Ban Meta can expose camera without a display. Report this honestly.
-                created.addDisplay().onSuccess { capability ->
-                    display = capability
-                    displayAvailable = withTimeoutOrNull(12_000) { capability.state.first { it == DisplayState.STARTED } } != null
-                }.onFailure { error, _ -> report("Glasses display unavailable: ${error.description}; phone preview only") }
+                withTimeoutOrNull(20_000) { added.state.first { it == StreamState.STREAMING } }
+                    ?: throw CameraCaptureFailure("VideoStartTimeout")
+                frames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
+                restoreDisplay()
                 report("Meta camera ready; glasses display=$displayAvailable; using new video frames, sensor clock unknown")
             }
             else -> report("Mock camera and phone HUD ready; synthetic evidence is labeled")
         }
+    }
+
+    // Called by the serialized live capture coroutine: cancelling live also cancels recovery.
+    suspend fun recoverVideo(onAttempt: (Int) -> Unit): VideoRecovery {
+        if (mode != "meta_display") return VideoRecovery.FAILED
+        videoFrames.reset()
+        var rebuilt = false
+        try {
+            repeat(3) { attempt ->
+                currentCoroutineContext().ensureActive()
+                if (session?.state?.value == DeviceSessionState.PAUSED || stream?.state?.value == StreamState.PAUSED)
+                    return VideoRecovery.WAITING
+                if (Wearables.devicesMetadata.values.none { it.value.linkState == LinkState.CONNECTED })
+                    return VideoRecovery.WAITING
+                onAttempt(attempt + 1)
+                try {
+                    val active = stream
+                    if (attempt == 0 && session?.state?.value == DeviceSessionState.STARTED && active?.state?.value == StreamState.STOPPED) {
+                        active.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
+                        withTimeoutOrNull(20_000) { active.state.first { it == StreamState.STREAMING } }
+                            ?: throw CameraCaptureFailure("VideoStartTimeout")
+                        videoFrames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
+                        restoreDisplay()
+                    } else {
+                        rebuilt = true
+                        start("meta_display") // A stopped parent session cannot be restarted.
+                    }
+                    return VideoRecovery.RECOVERED
+                } catch (error: CancellationException) { throw error }
+                catch (error: Exception) {
+                    report("Meta camera recovery attempt ${attempt + 1} failed: ${error.javaClass.simpleName}")
+                    if (attempt < 2) delay(2_000L * (attempt + 1))
+                }
+            }
+            if (rebuilt) close()
+            return VideoRecovery.FAILED
+        } catch (error: CancellationException) {
+            if (rebuilt) close() // Do not leave a partially started replacement behind.
+            throw error
+        }
+    }
+
+    suspend fun restoreDisplay() {
+        val active = session ?: return
+        if (!displayAvailable) return
+        try {
+            GlassesHudTransport.restoreAfterCameraStart(active)
+            if (session === active) report("Meta display relaunch requested after camera start; DWA query acknowledged")
+        } catch (error: CancellationException) { throw error }
+        catch (error: Exception) { if (session === active) reportDisplayError((error as? GlassesDisplayFailure)?.code ?: "RESTORE_FAILED") }
     }
 
     suspend fun capture(allowPhotoFallback: Boolean = false): CapturedFrame = when (mode) {
@@ -146,7 +212,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             } finally { file.delete() }
         }
         "meta_display" -> {
-            checkNotNull(stream) { "Meta camera not ready" }
+            if (stream == null) throw CameraCaptureFailure("VideoStreamFailed")
             val frame = videoFrames.next(SystemClock.elapsedRealtime())
             if (frame == null && allowPhotoFallback) captureMetaPhoto()
             else if (frame == null) throw CameraCaptureFailure(when (videoError) {
@@ -183,31 +249,43 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         if (hud.has("imageAssetId")) return "unsupported" // DAT 0.8 cannot send local bitmap content.
         val active = display ?: return "unsupported"
         if (!displayAvailable || active.state.value != DisplayState.STARTED) return "unsupported"
-        val result = active.sendContent {
-            flexBox(direction = Direction.COLUMN, gap = 10, padding = 16) {
-                hud.optJSONObject("card")?.let { card ->
-                    if (card.optString("title").isNotEmpty()) text(card.optString("title"), style = TextStyle.HEADING)
-                    text(card.optString("body"), style = TextStyle.BODY)
+        val lines = buildList {
+            hud.optJSONObject("card")?.let { card ->
+                card.optString("title").takeIf { it.isNotEmpty() }?.let { add(GlassesHudPayload.Line(it, true)) }
+                add(GlassesHudPayload.Line(card.optString("body")))
+            }
+            hud.optJSONArray("checklist")?.let { rows ->
+                for (i in 0 until rows.length()) rows.optJSONObject(i)?.let { row ->
+                    add(GlassesHudPayload.Line("${if (row.optBoolean("checked")) "✓" else "○"} ${row.optString("text")}"))
                 }
-                hud.optJSONArray("checklist")?.let { rows ->
-                    for (i in 0 until rows.length()) rows.optJSONObject(i)?.let { row ->
-                        text("${if (row.optBoolean("checked")) "✓" else "○"} ${row.optString("text")}", style = TextStyle.BODY)
-                    }
-                }
-                hud.optJSONObject("timer")?.let { timer ->
-                    val seconds = ((timer.optLong("startedAt") + timer.optLong("durationMs") - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
-                    text("${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}", style = TextStyle.HEADING)
-                }
-                if (hud.length() == 0) text("", style = TextStyle.BODY)
+            }
+            hud.optJSONObject("timer")?.let { timer ->
+                val seconds = ((timer.optLong("startedAt") + timer.optLong("durationMs") - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+                add(GlassesHudPayload.Line("${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}", true))
             }
         }
-        return result.fold(onSuccess = { "sdk_submitted" }, onFailure = { error, _ -> report("Meta HUD: ${error.description}"); "failed" })
+        return try {
+            GlassesHudTransport.send(checkNotNull(session), GlassesHudPayload.encode(lines))
+            lastDisplayError = null
+            "sdk_submitted" // Acknowledgment is not proof of visible pixels.
+        } catch (error: CancellationException) { throw error }
+        catch (error: Exception) { reportDisplayError((error as? GlassesDisplayFailure)?.code ?: "SEND_EXCEPTION"); "failed" }
+    }
+
+    private fun reportDisplayError(code: String) {
+        val now = SystemClock.elapsedRealtime()
+        // The observer and pending send can report the same event; retain later repeated failures.
+        if (lastDisplayError == code && now - lastDisplayErrorAt < 1000) return
+        lastDisplayError = code; lastDisplayErrorAt = now
+        report("Meta display error: $code")
     }
 
     fun cameraStats(): JSONObject = JSONObject().put("streamState", stream?.state?.value?.name ?: "unavailable")
         .put("framesReceived", videoFrames.receivedCount)
         .put("lastFrameAgeMs", videoFrames.current?.let { SystemClock.elapsedRealtime() - it.receivedAtMono } ?: JSONObject.NULL)
         .put("streamError", videoError ?: JSONObject.NULL)
+        .put("wearState", wearState() ?: JSONObject.NULL)
+        .put("lastDisplayError", lastDisplayError ?: JSONObject.NULL)
         .put("firmwareInfo", if (mode == "meta_display") Wearables.devicesMetadata.values.map { it.value }
             .filter { it.linkState == LinkState.CONNECTED }.singleOrNull()?.firmwareInfo ?: JSONObject.NULL else JSONObject.NULL)
 
@@ -215,11 +293,26 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         videoMonitor?.cancel(); videoMonitor = null
         videoFrames = VideoFrames(); videoError = null
         monitor?.cancel(); monitor = null
+        runCatching { displayObserver?.close() }; displayObserver = null; lastDisplayError = null
         runCatching { stream?.stop() }; stream = null
         runCatching { session?.removeDisplay() }; display = null; displayAvailable = false
         runCatching { session?.stop() }; session = null
+        runCatching { setDamBootstrap(false) }
         phoneProvider?.unbindAll(); phoneProvider = null; phoneCapture = null
     }
+
+    // Internal API, pinned to DAT 0.8. Revalidate this workaround before upgrading the SDK.
+    private fun setDamBootstrap(enabled: Boolean) {
+        check(BuildConfig.META_DAT_VERSION == "0.8.0") { "Revalidate Meta camera/display compatibility for this SDK" }
+        Wearables.javaClass.getMethod("setUsesDamOverride\$fbandroid_java_com_meta_wearable_dat_core_core", Boolean::class.javaPrimitiveType)
+            .invoke(Wearables, enabled)
+    }
+
+    private fun wearState(): String? = session?.let { active -> runCatching {
+        val suffix = "\$fbandroid_java_com_meta_wearable_dat_core_core"
+        val heartbeat = active.javaClass.getMethod("getHeartbeatMonitor$suffix").invoke(active)
+        (heartbeat.javaClass.getMethod("getDonState$suffix").invoke(heartbeat) as StateFlow<*>).value.toString()
+    }.getOrNull() }
 
     private fun decode(bytes: ByteArray): Bitmap {
         val bitmap = checkNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size)) { "Image decoding failed" }

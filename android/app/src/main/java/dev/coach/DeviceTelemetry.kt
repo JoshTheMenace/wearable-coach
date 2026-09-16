@@ -59,10 +59,10 @@ class DeviceTelemetry(context: Context, private val scope: CoroutineScope) {
         if (rejected > 0) { _status.value = "$pending waiting to sync; $rejected reports need an app/server update. Save diagnostics."; return }
         _status.value = if (pending == 0) "Diagnostics synced to computer" else "$pending diagnostics saved on phone; waiting to sync"
     }
-    suspend fun sync() = withContext(Dispatchers.IO) {
+    suspend fun sync(retryRejected: Boolean = false) = withContext(Dispatchers.IO) {
         // Holding the lock also serializes automatic and manual retries.
         mutex.withLock {
-            val pending = entries.filter { !it.optBoolean("uploaded") && !it.optBoolean("rejected") }.take(50)
+            val pending = entries.filter { !it.optBoolean("uploaded") && (retryRejected || !it.optBoolean("rejected")) }.take(50)
             if (pending.isEmpty()) { updateStatus(); return@withLock }
             fun upload(batch: List<JSONObject>): Int {
                 val body = json("reports" to JSONArray(batch.map { it.getJSONObject("report") }))
@@ -72,11 +72,11 @@ class DeviceTelemetry(context: Context, private val scope: CoroutineScope) {
             }
             runCatching {
                 when (val status = upload(pending)) {
-                    in 200..299 -> pending.forEach { it.put("uploaded", true) }
+                    in 200..299 -> pending.forEach { it.put("uploaded", true).remove("rejected") }
                     400, 413 -> pending.forEach { entry ->
                         // Keep incompatible reports for export; they must not block valid newer reports.
                         when (val single = upload(listOf(entry))) {
-                            in 200..299 -> entry.put("uploaded", true)
+                            in 200..299 -> entry.put("uploaded", true).remove("rejected")
                             400, 413 -> entry.put("rejected", true)
                             else -> error("Diagnostics upload unavailable ($single)")
                         }

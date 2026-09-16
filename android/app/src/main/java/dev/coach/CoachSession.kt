@@ -45,7 +45,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     val state: StateFlow<CoachState> = _state
     private val client = OkHttpClient.Builder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).pingInterval(15, TimeUnit.SECONDS).build()
     private val audio = AudioEngine(context, ::audioReport)
-    private val device = DeviceBridge(context, lifecycle, scope, ::log)
+    private val device = DeviceBridge(context, lifecycle, scope, ::deviceReport)
     private var config = Settings()
     private var token = ""
     private var control: WebSocket? = null
@@ -68,6 +68,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     private var liveJob: Job? = null
     private var liveControlJob: Job? = null
     private var liveEpoch = 0
+    private var hudRestorePending = false
     private var timerJob: Job? = null
     private var rendererId = id()
     private var clearLatchRevision: Int? = null
@@ -99,6 +100,16 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             reconnect()
         } else diagnostic("audio.status", "audio", details = JSONObject(audio.metricsSnapshot()))
     } }
+
+    private fun deviceReport(message: String) {
+        log(message)
+        if (!closed && !ending && message.startsWith("Meta display error: ")) {
+            val code = message.substringAfter("Meta display error: ").filter { it.isLetterOrDigit() || it == '_' }.take(60)
+            diagnostic("command.failed", "hud", "error", "user_action", json("errorClass" to "GlassesDisplay_$code"))
+            _state.update { it.copy(error = "Glasses display failed ($code). The phone preview is still available.") }
+            report("device.status", json("camera" to device.cameraStats(), "observedAt" to System.currentTimeMillis()))
+        }
+    }
 
     fun log(message: String) {
         _state.update { it.copy(diagnostics = (it.diagnostics + "${System.currentTimeMillis()} $message").takeLast(150)) }
@@ -135,7 +146,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         telemetry.newRun()
         _state.value = CoachState(status = "starting", provider = config.provider, device = config.device,
             manualActivity = config.manualActivity, diagnostics = _state.value.diagnostics)
-        generation = 0; epoch = 0; throughSeq = 0; clearLatchRevision = null
+        generation = 0; epoch = 0; throughSeq = 0; clearLatchRevision = null; hudRestorePending = false
         diagnostic("session.start_requested", "session")
         rendererId = id(); clockUncertainty = Double.POSITIVE_INFINITY; clockOffset = 0.0
         closed = false
@@ -151,7 +162,16 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             _state.update { it.copy(sessionId = response.getString("sessionId"), spectatorToken = response.optString("spectatorToken")) }
             diagnostic("session.created", "session")
             activeStage = "camera"
-            device.start(config.device)
+            try { device.start(config.device) }
+            catch (error: CameraCaptureFailure) {
+                if (config.device != "meta_display" || error.cameraError != "VideoStartTimeout") throw error
+                diagnostic("reconnect.attempt", "camera", "warning", "retrying", json("attempt" to 1, "cameraError" to error.cameraError))
+                log("Camera sent no frames on startup; retrying once")
+                device.close()
+                delay(2_000)
+                device.start(config.device)
+                diagnostic("reconnect.recovered", "camera", recovery = "recovered")
+            }
             _state.update { it.copy(glassesDisplayAvailable = device.displayAvailable) }
             activeStage = "control"
             applySnapshot(response.getJSONObject("snapshot"))
@@ -445,12 +465,12 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         report("device.status", json("audioRoute" to audio.routeDescription(), "observedAt" to System.currentTimeMillis()))
     }
 
-    private suspend fun applyHud(hud: JSONObject, revision: Int) {
+    private suspend fun applyHud(hud: JSONObject, revision: Int, replay: Boolean = false) {
         if (revision < _state.value.hudRevision) return
         val clearAt = clearLatchRevision
         if (clearAt != null && revision <= clearAt) return
         clearLatchRevision = null
-        if (revision == _state.value.hudRevision) return
+        if (revision == _state.value.hudRevision && !replay) return
         _state.update { it.copy(hud = hud.toString(), hudRevision = revision, hudImage = null) }
         timerJob?.cancel()
         val expectedGeneration = generation
@@ -477,6 +497,8 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 }
                 if (expired) _state.update { it.copy(hud = "{}", hudImage = null) }
                 val status = device.render(displayHud, if (expired) null else imageBytes)
+                if (status == "sdk_submitted" && generation == expectedGeneration && _state.value.hudRevision == revision && clearLatchRevision == null)
+                    _state.update { if (it.error?.startsWith("Glasses display failed (") == true) it.copy(error = null) else it }
                 if (generation == expectedGeneration && _state.value.hudRevision == revision && clearLatchRevision == null && status != lastReceipt) {
                     lastReceipt = status
                     report("hud.receipt", json("hudRevision" to revision, "rendererInstanceId" to expectedRenderer,
@@ -501,6 +523,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     private fun stopLiveLocally() {
+        hudRestorePending = false
         liveJob?.cancel(); liveJob = null
         _state.update { it.copy(liveVideo = false, liveFrames = 0, lastLiveFrameAt = 0) }
     }
@@ -565,14 +588,54 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 if (liveVideoEpoch != null) {
                     if (response) _state.update { it.copy(liveFrames = it.liveFrames + 1, lastLiveFrameAt = serverNow(), liveMessage = "Live video is reaching Gemini") }
                     else _state.update { it.copy(liveMessage = "Frame dropped; waiting for the next camera update") }
+                    if (hudRestorePending) {
+                        if (closed || ending || expectedGeneration != generation || !_state.value.liveVideo) return@withLock false
+                        device.restoreDisplay()
+                        if (closed || ending || expectedGeneration != generation || !_state.value.liveVideo) return@withLock false
+                        hudRestorePending = false
+                        val latest = _state.value
+                        try { applyHud(JSONObject(latest.hud), latest.hudRevision, replay = true) }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (hudError: Exception) { failed(hudError, "hud") }
+                    }
                 } else log("${if (workId == null) "Preview" else "Inspect"} frame uploaded, ${frame.width}×${frame.height}, ${frame.basis}")
                 true
             } catch (error: Throwable) {
                 if (error is CancellationException && error !is TimeoutCancellationException) throw error
                 if (closed || ending || expectedGeneration != generation) return@withLock false
+                if (liveVideoEpoch != null && error is CameraCaptureFailure && error.cameraError in setOf("VideoFrameTimeout", "VideoStreamFailed")) {
+                    _state.update { it.copy(frame = null, liveMessage = "Camera interrupted; checking the glasses…") }
+                    val recovery = device.recoverVideo { attempt ->
+                        diagnostic("reconnect.attempt", "camera", "warning", "retrying", json("attempt" to attempt))
+                        report("device.status", json("camera" to device.cameraStats(), "observedAt" to System.currentTimeMillis()))
+                    }
+                    if (closed || ending || expectedGeneration != generation || !_state.value.liveVideo) return@withLock false
+                    when (recovery) {
+                        VideoRecovery.WAITING -> {
+                            hudRestorePending = true
+                            _state.update { it.copy(liveMessage = "Waiting for the glasses to resume. The coach conversation is still active.") }
+                            delay(2_000)
+                            return@withLock true
+                        }
+                        VideoRecovery.RECOVERED -> {
+                            hudRestorePending = false
+                            diagnostic("reconnect.recovered", "camera", recovery = "recovered")
+                            report("device.status", json("camera" to device.cameraStats(), "observedAt" to System.currentTimeMillis()))
+                            _state.update { it.copy(glassesDisplayAvailable = device.displayAvailable, liveMessage = "Camera recovered; resuming live video…") }
+                            val latest = _state.value
+                            try { applyHud(JSONObject(latest.hud), latest.hudRevision, replay = true) }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (hudError: Exception) { failed(hudError, "hud") }
+                            return@withLock true
+                        }
+                        VideoRecovery.FAILED -> diagnostic("reconnect.exhausted", "camera", "error", "user_action")
+                    }
+                }
                 failed(error, "camera", json(
                     "durationMs" to android.os.SystemClock.elapsedRealtime() - captureStarted,
                     "routeType" to audio.stats()["routeType"]))
+                if (config.provider == "gemini" && error is CameraCaptureFailure && error.cameraError == "VideoStreamFailed")
+                    _state.update { it.copy(error = "Camera interrupted. Wake the glasses and tap Live camera to reconnect. Your coach conversation is still active.") }
                 if (liveVideoEpoch == null) report("capture.failed", json("reason" to "Device capture failed; see diagnostics", "workId" to workId, "cameraSource" to config.device))
                 false
             }

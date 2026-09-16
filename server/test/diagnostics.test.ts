@@ -97,3 +97,15 @@ test('audio diagnostics retain only bounded structural measurements', t => {
   assert.throws(() => diagnostics.ingest([report({ details: { authorization: 'Bearer opaque' } })]));
   assert.throws(() => diagnostics.ingest([report({ details: { model: 'https://example.test?key=secret' } })]));
 });
+
+test('camera startup diagnostics survive quarantine replay without duplicate reports', t => {
+  const db = new DatabaseSync(':memory:'); t.after(() => db.close());
+  const diagnostics = new Diagnostics(db);
+  const errors = ['MetaRegistrationRequired', 'MetaPermissionRequired', 'DeviceStartTimeout', 'VideoStartTimeout'];
+  const reports = errors.map(cameraError => report({ code: 'capture.failed', stage: 'camera', recovery: 'user_action',
+      details: { errorClass: 'CameraCaptureFailure', cameraError } }));
+  assert.equal(diagnostics.ingest(reports).accepted, 4);
+  assert.equal(diagnostics.ingest(reports).duplicates, 4);
+  assert.deepEqual(diagnostics.list().map(row => row.details.cameraError).sort(), errors.sort());
+  assert.throws(() => diagnostics.ingest([report({ details: { cameraError: 'UnknownSdkError' } })]));
+});

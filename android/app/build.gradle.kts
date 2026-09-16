@@ -41,4 +41,5 @@ dependencies {
     implementation("com.meta.wearable:mwdat-camera:$metaDatVersion")
     implementation("com.meta.wearable:mwdat-display:$metaDatVersion")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
 }

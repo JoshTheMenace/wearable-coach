@@ -14,6 +14,7 @@ class CoachFailureTest {
         val startup = CoachFailure.from(CameraCaptureFailure("DeviceStartTimeout"))
         assertTrue(startup.message.contains("wake them"))
         assertFalse(startup.message.contains("No image"))
+        assertTrue(CoachFailure.from(CameraCaptureFailure("VideoStartTimeout")).message.contains("sent no video"))
     }
     @Test fun failuresGiveRecoveryStepsWithoutLeakingTransportContent() {
         val issue = CoachFailure.from(ConnectException("https://secret.example?key=do-not-log"))
