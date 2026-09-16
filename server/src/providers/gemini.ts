@@ -2,6 +2,10 @@ import WebSocket from 'ws';
 import { COACH_PROMPT, SocketProvider, boundedText, imageCheck, numericUsage, type Wire } from './shared.ts';
 
 export const hudTools = [
+  { name: 'play_training_video', description: 'Play a prepared lesson video on the display. Use hand-placement for a short reminder such as can I see hand placement again. Never invent a URL. Playback is temporary; practice resumes afterward.',
+    parameters: { type: 'OBJECT', properties: { clipId: { type: 'STRING', enum: ['overview', 'hand-placement'] } }, required: ['clipId'] } },
+  { name: 'lesson_action', description: 'Update the CPR lesson after an explicit learner request. Continue moves from reading to demo or explicitly skips the demo. Finish practice only when the learner says they are done. Visual placement completion is handled by the observer, never this tool.',
+    parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: ['continue', 'pause', 'resume', 'finish_practice'] } }, required: ['action'] } },
   { name: 'set_hud', description: 'Replace the entire HUD. Ask for short text, a checklist, or a timer. Acceptance is not display confirmation.',
     parameters: { type: 'OBJECT', properties: {
       card: { type: 'OBJECT', properties: { title: { type: 'STRING' }, body: { type: 'STRING' } }, required: ['body'] },
@@ -33,7 +37,7 @@ export class GeminiProvider extends SocketProvider {
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: this.config.voice || 'Puck' } } },
         ...(extended ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
       },
-      systemInstruction: { parts: [{ text: COACH_PROMPT }] },
+      systemInstruction: { parts: [{ text: this.options.instructions ?? COACH_PROMPT }] },
       tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: ['inspect_frame', 'lookup_training_reference'].includes(tool.name) ? 'BLOCKING' : 'NON_BLOCKING' })) }],
       inputAudioTranscription: {}, outputAudioTranscription: {},
       sessionResumption: this.options.resumeHandle ? { handle: this.options.resumeHandle } : {},

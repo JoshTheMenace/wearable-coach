@@ -16,11 +16,15 @@ export function validateDemo(width: number, height: number, duration: number, mi
 export class FrameSampler {
   private epoch = 0;
   private busy = false;
+  private suspended = false;
   private lastAt = -Infinity;
   private lastPosition = -1;
   invalidate() { this.epoch++; this.lastPosition = -1; }
+  suspend() { this.suspended = true; this.invalidate(); }
+  resume() { this.suspended = false; }
+  get restartRequired() { return this.suspended; }
   begin(position: number, now: number, playing: boolean) {
-    if (!playing || this.busy || !Number.isFinite(position) || position === this.lastPosition || now - this.lastAt < 1100) return null;
+    if (this.suspended || !playing || this.busy || !Number.isFinite(position) || position === this.lastPosition || now - this.lastAt < 1100) return null;
     this.busy = true; this.lastAt = now; this.lastPosition = position;
     const epoch = this.epoch;
     return { current: () => epoch === this.epoch, release: () => { this.busy = false; } };

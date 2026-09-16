@@ -147,6 +147,12 @@ export function createKnowledgeBase(path = fileURLToPath(new URL('../../hackatho
   const averageLength = documents.reduce((sum, document) => sum + document.length, 0) / (documents.length || 1);
 
   return {
+    lessonSeed() {
+      if (!dataset) return null;
+      return { dataset: metadata, scope: 'Adult lay-rescuer compression-only manikin practice',
+        facts: facts.map(fact => ({ id: fact.id, text: fact.text, parameters: fact.parameters, source: dataset.sources.find(source => source.id === fact.source_id)! })),
+        observationLimits: dataset.observation_limits, emergencyBoundary: dataset.scope.real_emergency_boundary };
+    },
     status(): KnowledgeStatus {
       return { status: dataset ? 'ready' : 'unavailable', dataset: metadata, factCount: dataset?.facts.length ?? 0,
         indexedFactCount: facts.length, mode: 'compression_only', ...(!dataset && { error: unavailable }) };

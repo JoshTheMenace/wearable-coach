@@ -96,7 +96,7 @@ for(const status of ['starting','playing'] as const)test(`${status} demonstratio
   assert.ok(h.store.events(h.id).some(event=>event.type==='demo.finished'&&event.payload.reason==='timeout'));
 });
 
-test('only explicitly capable simulated devices can play registered, bounded assets',async t=>{
+test('only explicitly capable devices can play registered, bounded assets',async t=>{
   const h=await setup(t);assert.throws(()=>h.command('start_demo',{assetId:h.asset.id}),/unsupported/);
   h.advertise({}, {...capabilities,video:false});assert.throws(()=>h.command('start_demo',{assetId:h.asset.id}),/unsupported/);
   h.advertise();assert.throws(()=>h.command('start_demo',{assetId:randomUUID()}),/not registered/);
@@ -107,8 +107,8 @@ test('only explicitly capable simulated devices can play registered, bounded ass
   assert.throws(()=>h.advertise({durationMs:Infinity}));assert.throws(()=>h.advertise({mime:'video/webm'}));
   assert.throws(()=>h.report('device.status',{demoAssets:[h.asset,h.asset]}));
   assert.equal(h.state().demonstration,undefined);
-  const phone=await setup(t,'phone');phone.advertise();assert.throws(()=>phone.command('start_demo',{assetId:phone.asset.id}),/unsupported/);
-  const glasses=await setup(t,'meta_display');glasses.advertise();assert.throws(()=>glasses.command('start_demo',{assetId:glasses.asset.id}),/unsupported/);
+  const phone=await setup(t,'phone');phone.advertise({}, {...capabilities,video:false});assert.throws(()=>phone.command('start_demo',{assetId:phone.asset.id}),/unsupported/);
+  const glasses=await setup(t,'meta_display');glasses.advertise();glasses.command('start_demo',{assetId:glasses.asset.id});assert.equal(glasses.state().demonstration?.assetId,glasses.asset.id);
 });
 
 test('recorded video attribution precedes pixels, position is retained, and source changes require a new epoch',async t=>{

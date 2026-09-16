@@ -28,6 +28,10 @@ import com.meta.wearable.dat.core.types.RegistrationState
 import com.meta.wearable.dat.display.Display
 import com.meta.wearable.dat.display.addDisplay
 import com.meta.wearable.dat.display.removeDisplay
+import com.meta.wearable.dat.display.views.VideoPlayer
+import com.meta.wearable.dat.display.types.VideoSource
+import com.meta.wearable.dat.display.types.VideoCodec
+import com.meta.wearable.dat.display.types.VideoPlayerState
 import com.meta.wearable.dat.display.types.DisplayState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
@@ -54,6 +58,9 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var displayObserver: Closeable? = null
     private var lastDisplayError: String? = null
     private var lastDisplayErrorAt = 0L
+    private var demoPlayer: VideoPlayer? = null
+    private var demoServer: LessonVideoServer? = null
+    private var demoMonitor: Job? = null
     private var monitor: Job? = null
     private var videoMonitor: Job? = null
     private var videoFrames = VideoFrames()
@@ -243,6 +250,42 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         }
     }
 
+    val canPlayLessonVideo get() = mode == "meta_display" && displayAvailable && display?.state?.value == DisplayState.STARTED
+
+    suspend fun playLessonVideo(file: File, onState: (String, String?) -> Unit) {
+        stopLessonVideo()
+        check(canPlayLessonVideo) { "Glasses video display is unavailable" }
+        val target = checkNotNull(display)
+        val server = LessonVideoServer(file).also { demoServer = it }
+        val player = VideoPlayer(VideoSource.Url(server.url), VideoCodec.MP4).also { demoPlayer = it }
+        demoMonitor = scope.launch {
+            launch { player.state.collect { state ->
+                if (demoPlayer === player) when (state) {
+                    VideoPlayerState.PLAYING -> onState("playing", null)
+                    VideoPlayerState.ENDED -> onState("ended", null)
+                    else -> Unit
+                }
+            } }
+            launch { player.error.collect { error ->
+                if (demoPlayer === player && error != null) onState("failed", "Glasses video error: $error")
+            } }
+        }
+        try {
+            target.sendContent { video(player = player) }.fold(onSuccess = {}, onFailure = { error, _ -> error(error.description) })
+            if (demoPlayer === player) player.play()
+        } catch (error: Throwable) {
+            if (demoPlayer === player) stopLessonVideo()
+            throw error
+        }
+    }
+
+    fun stopLessonVideo() {
+        val old = demoPlayer; demoPlayer = null
+        demoMonitor?.cancel(); demoMonitor = null
+        runCatching { old?.close() }
+        demoServer?.close(); demoServer = null
+    }
+
     suspend fun render(hud: JSONObject, imageBytes: ByteArray? = null): String {
         if (hud.has("imageAssetId") && imageBytes == null) return "unsupported"
         if (mode != "meta_display") return "phone_received"
@@ -290,6 +333,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             .filter { it.linkState == LinkState.CONNECTED }.singleOrNull()?.firmwareInfo ?: JSONObject.NULL else JSONObject.NULL)
 
     fun close() {
+        stopLessonVideo()
         videoMonitor?.cancel(); videoMonitor = null
         videoFrames = VideoFrames(); videoError = null
         monitor?.cancel(); monitor = null

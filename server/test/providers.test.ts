@@ -53,7 +53,7 @@ test('Gemini sends aligned image/question, manual boundaries and exact tool resu
   assert.equal(fixture.messages[0].setup.realtimeInputConfig.automaticActivityDetection.disabled, true);
   assert.equal(fixture.messages[0].setup.generationConfig.thinkingConfig, undefined);
   assert.deepEqual(fixture.messages[0].setup.tools[0].functionDeclarations.map((tool:{name:string;behavior:string})=>[tool.name,tool.behavior]),[
-    ['set_hud','NON_BLOCKING'],['clear_hud','NON_BLOCKING'],['inspect_frame','BLOCKING'],['lookup_training_reference','BLOCKING'],
+    ['play_training_video','NON_BLOCKING'],['lesson_action','NON_BLOCKING'],['set_hud','NON_BLOCKING'],['clear_hud','NON_BLOCKING'],['inspect_frame','BLOCKING'],['lookup_training_reference','BLOCKING'],
   ]);
   adapter.activity(true); adapter.sendAudio(Buffer.from([1, 0, 2, 0])); adapter.activity(false);
   adapter.inspect(Buffer.from('exact-frame'), 'image/png', 'Which block is blue?');

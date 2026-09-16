@@ -1,5 +1,7 @@
 # Walkthrough baseline
 
+> **Historical baseline — superseded for CPR lesson mode.** These results describe the pre-lesson general-conversation implementation. See [CPR coaching demo prototype](cpr-demo-prototype.md) for the implemented lesson state, evidence rules, pause/resume, observer, semantic video tools, and Android cached playback adapter. The gaps below are not a current capability list; the old diagnostic remains a historical probe, and physical validation of the combined new flow is still outstanding.
+
 The working glasses transport can carry an AI-led manikin practice session, but the application currently provides general conversation and HUD tools. It has no lesson state machine or evidence rules for marking a practice step complete.
 
 ## Reproduce

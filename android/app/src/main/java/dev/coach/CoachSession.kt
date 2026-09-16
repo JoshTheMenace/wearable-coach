@@ -26,7 +26,7 @@ import kotlin.coroutines.resumeWithException
 fun json(vararg values: Pair<String, Any?>) = JSONObject().apply { values.forEach { (key, value) -> if (value != null) put(key, value) } }
 fun id(): String = UUID.randomUUID().toString()
 data class Settings(val provider: String = "mock", val model: String = "mock-coach", val device: String = "mock",
-    val recordFrames: Boolean = false, val manualActivity: Boolean = false, val observerModel: String = "") {
+    val recordFrames: Boolean = false, val manualActivity: Boolean = false, val observerModel: String = "", val cprLesson: Boolean = true) {
     val url get() = "http://127.0.0.1:8787"
 }
 data class CoachState(val status: String = "idle", val sessionId: String = "", val generation: Int = 0,
@@ -37,7 +37,8 @@ data class CoachState(val status: String = "idle", val sessionId: String = "", v
     val hudImage: ByteArray? = null, val inspection: InspectionState? = null, val glassesDisplayAvailable: Boolean? = null,
     val spectatorToken: String = "", val providers: String = "", val preview: Boolean = false,
     val liveVideo: Boolean = false, val liveChanging: Boolean = false, val liveFrames: Int = 0,
-    val liveMessage: String = "", val lastLiveFrameAt: Long = 0)
+    val liveMessage: String = "", val lastLiveFrameAt: Long = 0,
+    val lesson: String = "", val lessonIntro: String = "", val demonstration: String = "", val lessonMedia: String = "Preparing lesson clips…")
 
 class CoachSession(private val context: Context, lifecycle: LifecycleOwner, private val scope: CoroutineScope) {
     val telemetry = DeviceTelemetry(context, scope)
@@ -49,6 +50,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     private var config = Settings()
     private var token = ""
     private var control: WebSocket? = null
+    private var controlReady = false
     private var media: WebSocket? = null
     @Volatile private var binding = 0
     private var generation = 0
@@ -72,6 +74,13 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     private var timerJob: Job? = null
     private var rendererId = id()
     private var clearLatchRevision: Int? = null
+    private val lessonMedia = LessonMediaCache(File(context.filesDir, "lesson-media"))
+    private var lessonClips = emptyList<LessonClip>()
+    private var lessonMediaJob: Job? = null
+    private var demoJob: Job? = null
+    private var demoDeadlineJob: Job? = null
+    @Volatile private var demoRequestId: String? = null
+    private var demoLease: DemoPlaybackLease? = null
     private val captureMutex = Mutex()
     private val renderMutex = Mutex()
     private var clockOffset = 0.0
@@ -85,9 +94,9 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
 
     private fun audioReport(message: String) {
         val sourceBinding = binding
-        val shuttingDownAudio = ending || closed || expectedRebind
+        val shuttingDownAudio = ending || closed || expectedRebind || demoRequestId != null
         scope.launch {
-        if (sourceBinding != binding || shuttingDownAudio || ending || closed || expectedRebind) return@launch
+        if (sourceBinding != binding || shuttingDownAudio || ending || closed || expectedRebind || demoRequestId != null) return@launch
         log(message)
         if (message.startsWith("Selected audio route unavailable")) _state.update { it.copy(error = "Glasses audio disconnected. Playback is paused; reconnect the glasses or choose an audio route.") }
         if (message == "Selected audio route restored") _state.update { if (it.error?.startsWith("Glasses audio disconnected.") == true) it.copy(error = null) else it }
@@ -155,7 +164,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             val started = System.currentTimeMillis()
             val response = request("/api/sessions", json("createKey" to id(), "config" to json("provider" to config.provider,
                 "model" to config.model, "device" to config.device, "recordFrames" to config.recordFrames,
-                "manualActivity" to config.manualActivity, "observerModel" to config.observerModel.ifBlank { null })))
+                "manualActivity" to config.manualActivity, "lessonId" to if (config.cprLesson) "adult-cpr-demo-v1" else null, "observerModel" to config.observerModel.ifBlank { null })))
             updateClock(response, started)
             token = response.getString("token")
             generation = response.getJSONObject("snapshot").getInt("generation")
@@ -176,6 +185,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             activeStage = "control"
             applySnapshot(response.getJSONObject("snapshot"))
             connect()
+            prepareLessonMedia()
         } catch (error: Throwable) {
             if (error is CancellationException && error !is TimeoutCancellationException) {
                 withContext(NonCancellable) { if (sessionId.isNotEmpty()) withTimeoutOrNull(2500) { runCatching { endRemote() } } }
@@ -200,6 +210,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     private fun connect() {
+        controlReady = false
         val activeBinding = ++binding
         val controlRequest = Request.Builder().url(wsUrl("control")).build()
         control = client.newWebSocket(controlRequest, object : WebSocketListener() {
@@ -224,9 +235,11 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         if (ending && !(message.optString("type") == "snapshot" && message.optJSONObject("snapshot")?.optString("status") in terminalStates)) return
         when (message.optString("type")) {
             "snapshot" -> {
+                controlReady = true
                 applySnapshot(message.getJSONObject("snapshot"))
                 if (_state.value.status in terminalStates) { closed = true; release(); return }
                 if (_state.value.status == "active" && media == null) connectAudio(activeBinding)
+                advertiseLessonMedia()
                 report("device.status", json("cameraSource" to config.device, "hudTarget" to if (device.displayAvailable) "glasses" else "phone",
                     "glassesDisplayAvailable" to device.displayAvailable, "audioRoute" to audio.routeDescription(),
                     "foregroundService" to true, "sdkVersion" to BuildConfig.META_DAT_VERSION, "observedAt" to System.currentTimeMillis()))
@@ -249,12 +262,17 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                     "connection.opened" -> log("Provider connection opened")
                     "video.stale" -> _state.update { it.copy(liveMessage = "Live camera stalled. Waiting for a new frame.") }
                     "video.changed" -> if (!payload.optBoolean("enabled")) stopLiveLocally()
+                        else if (demoRequestId == null) startLiveUploads(payload.optInt("liveVideoEpoch", liveEpoch))
+                    "lesson.changed" -> _state.update { it.copy(lesson = payload.optJSONObject("lesson")?.toString().orEmpty()) }
+                    "demo.started" -> applyDemonstration(payload)
+                    "demo.finished" -> stopDemonstration()
+                    "hud.accepted" -> if (demoRequestId != null) applyHud(payload.optJSONObject("hud") ?: JSONObject(), payload.getInt("hudRevision"))
                 }
             }
             "hud" -> if (message.optInt("generation") == generation) applyHud(message.optJSONObject("hud") ?: JSONObject(), message.getInt("hudRevision"))
             "flush" -> if (message.optInt("generation") == generation) {
                 val nextEpoch = message.getInt("speechEpoch")
-                if (nextEpoch > epoch) { epoch = nextEpoch; audio.flush(generation, epoch); log("Playback flush applied: epoch $epoch") }
+                if (nextEpoch > epoch) { epoch = nextEpoch; audio.flush(generation, epoch); if (demoRequestId != null) audio.suppress(); log("Playback flush applied: epoch $epoch") }
             }
             "capture" -> if (message.optInt("generation") == generation) {
                 val workId = message.optString("workId")
@@ -265,8 +283,9 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             "reconnect_required" -> reconnect()
             "rebind" -> {
                 expectedRebind = false; rebindWaitJob?.cancel()
+                stopDemonstration()
                 audio.suppress(); audio.close(false)
-                ++binding; control?.cancel(); control = null; media?.cancel(); media = null
+                controlReady = false; ++binding; control?.cancel(); control = null; media?.cancel(); media = null
                 reconnectJob?.cancel()
                 applySnapshot(message.getJSONObject("snapshot"))
                 connect()
@@ -287,6 +306,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         val nextGeneration = snapshot.getInt("generation")
         if (nextGeneration < generation) return
         if (nextGeneration != generation) {
+            stopDemonstration()
             stopLiveLocally()
             audio.suppress(); val oldMedia = media; media = null; oldMedia?.cancel()
             generation = nextGeneration; rendererId = id()
@@ -306,10 +326,126 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 if (status in setOf("failed", "interrupted")) "error" else "info")
         }
         _state.update { it.copy(status = status, generation = generation, inspection = inspection,
+            lesson = snapshot.optJSONObject("lesson")?.toString().orEmpty(),
             error = when (status) { "active", "ended" -> null; "failed" -> "The coach could not start. Check provider access and try again."; else -> it.error },
             captions = (0 until transcripts.length()).map { index -> transcripts.getJSONObject(index).let { "${it.optString("speaker")}: ${it.optString("text")}" } }) }
+        applyDemonstration(if (status == "active") snapshot.optJSONObject("demonstration") else null)
+        if (status == "active" && demoRequestId == null && snapshot.optBoolean("liveVideo")) startLiveUploads(snapshot.optInt("liveVideoEpoch"))
+        else stopLiveLocally()
         // Render receipts must follow authenticated control binding, including initial empty HUD.
         if (control != null) applyHud(snapshot.optJSONObject("hud") ?: JSONObject(), snapshot.optInt("hudRevision"))
+    }
+
+    private fun prepareLessonMedia() {
+        lessonMediaJob?.cancel()
+        lessonClips = emptyList()
+        advertiseLessonMedia()
+        _state.update { it.copy(lessonMedia = "Preparing lesson clips…") }
+        val activeSession = sessionId
+        lessonMediaJob = scope.launch {
+            try {
+                val manifest = request("/api/sessions/$sessionId/lesson-media", auth = token)
+                if (closed || sessionId != activeSession) return@launch
+                _state.update { it.copy(lessonIntro = manifest.optJSONObject("intro")?.toString().orEmpty()) }
+                if (config.device != "meta_display") {
+                    _state.update { it.copy(lessonMedia = "Glasses video requires Meta Ray-Ban Display") }; return@launch
+                }
+                val clips = LessonMediaCache.parse(manifest)
+                val ready = mutableListOf<LessonClip>()
+                for (clip in clips) {
+                    withContext(Dispatchers.IO) {
+                        lessonMedia.prepare(clip) { path ->
+                            require(path.startsWith("/api/sessions/$activeSession/")) { "Lesson clip belongs to another session" }
+                            awaitResponse(Request.Builder().url(config.url + path).header("Authorization", "Bearer $token").build(),
+                                client.newBuilder().followRedirects(false).followSslRedirects(false).build())
+                        }
+                    }
+                    if (closed || sessionId != activeSession) return@launch
+                    ready.add(clip); lessonClips = ready.toList()
+                    _state.update { it.copy(lessonMedia = "${ready.size}/${clips.size} lesson clips cached on phone") }
+                    advertiseLessonMedia()
+                }
+                withContext(Dispatchers.IO) { lessonMedia.prune(clips) }
+                if (clips.isEmpty()) _state.update { it.copy(lessonMedia = "No lesson clips are configured on the server") }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                if (!closed && sessionId == activeSession) {
+                    diagnostic("request.failed", "storage", "warning", "user_action", json("errorClass" to error.javaClass.simpleName))
+                    _state.update { it.copy(lessonMedia = "Lesson video unavailable. Retry the download when the server is ready.",
+                        lessonIntro = it.lessonIntro.ifEmpty { json("error" to "The lesson reference could not load.").toString() }) }
+                    advertiseLessonMedia()
+                }
+            }
+        }
+    }
+
+    fun retryLessonMedia() { if (!closed && !ending && demoRequestId == null) prepareLessonMedia() }
+
+    private fun advertiseLessonMedia() {
+        if (closed || ending || !controlReady) return
+        val capable = device.canPlayLessonVideo
+        report("device.status", json("displayCapabilities" to json("video" to capable, "source" to "device-local",
+            "maxWidth" to 400, "maxHeight" to 400, "maxPixels" to 70000),
+            "demoAssets" to JSONArray(if (capable) lessonClips.map { it.advertisement() } else emptyList<JSONObject>())))
+    }
+
+    private fun applyDemonstration(demo: JSONObject?) {
+        val requestId = demo?.optString("requestId")?.takeIf { it.isNotBlank() }
+        if (requestId == demoRequestId) return
+        stopDemonstration()
+        if (requestId == null || closed || ending) return
+        val lease = DemoPlaybackLease(requestId, generation, binding)
+        demoLease = lease; demoRequestId = requestId
+        stopLiveLocally(); setPreview(false); timerJob?.cancel()
+        audio.muted = true; audio.suppress()
+        _state.update { it.copy(demonstration = demo.toString(), liveMessage = "Coach audio and camera uploads paused for video") }
+        val clip = lessonClips.find { it.id == demo.getString("assetId") }
+        fun playback(status: String, reason: String? = null) {
+            if (closed || ending || demoLease !== lease || !lease.accepts(demoRequestId, generation, binding, status)) return
+            if (status != "playing") { demoDeadlineJob?.cancel(); device.stopLessonVideo() }
+            _state.update { it.copy(demonstration = JSONObject(demo.toString()).put("status", status).toString()) }
+            report("demo.playback", json("requestId" to requestId, "status" to status, "reason" to reason?.take(240)))
+            log("Lesson video $status${reason?.let { ": $it" }.orEmpty()}")
+        }
+        demoDeadlineJob = scope.launch {
+            delay((demo.optLong("startedAt") + 15_000 - serverNow()).coerceIn(1, 15_000))
+            if (!lease.playing) playback("failed", "Glasses playback did not start within 15 seconds")
+            else {
+                delay((demo.optLong("deadlineAt") - serverNow()).coerceAtLeast(1))
+                playback("failed", "Glasses playback exceeded its deadline")
+            }
+        }
+        demoJob = scope.launch {
+            try {
+                check(clip != null && withContext(Dispatchers.IO) { lessonMedia.verified(clip) }) { "Requested video is not cached on this phone" }
+                renderMutex.withLock {
+                    if (demoLease !== lease || demoRequestId != requestId || lease.terminal) return@withLock
+                    device.playLessonVideo(lessonMedia.file(clip), ::playback)
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { playback("failed", error.message ?: "Glasses video could not start") }
+        }
+    }
+
+    private fun stopDemonstration() {
+        if (demoRequestId == null) return
+        demoRequestId = null; demoLease = null
+        demoJob?.cancel(); demoJob = null; demoDeadlineJob?.cancel(); demoDeadlineJob = null
+        device.stopLessonVideo()
+        audio.muted = _state.value.muted
+        _state.update { it.copy(demonstration = "") }
+        val expectedGeneration = generation
+        scope.launch {
+            if (!closed && !ending && demoRequestId == null && generation == expectedGeneration) {
+                val latest = _state.value
+                runCatching { applyHud(JSONObject(latest.hud), latest.hudRevision, replay = true) }.onFailure { failed(it, "hud") }
+            }
+        }
+    }
+
+    fun lessonAction(action: String) {
+        val lesson = runCatching { JSONObject(_state.value.lesson) }.getOrNull()
+        command("lesson_action", json("action" to action, "expectedRevision" to lesson?.optInt("revision")))
     }
 
     private fun inspectionFromWork(work: JSONObject): InspectionState {
@@ -350,9 +486,10 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 socket.send(json("type" to "hello", "token" to token, "generation" to generation).toString())
                 try {
                     audio.start(inputRate, outputRate, generation, epoch) { packet ->
-                        !closed && activeBinding == binding && socket.queueSize() < (inputRate * 2 / 4) && socket.send(packet.toByteString())
+                        if (demoRequestId != null) true else !closed && activeBinding == binding && socket.queueSize() < (inputRate * 2 / 4) && socket.send(packet.toByteString())
                     }
-                    audio.muted = _state.value.muted
+                    audio.muted = _state.value.muted || demoRequestId != null
+                    if (demoRequestId != null) audio.suppress()
                     _state.update { it.copy(route = audio.routeDescription()) }
                     healthJob?.cancel()
                     healthJob = scope.launch {
@@ -368,7 +505,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 } catch (error: Throwable) { transportLost(error); reconnect() }
             } }
             override fun onMessage(socket: WebSocket, bytes: ByteString) {
-                if (activeBinding != binding || closed || ending) return
+                if (activeBinding != binding || closed || ending || demoRequestId != null) return
                 audio.receive(bytes.toByteArray())
             }
             override fun onFailure(socket: WebSocket, error: Throwable, response: Response?) { scope.launch { if (activeBinding == binding && media === socket && !closed && !ending && !expectedRebind) { transportLost(error); reconnect() } } }
@@ -379,6 +516,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
 
     fun reconnect() {
         if (closed || ending || startJob?.isActive == true || reconnectJob?.isActive == true) return
+        stopDemonstration()
         stopLiveLocally()
         val now = SystemClock.elapsedRealtime()
         if (now - recoveryWindowAt > 60_000) { recoveryWindowAt = now; recoveries = 0 }
@@ -389,7 +527,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             return
         }
         audio.suppress(); audio.close(false)
-        ++binding; control?.cancel(); control = null; media?.cancel(); media = null
+        controlReady = false; ++binding; control?.cancel(); control = null; media?.cancel(); media = null
         _state.update { it.copy(status = "reconnecting", error = null) }
         reconnectJob = scope.launch {
             val requestId = id()
@@ -438,7 +576,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
 
     fun mute() {
         val muted = !_state.value.muted
-        audio.muted = muted; _state.update { it.copy(muted = muted) }
+        audio.muted = muted || demoRequestId != null; _state.update { it.copy(muted = muted) }
         command("set_mic", json("muted" to muted))
     }
     fun stopSpeech() {
@@ -455,7 +593,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         clearLatchRevision = _state.value.hudRevision
         _state.update { it.copy(hud = "{}", hudImage = null) }
         timerJob?.cancel()
-        scope.launch { renderMutex.withLock { device.render(JSONObject()) } }
+        scope.launch { renderMutex.withLock { if (demoRequestId == null) device.render(JSONObject()) } }
         command("clear_hud")
     }
     fun routes(): List<AudioDeviceInfo> = audio.routes()
@@ -473,6 +611,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         if (revision == _state.value.hudRevision && !replay) return
         _state.update { it.copy(hud = hud.toString(), hudRevision = revision, hudImage = null) }
         timerJob?.cancel()
+        if (demoRequestId != null) return // Keep the newest card for restoration after the movie.
         val expectedGeneration = generation
         val expectedRenderer = rendererId
         val imageBytes = hud.optString("imageAssetId").takeIf { it.isNotEmpty() }?.let { assetId ->
@@ -488,7 +627,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         var lastReceipt: String? = null
         suspend fun renderCurrent() {
             renderMutex.withLock {
-                if (closed || generation != expectedGeneration || _state.value.hudRevision != revision || clearLatchRevision != null) return@withLock
+                if (closed || demoRequestId != null || generation != expectedGeneration || _state.value.hudRevision != revision || clearLatchRevision != null) return@withLock
                 val expires = hud.optLong("expiresAt", Long.MAX_VALUE)
                 val expired = expires <= serverNow()
                 val displayHud = if (expired) JSONObject() else JSONObject(hud.toString()).apply {
@@ -516,7 +655,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     fun setPreview(enabled: Boolean) {
-        if (enabled && _state.value.liveVideo) return
+        if (enabled && (_state.value.liveVideo || demoRequestId != null)) return
         previewJob?.cancel()
         _state.update { it.copy(preview = enabled) }
         if (enabled) previewJob = scope.launch { while (isActive && !closed) { if (!captureMutex.isLocked) capture(null); delay(1000) } }
@@ -529,7 +668,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     fun setLiveVideo(enabled: Boolean, stoppedMessage: String = "Live camera off") {
-        if (_state.value.liveChanging || closed || ending || config.provider != "gemini" || config.device != "meta_display") return
+        if (_state.value.liveChanging || closed || ending || demoRequestId != null || config.provider != "gemini" || config.device != "meta_display") return
         stopLiveLocally(); setPreview(false)
         _state.update { it.copy(liveChanging = true, liveMessage = if (enabled) "Starting live camera…" else stoppedMessage) }
         val expectedGeneration = generation
@@ -541,17 +680,26 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 if (closed || ending || generation != expectedGeneration) return@launch
                 liveEpoch = result.getInt("liveVideoEpoch")
                 _state.update { it.copy(liveVideo = enabled, liveChanging = false, liveMessage = if (enabled) "Waiting for the first frame…" else stoppedMessage) }
-                if (enabled) liveJob = scope.launch {
-                    while (isActive && !closed && !ending && generation == expectedGeneration && _state.value.liveVideo) {
-                        if (!captureMutex.isLocked && !capture(null, liveEpoch)) {
-                            setLiveVideo(false, "Live camera stopped after a capture or upload failure. Tap Live camera to retry.")
-                            break
-                        }
-                        delay(1000)
-                    }
-                }
+                if (enabled) startLiveUploads(liveEpoch)
             } catch (error: Throwable) { failed(error, "camera") }
             finally { _state.update { it.copy(liveChanging = false) } }
+        }
+    }
+
+    private fun startLiveUploads(epoch: Int) {
+        if (config.provider != "gemini" || config.device != "meta_display" || closed || ending || demoRequestId != null) return
+        if (liveEpoch == epoch && liveJob?.isActive == true) return
+        stopLiveLocally(); setPreview(false); liveEpoch = epoch
+        val expectedGeneration = generation
+        _state.update { it.copy(liveVideo = true, liveChanging = false, liveMessage = "Waiting for the first frame…") }
+        liveJob = scope.launch {
+            while (isActive && !closed && !ending && demoRequestId == null && generation == expectedGeneration && _state.value.liveVideo) {
+                if (!captureMutex.isLocked && !capture(null, liveEpoch)) {
+                    if (demoRequestId == null && generation == expectedGeneration) setLiveVideo(false, "Camera upload stopped. Tap Live camera to retry.")
+                    break
+                }
+                delay(1000)
+            }
         }
     }
 
@@ -563,11 +711,11 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     suspend fun capture(workId: String?, liveVideoEpoch: Int? = null): Boolean {
         val expectedGeneration = generation
         return captureMutex.withLock {
-            if (closed || ending || expectedGeneration != generation) return@withLock false
+            if (closed || ending || demoRequestId != null || expectedGeneration != generation) return@withLock false
             val captureStarted = android.os.SystemClock.elapsedRealtime()
             try {
                 val frame = withTimeout(15_000) { device.capture(allowPhotoFallback = workId != null && liveVideoEpoch == null) }
-                if (closed || ending || expectedGeneration != generation || liveVideoEpoch != null && !_state.value.liveVideo) return@withLock false
+                if (closed || ending || demoRequestId != null || expectedGeneration != generation || liveVideoEpoch != null && !_state.value.liveVideo) return@withLock false
                 _state.update { it.copy(frame = frame.jpeg) }
                 val metadata = json("generation" to generation, "workId" to workId, "cameraSource" to frame.source,
                     "captureTimeBasis" to frame.basis, "width" to frame.width, "height" to frame.height)
@@ -586,7 +734,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                     }
                 }
                 if (liveVideoEpoch != null) {
-                    if (response) _state.update { it.copy(liveFrames = it.liveFrames + 1, lastLiveFrameAt = serverNow(), liveMessage = "Live video is reaching Gemini") }
+                    if (response) _state.update { it.copy(liveFrames = it.liveFrames + 1, lastLiveFrameAt = serverNow(), liveMessage = if (it.lesson.isNotEmpty()) "Camera frames are reaching the lesson observer" else "Live video is reaching Gemini") }
                     else _state.update { it.copy(liveMessage = "Frame dropped; waiting for the next camera update") }
                     if (hudRestorePending) {
                         if (closed || ending || expectedGeneration != generation || !_state.value.liveVideo) return@withLock false
@@ -602,7 +750,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 true
             } catch (error: Throwable) {
                 if (error is CancellationException && error !is TimeoutCancellationException) throw error
-                if (closed || ending || expectedGeneration != generation) return@withLock false
+                if (closed || ending || demoRequestId != null || expectedGeneration != generation) return@withLock false
                 if (liveVideoEpoch != null && error is CameraCaptureFailure && error.cameraError in setOf("VideoFrameTimeout", "VideoStreamFailed")) {
                     _state.update { it.copy(frame = null, liveMessage = "Camera interrupted; checking the glasses…") }
                     val recovery = device.recoverVideo { attempt ->
@@ -667,6 +815,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     suspend fun end() {
         if (closed || ending) return
         ending = true
+        stopDemonstration()
         stopLiveLocally(); liveControlJob?.cancel()
         diagnostic("audio.status", "audio", details = JSONObject(audio.metricsSnapshot()))
         audio.suppress(); audio.muted = true
@@ -692,9 +841,10 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         request("/api/sessions/$sessionId/commands", command, token)
     }
     fun release() {
+        stopDemonstration(); lessonMediaJob?.cancel(); lessonMediaJob = null
         stopLiveLocally(); liveControlJob?.cancel()
         ++binding; reconnectJob?.cancel(); previewJob?.cancel(); timerJob?.cancel(); healthJob?.cancel(); endWatchJob?.cancel(); rebindWaitJob?.cancel(); expectedRebind = false
-        audio.close(); device.close()
+        audio.close(); device.close(); controlReady = false
         control?.cancel(); control = null; media?.cancel(); media = null
     }
     suspend fun export(): File {
@@ -719,8 +869,8 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             JSONObject(content)
         }
     }
-    private suspend fun awaitResponse(request: Request): Response = suspendCancellableCoroutine { continuation ->
-        val call = client.newCall(request)
+    private suspend fun awaitResponse(request: Request, httpClient: OkHttpClient = client): Response = suspendCancellableCoroutine { continuation ->
+        val call = httpClient.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, error: IOException) { if (continuation.isActive) continuation.resumeWithException(error) }

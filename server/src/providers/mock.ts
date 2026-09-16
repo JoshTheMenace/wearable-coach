@@ -41,7 +41,9 @@ export class MockProvider implements ProviderAdapter {
       const id = `mock-call-${++this.sequence}`;
       this.later(() => this.callbacks.tool({ id, name, args }), delay);
     };
-    if (/^(lookup|reference)\s+/i.test(text.trim())) call('lookup_training_reference', { query: text.trim().replace(/^(lookup|reference)\s+/i, '').slice(0, 1200) });
+    if (/^(play|show) (hand placement|overview)/i.test(text.trim())) call('play_training_video', {clipId: /hand placement/i.test(text)?'hand-placement':'overview'});
+    else if (/^lesson (continue|pause|resume|finish_practice)$/i.test(text.trim())) call('lesson_action', {action:text.trim().split(/\s+/)[1].toLowerCase()});
+    else if (/^(lookup|reference)\s+/i.test(text.trim())) call('lookup_training_reference', { query: text.trim().replace(/^(lookup|reference)\s+/i, '').slice(0, 1200) });
     else if (/invalid/i.test(text)) call('set_hud', { card: { body: 'x'.repeat(241) } });
     else if (/inspect|look|camera/i.test(text)) call('inspect_frame', { question: text.slice(0, 1000) });
     else if (/clear/i.test(text)) call('clear_hud', {});

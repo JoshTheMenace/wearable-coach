@@ -1,0 +1,92 @@
+{
+  "testedAt": "2026-09-16T21:20:15.540Z",
+  "provider": "gemini-3.8-live",
+  "observer": "gemini-3.8-flash",
+  "uploads": 5,
+  "phase": "complete",
+  "observations": [
+    {
+      "frameId": "50a39a21-5a64-4458-a54e-b72ddeaca0fa",
+      "attemptId": "5c301c55-fcac-4870-8b44-b9150c6b66f0",
+      "elapsedMs": 1462,
+      "observation": {
+        "placement": "correct",
+        "confidence": 0.88,
+        "reason": "The heel of the lower hand is visible centrally placed on the lower half of the manikin's sternum region between the chest contours.",
+        "landmarksVisible": true,
+        "manikinVisible": true,
+        "model": "gemini-3.8-flash",
+        "usage": {
+          "promptTokenCount": 1343,
+          "candidatesTokenCount": 72,
+          "totalTokenCount": 1415
+        },
+        "promptVersion": "manikin-placement-v1",
+        "at": 1789593608439,
+        "cameraSource": "recorded_video"
+      },
+      "model": "gemini-3.8-flash",
+      "usage": {
+        "promptTokenCount": 1343,
+        "candidatesTokenCount": 72,
+        "totalTokenCount": 1415
+      },
+      "promptVersion": "manikin-placement-v1",
+      "accepted": true
+    },
+    {
+      "frameId": "3293d887-8838-4449-b607-01d38525f11e",
+      "attemptId": "5c301c55-fcac-4870-8b44-b9150c6b66f0",
+      "elapsedMs": 1810,
+      "observation": {
+        "placement": "correct",
+        "confidence": 0.9,
+        "reason": "The gloved lower hand heel is positioned centrally over the lower half of the manikin's sternum.",
+        "landmarksVisible": true,
+        "manikinVisible": true,
+        "model": "gemini-3.8-flash",
+        "usage": {
+          "promptTokenCount": 1343,
+          "candidatesTokenCount": 48,
+          "totalTokenCount": 1550,
+          "thoughtsTokenCount": 159
+        },
+        "promptVersion": "manikin-placement-v1",
+        "at": 1789593610552,
+        "cameraSource": "recorded_video"
+      },
+      "model": "gemini-3.8-flash",
+      "usage": {
+        "promptTokenCount": 1343,
+        "candidatesTokenCount": 48,
+        "totalTokenCount": 1550,
+        "thoughtsTokenCount": 159
+      },
+      "promptVersion": "manikin-placement-v1",
+      "accepted": true
+    }
+  ],
+  "cues": [
+    {
+      "frameId": "3293d887-8838-4449-b607-01d38525f11e",
+      "attemptId": "5c301c55-fcac-4870-8b44-b9150c6b66f0",
+      "cue": "Visible hand placement is consistent across two observations. Continue the practice; depth and cadence remain unmeasured.",
+      "simulated": true,
+      "delivery": "requested",
+      "acknowledged": false
+    }
+  ],
+  "mediaTool": [
+    {
+      "name": "play_training_video",
+      "args": {
+        "clipId": "hand-placement"
+      }
+    }
+  ],
+  "limitations": [
+    "Recorded video frame fixture was repeatedly supplied, not real hands tracking.",
+    "Device playback reports were simulated in this relay test; separate browser playback was tested.",
+    "No physical glasses coexistence or deliberately too-low real-manikin image tested."
+  ]
+}

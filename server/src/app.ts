@@ -10,10 +10,11 @@ import { Coordinator, HttpError } from './coordinator.ts';
 import { Store } from './store.ts';
 import { Diagnostics } from './diagnostics.ts';
 import { availability } from './providers/index.ts';
+import { loadLessonMedia } from './lesson-media.ts';
 
 const equal=(a:string,b:string)=>a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
 const loopback=(address?:string)=>address==='127.0.0.1'||address==='::1'||address==='::ffff:127.0.0.1';
-export function createApp(options:{dataDir?:string;operatorToken?:string;staticDir?:string;deviceGraceMs?:number;tls?:{cert:string;key:string}}={}) {
+export function createApp(options:{dataDir?:string;operatorToken?:string;staticDir?:string;lessonMediaDir?:string;deviceGraceMs?:number;tls?:{cert:string;key:string}}={}) {
   let shuttingDown=false;
   const deviceGraceMs=z.number().int().min(1).max(120000).parse(options.deviceGraceMs??120000);
   const dataDir=resolve(options.dataDir??'.runtime');mkdirSync(dataDir,{recursive:true});
@@ -21,6 +22,7 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
   const operatorToken=options.operatorToken??(process.env.COACH_TOKEN||undefined)??(existsSync(tokenFile)?readFileSync(tokenFile,'utf8').trim():randomBytes(32).toString('base64url'));
   if(!options.operatorToken&&!process.env.COACH_TOKEN&&!existsSync(tokenFile))writeFileSync(tokenFile,operatorToken+'\n',{mode:0o600});
   const store=new Store(join(dataDir,'coach.sqlite'));const coordinator=new Coordinator(store,dataDir);const diagnostics=new Diagnostics(store.db);
+  const lessonMedia=loadLessonMedia(options.lessonMediaDir);
   const token=(id:string,role:string)=>createHmac('sha256',operatorToken).update(id+':'+role).digest('base64url');
   const authorize=(credential:string,id?:string,write=false)=>{
     if(equal(credential,operatorToken))return 'operator';
@@ -104,6 +106,18 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
         const s=coordinator.create(key,config);armGrace(s.id);json(res,201,{sessionId:s.id,token:token(s.id,'operator'),spectatorToken:token(s.id,'spectator'),snapshot:s,serverTime:Date.now()});return;
       }
       if(route.length===3){if(req.method==='GET'){json(res,200,snapshot(id));return;}if(req.method==='DELETE'){await coordinator.delete(id);json(res,200,{deleted:true});return;}}
+      if(route[3]==='lesson-media'&&['GET','HEAD'].includes(req.method??'')){
+        coordinator.get(id);
+        if(!route[4]){const seed=coordinator.knowledge.lessonSeed();json(res,200,{clips:lessonMedia.list(id),intro:{title:'Adult CPR practice',scope:seed?.scope??'References unavailable',facts:seed?.facts.filter(fact=>['hand_location','position','rate','recoil'].includes(fact.id))??[]}});return;}
+        const clip=lessonMedia.get(idSchema.parse(route[4]));if(!clip)throw new HttpError(404,'Prepared lesson clip is unavailable');
+        let start=0,end=clip.bytes-1,status=200;
+        if(req.headers.range){const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);if(!match||!match[1]&&!match[2])throw new HttpError(416,'Invalid byte range');
+          start=match[1]?Number(match[1]):Math.max(0,clip.bytes-Number(match[2]));end=match[1]&&match[2]?Math.min(Number(match[2]),end):end;
+          if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||start>=clip.bytes)throw new HttpError(416,'Byte range outside clip');status=206;
+        }
+        res.writeHead(status,{'content-type':'video/mp4','content-length':end-start+1,'accept-ranges':'bytes','cache-control':'private, no-store','x-content-type-options':'nosniff',...(status===206?{'content-range':`bytes ${start}-${end}/${clip.bytes}`}:{})});
+        res.end(req.method==='HEAD'?undefined:clip.data.subarray(start,end+1));return;
+      }
       if(route[3]==='knowledge'){
         coordinator.get(id);
         if(req.method==='GET'){json(res,200,coordinator.knowledge.status());return;}

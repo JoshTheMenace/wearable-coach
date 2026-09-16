@@ -1,5 +1,7 @@
 # AI-led manikin practice
 
+> **Historical proposal — superseded.** The current lesson engine, seeded references, observer, semantic clip tools, browser playback, and Android cached-video adapter are documented in [CPR coaching demo prototype](cpr-demo-prototype.md). Statements below about missing lesson state, deferred source ingestion, HTTPS-only media, or unsupported native playback describe the earlier design, not current capabilities. The combined new flow still requires physical-glasses validation.
+
 Status: proposed coaching design, September 16, 2026. This branch tests the existing foundation and adds a [glasses simulator](glasses-simulator.md); it does not yet implement a training engine. The glasses are charging, so this round uses software tests and a UI concept.
 
 ## Preserved foundation

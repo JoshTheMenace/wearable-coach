@@ -18,6 +18,7 @@ export type ProviderCallbacks = {
 export type ProviderOptions = {
   resumeHandle?: string;
   history?: string;
+  instructions?: string;
   /** Dependency injection for local wire tests, never accepted from clients. */
   socketFactory?: (url: string, options: WebSocket.ClientOptions) => WebSocket;
   connectTimeoutMs?: number;

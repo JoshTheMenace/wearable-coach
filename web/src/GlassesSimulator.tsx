@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Snapshot } from '../../contracts/index.ts';
 import { captureRecordedFrame, FrameSampler, hudRows, inspectDemoFile, SIMULATED_DISPLAY, type CapturedFrame, type DemoAsset } from './device-simulator.ts';
+import type { CachedLessonClip } from './lesson-media.ts';
 import './simulator.css';
 
 type Props = {
-  snapshot: Snapshot; ready: boolean;
+  snapshot: Snapshot; ready: boolean; lessonClips?: CachedLessonClip[]; loadingLessonMedia?: boolean; retryLessonMedia?: () => void;
   send: (type: string, payload?: Record<string, unknown>) => void;
   report: (type: string, payload: Record<string, unknown>) => void;
   uploadFrame: (blob: Blob, meta: Record<string, unknown>) => Promise<{ status?: string; reason?: string }>;
@@ -12,10 +13,12 @@ type Props = {
   flushAudio: () => void;
 };
 type LocalVideo = { id: string; url: string; name: string };
+const noLessonClips: CachedLessonClip[] = [];
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export function GlassesSimulator(props: Props) {
-  const { snapshot, ready } = props, demonstration = snapshot.demonstration;
+  const { snapshot, ready, lessonClips = noLessonClips } = props, demonstration = snapshot.demonstration;
+  const lessonMode = !!snapshot.lesson;
   const [camera, setCamera] = useState<LocalVideo | null>(null);
   const [demo, setDemo] = useState<(LocalVideo & DemoAsset) | null>(null);
   const [cameraError, setCameraError] = useState(''), [demoError, setDemoError] = useState('');
@@ -27,6 +30,10 @@ export function GlassesSimulator(props: Props) {
   const latest = useRef(props), sampler = useRef(new FrameSampler()), decodedFrames = useRef(0);
   const sourceEpoch = useRef(0), selection = useRef(0), mounted = useRef(true);
   const previousDemonstration = useRef<string | null>(null);
+  const cameraResume = useRef<{ cameraId: string; playing: boolean; uploading: boolean } | null>(null);
+  const cameraLiveBeforeDemo = useRef(false);
+  const preparedDemo = lessonClips.find(clip => clip.id === demonstration?.assetId);
+  const playbackId = preparedDemo?.id ?? demo?.id, playbackUrl = preparedDemo?.localUrl ?? demo?.url;
   latest.current = props;
   const allowed = ready && snapshot.status === 'active';
   const activeDemo = !!demonstration;
@@ -65,9 +72,9 @@ export function GlassesSimulator(props: Props) {
 
   useEffect(() => {
     if (!ready) return;
-    const assets = demo ? [{ id: demo.id, width: demo.width, height: demo.height, durationMs: demo.durationMs, mime: demo.mime }] : [];
+    const assets = [...lessonClips, ...(demo ? [demo] : [])].map(asset => ({ id: asset.id, width: asset.width, height: asset.height, durationMs: asset.durationMs, mime: asset.mime, ...('lessonKey' in asset ? { lessonKey: asset.lessonKey } : {}) }));
     latest.current.report('device.status', { displayCapabilities: SIMULATED_DISPLAY, demoAssets: assets, cameraSource: camera ? 'recorded_video' : 'mock', simulation: true });
-  }, [ready, snapshot.id, snapshot.generation, camera, demo]);
+  }, [ready, snapshot.id, snapshot.generation, camera, demo, lessonClips]);
 
   useEffect(() => {
     sampler.current.invalidate();
@@ -94,11 +101,18 @@ export function GlassesSimulator(props: Props) {
   }, [allowed, camera, snapshot.id, snapshot.generation, snapshot.liveVideo, snapshot.liveVideoEpoch, snapshot.config.provider, activeDemo]);
 
   useEffect(() => {
+    if (ready && snapshot.liveVideo && !activeDemo && sampler.current.restartRequired) latest.current.send('set_live_video', { enabled: false });
+  }, [ready, snapshot.generation, snapshot.liveVideo, activeDemo]);
+
+  useEffect(() => { if (!activeDemo) cameraLiveBeforeDemo.current = snapshot.liveVideo; }, [activeDemo, snapshot.liveVideo]);
+
+  useEffect(() => {
     if (!demonstration) {
-      if (previousDemonstration.current) setDemoStatus('Demonstration closed. Resume the camera recording and enable uploads when ready.');
+      if (previousDemonstration.current) setDemoStatus(lessonMode ? 'Demonstration closed. Returning to your practice.' : 'Demonstration closed. Resume the camera recording and enable uploads when ready.');
       previousDemonstration.current = null;
       return;
     }
+    if (previousDemonstration.current !== demonstration.requestId && lessonMode && camera) cameraResume.current = { cameraId: camera.id, playing: !!cameraVideo.current && !cameraVideo.current.paused && !cameraVideo.current.ended, uploading: demonstration.resumeLiveVideo ?? cameraLiveBeforeDemo.current };
     previousDemonstration.current = demonstration.requestId;
     if (!ready) { setDemoStatus('Demonstration paused while the simulator reconnects.'); return; }
     const request = demonstration, generation = snapshot.generation, video = demoVideo.current;
@@ -113,19 +127,44 @@ export function GlassesSimulator(props: Props) {
     };
     const timeout = setTimeout(() => { if (!playing) finish('failed', 'Demonstration did not begin within 15 seconds.'); }, 15000);
     latest.current.flushAudio(); setDemoError(''); setDemoStatus('Starting demonstration…'); cameraVideo.current?.pause();
-    if (!demo || demo.id !== request.assetId || !video) finish('failed', 'This demonstration file is unavailable in this browser. Choose it again.');
+    if (!playbackUrl || playbackId !== request.assetId || !video) finish('failed', 'This demonstration file is unavailable in this browser. Choose it again.');
     else {
       video.currentTime = 0;
+      if (lessonMode) video.scrollIntoView({ behavior: 'smooth', block: 'center' });
       video.onplaying = () => { if (current() && !terminal && !playing) { playing = true; clearTimeout(timeout); setDemoStatus('Demonstration playing · coach and camera uploads suspended'); latest.current.report('demo.playback', { requestId: request.requestId, status: 'playing' }); } };
       video.onended = () => finish('ended');
       video.onerror = () => finish('failed', 'The browser could not play this demonstration.');
       void video.play().catch(error => finish('failed', `Playback could not start: ${message(error)}`));
     }
     return () => { cancelled = true; clearTimeout(timeout); if (video) { video.pause(); video.onplaying = null; video.onended = null; video.onerror = null; } };
-  }, [demonstration?.requestId, snapshot.generation, ready, demo]);
+  }, [demonstration?.requestId, snapshot.generation, ready, playbackId, playbackUrl]);
+
+  useEffect(() => {
+    const video = cameraVideo.current;
+    if (snapshot.lesson?.status === 'paused' && camera && video && !activeDemo) {
+      cameraResume.current ??= { cameraId: camera.id, playing: !video.paused && !video.ended, uploading: snapshot.liveVideo };
+      video.pause();
+    }
+  }, [snapshot.lesson?.status, camera?.id, activeDemo]);
+
+  useEffect(() => {
+    const resume = cameraResume.current;
+    if (!resume || activeDemo || !allowed || snapshot.lesson?.status === 'paused') return;
+    cameraResume.current = null;
+    if (snapshot.lesson?.status !== 'active' || camera?.id !== resume.cameraId || !resume.playing) return;
+    const video = cameraVideo.current;
+    if (!video || video.ended) return;
+    let cancelled = false;
+    void video.play().then(() => {
+      if (cancelled || latest.current.snapshot.demonstration || latest.current.snapshot.lesson?.status !== 'active') return;
+      setCameraStatus('Practice recording resumed.');
+      if (resume.uploading && !latest.current.snapshot.liveVideo) latest.current.send('set_live_video', { enabled: true });
+    }).catch(error => { if (!cancelled) setCameraError(`Press play to resume your practice recording: ${message(error)}`); });
+    return () => { cancelled = true; };
+  }, [activeDemo, allowed, camera?.id, snapshot.generation, snapshot.lesson?.status]);
 
   const chooseCamera = (file?: File) => {
-    sourceEpoch.current++; sampler.current.invalidate(); setDecoded(false); setCameraError('');
+    sourceEpoch.current++; sampler.current.invalidate(); cameraResume.current = null; setDecoded(false); setCameraError('');
     if (snapshot.liveVideo) props.send('set_live_video', { enabled: false });
     setCamera(file ? { id: crypto.randomUUID(), url: URL.createObjectURL(file), name: file.name } : null);
     setCameraStatus(file ? 'Loading recording…' : 'Synthetic camera fixture selected.');
@@ -142,28 +181,46 @@ export function GlassesSimulator(props: Props) {
     } catch (error) { if (mounted.current && attempt === selection.current) { setDemo(null); setDemoError(message(error)); } }
     finally { if (mounted.current && attempt === selection.current) setLoadingDemo(false); }
   };
+  const seekCamera = () => {
+    sourceEpoch.current++; decodedFrames.current = 0; cameraResume.current = null;
+    if (!latest.current.snapshot.liveVideo) { sampler.current.invalidate(); return; }
+    sampler.current.suspend(); cameraVideo.current?.pause();
+    if (latest.current.ready) latest.current.send('set_live_video', { enabled: false });
+    setCameraStatus('Recording position changed. Restart camera uploads when ready.');
+  };
+  const toggleCamera = async () => {
+    if (snapshot.liveVideo) { sampler.current.suspend(); props.send('set_live_video', { enabled: false }); return; }
+    try {
+      if (lessonMode) await cameraVideo.current?.play();
+      sampler.current.resume(); props.send('set_live_video', { enabled: true }); setCameraError('');
+    } catch (error) { setCameraError(`Camera recording could not start: ${message(error)}`); }
+  };
   const rows = hudRows(snapshot.hud, now);
   return <section className="panel simulator-panel" aria-label="Glasses simulator">
-    <div className="panel-head"><div><h2>Glasses simulator</h2><p>Local files stand in for the camera and requested demos. This is a browser simulation.</p></div><span className="badge">SIMULATED</span></div>
+    <div className="panel-head"><div><h2>{lessonMode ? 'Your camera and glasses display' : 'Glasses simulator'}</h2><p>{lessonMode ? 'Use a recorded practice as the camera feed. The coach sees that recording.' : 'Local files stand in for the camera and requested demos. This is a browser simulation.'}</p></div><span className="badge">SIMULATED</span></div>
+    {lessonMode && <p className="lesson-cache-status" role="status">{props.loadingLessonMedia ? 'Preparing lesson videos…' : lessonClips.length ? 'Overview and hand-placement replay are ready' : 'Lesson clips are not ready yet.'}{!props.loadingLessonMedia && !lessonClips.length && <button className="plain" onClick={props.retryLessonMedia}>Reload lesson media</button>}</p>}
     <div className="simulator-grid">
       <div className="simulator-source">
         <h3>Recorded camera source</h3><p>The coach receives sampled frames from this recording, not a live scene. Camera files can use any video format your browser supports.</p>
         <label>Camera recording<input type="file" accept="video/*" disabled={!allowed || activeDemo} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) chooseCamera(file); }} /></label>
-        {camera && <><video ref={cameraVideo} className="simulator-camera" src={camera.url} controls={!activeDemo} muted playsInline preload="auto" aria-label="Recorded camera preview" onLoadedData={() => { setDecoded(true); setCameraStatus('Recording ready. Play it to send changing frames.'); }} onPlay={() => { if (latest.current.snapshot.demonstration) cameraVideo.current?.pause(); else setCameraStatus('Camera recording playing.'); }} onPause={() => setCameraStatus('Camera recording paused · no continuous frames sent.')} onEnded={() => setCameraStatus('Camera recording ended · no continuous frames sent.')} onSeeking={() => { sourceEpoch.current++; decodedFrames.current = 0; sampler.current.invalidate(); }} onError={() => { setDecoded(false); setCameraError('This browser cannot decode the camera recording. Choose another file.'); if (snapshot.liveVideo) props.send('set_live_video', { enabled: false }); }} /><p className="simulator-filename">{camera.name}</p></>}
-        <div className="button-row"><button className="secondary compact" disabled={!allowed || !decoded || activeDemo || snapshot.config.provider !== 'gemini'} onClick={() => props.send('set_live_video', { enabled: !snapshot.liveVideo })}>{snapshot.liveVideo ? 'Stop camera uploads' : 'Send camera to Gemini'}</button><button className="plain" disabled={!allowed || !snapshot.liveVideo || activeDemo} onClick={() => props.send('send_text', { text: 'Describe what you see in the recorded camera feed.', requireLiveVideo: true })}>Tell me what you see</button>{camera && <button className="plain" disabled={activeDemo} onClick={() => chooseCamera()}>Use synthetic fixture</button>}</div>
+        {camera && <><video ref={cameraVideo} className="simulator-camera" src={camera.url} controls={!activeDemo} muted playsInline preload="auto" aria-label="Recorded camera preview" onLoadedData={() => { setDecoded(true); setCameraStatus('Recording ready. Play it to send changing frames.'); }} onPlay={() => { if (latest.current.snapshot.demonstration) cameraVideo.current?.pause(); else setCameraStatus('Camera recording playing.'); }} onPause={() => setCameraStatus(sampler.current.restartRequired ? 'Camera uploads stopped. Restart them when ready.' : 'Camera recording paused · no continuous frames sent.')} onEnded={() => setCameraStatus('Camera recording ended · no continuous frames sent.')} onSeeking={seekCamera} onError={() => { setDecoded(false); setCameraError('This browser cannot decode the camera recording. Choose another file.'); if (snapshot.liveVideo) props.send('set_live_video', { enabled: false }); }} /><p className="simulator-filename">{camera.name}</p></>}
+        <div className="button-row"><button className="secondary compact" disabled={!allowed || !decoded || activeDemo || snapshot.lesson?.status === 'paused' || snapshot.config.provider !== 'gemini'} onClick={() => void toggleCamera()}>{snapshot.liveVideo ? 'Stop camera uploads' : lessonMode ? 'Start simulated practice feed' : 'Send camera to Gemini'}</button><button className="plain" disabled={!allowed || !snapshot.liveVideo || activeDemo} onClick={() => props.send('send_text', { text: 'Describe what you see in the recorded camera feed.', requireLiveVideo: true })}>Tell me what you see</button>{camera && <button className="plain" disabled={activeDemo} onClick={() => chooseCamera()}>Use synthetic fixture</button>}</div>
         <p className="simulator-status" role="status">{cameraStatus}</p>{snapshot.config.provider !== 'gemini' && <p>Continuous camera uploads require Gemini. Still inspection works with the selected provider.</p>}{cameraError && <p className="simulator-error" role="alert">{cameraError}</p>}
       </div>
       <div className="simulator-output">
         <div className="simulator-display" aria-label={activeDemo ? 'Simulated glasses demonstration' : 'Simulated centered glasses display'}>
-          {activeDemo ? <><video ref={demoVideo} src={demo?.id === demonstration.assetId ? demo.url : undefined} playsInline preload="auto" aria-label="Demonstration playback" /><span className="simulator-video-label">DEMONSTRATION</span></> : rows.length ? <div className="simulator-card">{rows.map((row, index) => <div className={row.heading ? 'simulator-heading' : 'simulator-row'} key={index}>{row.text}</div>)}</div> : <p className="simulator-empty">Display clear</p>}
+          {activeDemo ? <><video ref={demoVideo} src={playbackId === demonstration.assetId ? playbackUrl : undefined} playsInline preload="auto" aria-label="Demonstration playback" /><span className="simulator-video-label">DEMONSTRATION</span></> : rows.length ? <div className="simulator-card">{rows.map((row, index) => <div className={row.heading ? 'simulator-heading' : 'simulator-row'} key={index}>{row.text}</div>)}</div> : <p className="simulator-empty">Display clear</p>}
         </div>
-        <p className="simulator-caption">600 × 600 display model · centered, four-row preview · hardware rendering unverified</p>
+        <p className="simulator-caption">{lessonMode ? 'Glasses display preview · simulated' : '600 × 600 display model · centered, four-row preview · hardware rendering unverified'}</p>
+        <details className="simulator-extra" open={lessonMode ? undefined : true}><summary hidden={!lessonMode}>Use a different demonstration clip</summary>
         <label>Requested demonstration · MP4<input type="file" accept="video/mp4,.mp4" disabled={!allowed || activeDemo || loadingDemo} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void chooseDemo(file); }} /></label>
         <p>Separate from the camera source. Up to 400 pixels per side and 70,000 pixels total, for example 320 × 180. This prototype limits demos to five minutes.</p>
         {demo && <p className="simulator-filename">{demo.name} · {demo.width} × {demo.height} · {(demo.durationMs / 1000).toFixed(1)}s</p>}
         <div className="button-row"><button className="secondary compact" disabled={!allowed || !demo || activeDemo || loadingDemo} onClick={() => { props.flushAudio(); props.send('start_demo', { assetId: demo!.id }); }}>{loadingDemo ? 'Checking demo…' : 'Play demo'}</button><button className="plain" disabled={!allowed || !demonstration} onClick={() => props.send('stop_demo', { requestId: demonstration?.requestId })}>Stop demo</button></div>
-        <p className="simulator-status" role="status">{demoStatus}</p>{demoError && <p className="simulator-error" role="alert">{demoError}</p>}
-        <p>After a demo, resume the camera recording and enable uploads again. Watching a clip does not complete a practice step.</p>
+        </details>
+        {lessonMode && demonstration && <button className="secondary compact" disabled={!allowed} onClick={() => props.send('stop_demo', { requestId: demonstration.requestId })}>Return to coaching</button>}
+        <p className="simulator-status" role="status">{lessonMode && lessonClips.length && demoStatus === 'No demonstration clip added.' ? 'Ask your coach to play the overview or replay hand placement.' : demoStatus}</p>{demoError && <p className="simulator-error" role="alert">{demoError}</p>}
+        <p>{lessonMode ? 'A playing practice recording resumes after the clip. A paused recording stays paused. Camera observations remain labeled as simulation.' : 'After a demo, resume the camera recording and enable uploads again. Watching a clip does not complete a practice step.'}</p>
       </div>
     </div>
   </section>;
