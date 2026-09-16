@@ -150,8 +150,15 @@ class MainActivity : ComponentActivity() {
                     Button({ if (text.isNotBlank()) { session?.command("send_text", json("text" to text)); text = "" } }) { Text("Send text") }
                     OutlinedTextField(question, { question = it }, label = { Text("Inspection question") }, modifier = Modifier.fillMaxWidth())
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button({ session?.command("inspect_frame", json("question" to question)) }) { Text("Inspect now") }
+                        Button({ session?.command("inspect_frame", json("question" to question)) }, enabled = question.isNotBlank()) { Text("Inspect now") }
                         OutlinedButton({ lifecycleScope.launch { session?.capture(null) } }) { Text("Capture preview") }
+                    }
+                    state.inspection?.let { inspection ->
+                        Text(inspection.label, style = MaterialTheme.typography.titleSmall)
+                        Text(inspection.question, style = MaterialTheme.typography.bodySmall)
+                        if (inspection.details.isNotBlank()) Text(inspection.details, style = MaterialTheme.typography.bodySmall)
+                        if (inspection.status == "completed") Text("This does not confirm speech or verify an action.", style = MaterialTheme.typography.bodySmall)
+                        if (inspection.canRetry) OutlinedButton({ session?.command("inspect_frame", json("question" to inspection.question)) }, enabled = state.status == "active") { Text("Retry inspection") }
                     }
                     Row { Switch(state.preview, { session?.setPreview(it) }); Text("Sample preview ≤1 fps", Modifier.padding(12.dp)) }
                     state.frame?.let { bytes ->

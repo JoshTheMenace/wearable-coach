@@ -31,7 +31,7 @@ flowchart LR
   P <--> L[Gemini Live or GPT Live-1]
   P --> S
   M --> P
-  M --> O[Silent observer for GPT]
+  M --> O[Silent image observer]
   O --> S
   S -->|Validated context| P
   P --> D[GPT delegated task handler]
@@ -119,7 +119,7 @@ A new application output epoch cannot identify old GPT audio arriving later on t
 
 `inspect_frame` creates a request ID and captures a new image after the request. Bind question, work, and exact frame IDs. If camera access fails or freshness cannot be established, report that fact; never quietly use the old preview. A frame of unknown capture age can be discussed only as the last frame received, with that limitation stated. It cannot pass the current-view acceptance gate.
 
-For Gemini, send the selected image and question through the alignment path supported by measured fixtures. For GPT, ask the observer about that image and inject its attributed conclusion. Native Gemini vision does not manufacture an independent observer verdict. Record dispatch, acknowledgment where supported, and the eventual response as different evidence.
+Both real providers use the structured observer for explicitly requested inspection frames. Gemini inspection tools block until the server returns the complete observation; GPT receives the observation as attributed context before its spoken instruction. Direct image input remains an adapter capability used by protocol fixtures, but the application inspection path uses the observer. Record inference, dispatch, acknowledgment where supported, and the eventual response as different evidence.
 
 An observation for a previous request or expired frame can remain historical evidence but cannot become current guidance. Background preview uses a newest-frame slot; explicit inspection uses a separately pinned frame so routine sampling cannot replace it. Re-check relevance at tool commit and context injection, not only when the observer starts.
 

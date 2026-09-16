@@ -34,7 +34,7 @@ data class CoachState(val status: String = "idle", val sessionId: String = "", v
     val muted: Boolean = false, val hud: String = "{}", val hudRevision: Int = -1,
     val captions: List<String> = emptyList(), val diagnostics: List<String> = emptyList(),
     val error: String? = null, val route: String = "System default", val frame: ByteArray? = null,
-    val hudImage: ByteArray? = null,
+    val hudImage: ByteArray? = null, val inspection: InspectionState? = null,
     val spectatorToken: String = "", val providers: String = "", val preview: Boolean = false)
 
 class CoachSession(private val context: Context, lifecycle: LifecycleOwner, private val scope: CoroutineScope) {
@@ -207,6 +207,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 if (event.optInt("generation") != generation || event.optLong("seq") <= throughSeq) return
                 throughSeq = event.optLong("seq")
                 val payload = event.optJSONObject("payload") ?: JSONObject()
+                inspectionEvent(event.optString("type"), payload)
                 when (event.optString("type")) {
                     "transcript.fragment" -> _state.update { it.copy(captions = (it.captions + "${payload.optString("speaker")}: ${payload.optString("text")}").takeLast(80)) }
                     "session.ended", "session.failed", "session.interrupted" -> {
@@ -224,7 +225,12 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                 val nextEpoch = message.getInt("speechEpoch")
                 if (nextEpoch > epoch) { epoch = nextEpoch; audio.flush(generation, epoch); log("Playback flush applied: epoch $epoch") }
             }
-            "capture" -> if (message.optInt("generation") == generation) scope.launch { capture(message.optString("workId").ifEmpty { null }) }
+            "capture" -> if (message.optInt("generation") == generation) {
+                val workId = message.optString("workId")
+                if (workId.isNotBlank() && _state.value.inspection?.workId != workId)
+                    _state.update { it.copy(inspection = InspectionState(workId, message.optString("question"))) }
+                scope.launch { capture(workId.ifEmpty { null }) }
+            }
             "reconnect_required" -> reconnect()
             "rebind" -> {
                 expectedRebind = false; rebindWaitJob?.cancel()
@@ -258,17 +264,51 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         inputRate = snapshot.optInt("inputRate", 16000); outputRate = snapshot.optInt("outputRate", 24000)
         throughSeq = snapshot.optLong("throughSeq")
         val transcripts = snapshot.optJSONArray("transcripts") ?: JSONArray()
+        val work = snapshot.optJSONArray("work") ?: JSONArray()
+        val inspection = (0 until work.length()).map { work.getJSONObject(it) }
+            .filter { it.optString("kind") == "inspect" }.asReversed().maxByOrNull { it.optLong("createdAt") }?.let(::inspectionFromWork)
         val status = snapshot.optString("status", "active")
         if (status == "ending") { ending = true; audio.close(); previewJob?.cancel(); watchEnd() }
         if (status != _state.value.status) {
             diagnostic(when (status) { "active" -> "session.active"; "ended" -> "session.ended"; "failed", "interrupted" -> "session.failed"; else -> "app.lifecycle" }, "session",
                 if (status in setOf("failed", "interrupted")) "error" else "info")
         }
-        _state.update { it.copy(status = status, generation = generation,
+        _state.update { it.copy(status = status, generation = generation, inspection = inspection,
             error = when (status) { "active", "ended" -> null; "failed" -> "The coach could not start. Check provider access and try again."; else -> it.error },
             captions = (0 until transcripts.length()).map { index -> transcripts.getJSONObject(index).let { "${it.optString("speaker")}: ${it.optString("text")}" } }) }
         // Render receipts must follow authenticated control binding, including initial empty HUD.
         if (control != null) applyHud(snapshot.optJSONObject("hud") ?: JSONObject(), snapshot.optInt("hudRevision"))
+    }
+
+    private fun inspectionFromWork(work: JSONObject): InspectionState {
+        val result = work.optJSONObject("result") ?: JSONObject()
+        return InspectionState(work.optString("id"), work.optJSONObject("input")?.optString("question").orEmpty(),
+            work.optString("status", "reserved"), if (config.provider == "mock") "simulation" else result.optString("status"), inspectionDetails(result))
+    }
+
+    private fun inspectionDetails(result: JSONObject): String = buildList {
+        result.optString("reason").takeIf { it.isNotBlank() }?.let { add(it.replace('_', ' ')) }
+        result.optString("captureFreshness").takeIf { it.isNotBlank() }?.let { add("Capture freshness: $it") }
+        if (result.has("elapsedMs")) add("${result.optLong("elapsedMs")} ms")
+        result.optJSONObject("observation")?.let { observation ->
+            observation.optString("visibility").takeIf { it.isNotBlank() }?.let { add("Visibility: $it") }
+            for ((key, label) in listOf("limitations" to "Limitations", "claims" to "Model claims")) {
+                val entries = observation.optJSONArray(key) ?: continue
+                if (entries.length() > 0) add("$label:")
+                for (index in 0 until entries.length()) add(entries.optString(index))
+            }
+        }
+    }.joinToString("\n")
+
+    private fun inspectionEvent(type: String, payload: JSONObject) {
+        if (type == "work.reserved" && payload.optString("kind") == "inspect") {
+            _state.update { it.copy(inspection = inspectionFromWork(payload)) }; return
+        }
+        val status = type.removePrefix("work.")
+        if (!type.startsWith("work.") || status !in setOf("running", "completed", "failed", "cancelled", "aborted")) return
+        val result = payload.optJSONObject("result") ?: JSONObject()
+        _state.update { it.copy(inspection = it.inspection?.update(payload.optString("workId"), status,
+            if (config.provider == "mock") "simulation" else result.optString("status"), inspectionDetails(result))) }
     }
 
     private fun connectAudio(activeBinding: Int) {

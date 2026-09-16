@@ -168,14 +168,20 @@ test('device transport loss fences pending work and the old audio binding immedi
   assert.throws(()=>app.coordinator.audio(id,1,Buffer.alloc(640)),/Stale/);
 });
 
-test('native request saturation stays bounded and cancellation returns a terminal tool result',async t=>{
+test('native inspections keep only the newest request pending and return terminal outcomes for superseded calls',async t=>{
   const {app,request,create,command}=await setup(t);const {sessionId:id}=await create();
   for(let n=0;n<9;n++)await request(`/sessions/${id}/commands`,command(id,'send_text',{text:'inspect the camera'}));
-  await wait(()=>app.store.events(id).some(e=>e.type==='work.failed'));
-  assert.equal(app.coordinator.get(id).work.filter(w=>w.status==='reserved').length,8);
-  const work=app.coordinator.get(id).work.find(w=>w.status==='reserved')!;
+  await wait(()=>app.coordinator.get(id).work.filter(w=>w.kind==='inspect').length===9);
+  const inspections=app.coordinator.get(id).work.filter(w=>w.kind==='inspect');
+  assert.equal(inspections.filter(w=>w.status==='reserved'||w.status==='running').length,1);
+  const work=inspections.find(w=>w.status==='reserved')!;assert.equal(work.input.nativeCallId,'mock-call-9');
+  const superseded=inspections.filter(w=>w.id!==work.id);assert.ok(superseded.every(w=>w.status==='cancelled'));
+  await wait(()=>app.store.events(id).filter(e=>e.type==='provider.tool_result').length===8);
+  for(const previous of superseded)assert.equal(app.store.events(id).filter(e=>e.type==='provider.tool_result'&&e.payload.id===previous.input.nativeCallId).length,1);
   await request(`/sessions/${id}/commands`,command(id,'cancel_work',{workId:work.id}));
   await wait(()=>app.store.events(id).some(e=>e.type==='provider.tool_result'&&(e.payload.result as any)?.reason==='operator'));
+  assert.equal(app.store.events(id).filter(e=>e.type==='provider.tool_result').length,9);
+  assert.equal(app.coordinator.get(id).work.filter(w=>w.status==='reserved'||w.status==='running').length,0);
   assert.equal(app.coordinator.get(id).status,'active');
 });
 

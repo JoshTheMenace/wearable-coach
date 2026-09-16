@@ -72,7 +72,13 @@ export class OpenAIProvider extends SocketProvider {
   inspect(_image: Buffer, _mime: string, _question: string): never {
     throw new Error('GPT Live-1 has no image input; inspect through the attributed observer');
   }
-  toolResult(id: string, result: unknown) { this.appendContext(JSON.stringify(result), id, true); }
+  toolResult(id: string, result: unknown) {
+    this.appendContext(JSON.stringify(result), id, false);
+    const evidence = result as { status?: string; instruction?: unknown } | null;
+    if (evidence?.status === 'context_dispatched' && typeof evidence.instruction === 'string') {
+      this.appendContext(evidence.instruction, id, true);
+    }
+  }
   activity(_active: boolean) {
     // GPT Live consumes a continuous paced stream, including silence. No activity/commit events exist.
   }

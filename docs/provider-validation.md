@@ -6,8 +6,8 @@ Validated September 15, 2026. All real requests used synthetic diagrams, synthet
 
 `server/src/providers/index.ts` exports `createProvider`, `availability`, `observeFrame`, and `inferTask`. Adapters own wire protocol, startup readiness, media formats, provider call IDs, and bounded close. The coordinator owns generations, application work cancellation, HUD validation, freshness, and replay.
 
-- Gemini: `gemini-3.8-live`; optional `gemini-3.8-live-extended-thinking` with Low thinking. PCM16 mono, 16 kHz input and 24 kHz output. Non-blocking HUD/inspection tools, paired frame/question messages, manual activity mode, compression, and memory-only resumption handles.
-- OpenAI: exact `gpt-live-1` through the Live API, client delegation, PCM16 mono at 24 kHz both ways. Images go through an ordinary Gemini observer. `OPENAI_API_KEY` is required; OpenRouter credentials cannot replace native Live credentials.
+- Gemini: `gemini-3.8-live`; optional `gemini-3.8-live-extended-thinking` with Low thinking. PCM16 mono, 16 kHz input and 24 kHz output. Non-blocking HUD tools, blocking inspection tools, paired frame/question messages available at the adapter level, manual activity mode, compression, and memory-only resumption handles.
+- OpenAI: exact `gpt-live-1` through the Live API, client delegation, PCM16 mono at 24 kHz both ways. Images go through the same ordinary Gemini observer used for Gemini inspections. `OPENAI_API_KEY` is required; OpenRouter credentials cannot replace native Live credentials.
 - Mock: deterministic tools and captions plus a visibly labeled, audible 440 Hz tone. It performs no image interpretation or speech recognition. The `delayed card` input schedules a late tool request for fencing tests; `invalid` proposes an oversized card for validation tests.
 - Observer/task handler: ordinary `gemini-3.8-flash` by default, configurable through server options or `OBSERVER_MODEL`/`TASK_MODEL`. Separate prompts, JSON schema output, runtime validation, request deadlines, abort signals, and response size limits.
 
@@ -33,7 +33,7 @@ These checks do not validate automatic voice detection, physical glasses routes,
 
 ## Native GPT Live protocol
 
-The implementation was checked against the current official API reference and exercised through a local WebSocket server. It was not exercised against OpenAI because this workspace does not have `OPENAI_API_KEY` configured.
+The implementation was checked against the current official API reference and exercised through a local WebSocket server. A later native startup and clean-close check succeeded after `OPENAI_API_KEY` was configured. Full GPT microphone, delegation, and inspection behavior still needs live end-to-end testing.
 
 Startup uses `wss://api.openai.com/v1/live/sessions` without query parameters, then `session.start` and `session.started`. Audio uses `session.input_audio.append` and `session.output_audio.delta`. The adapter does not send Realtime buffer-commit or voice-turn commands. It preserves transcript fragments and opaque delegation IDs. Usage seconds are cumulative and final usage requires `session.closed`.
 
@@ -41,7 +41,7 @@ There is no runtime learner text-message event in the documented client event un
 
 ## Automated checks
 
-Run `npm test` for the complete server suite or `npx tsx --test server/test/providers.test.ts` for the provider suite. Twelve provider tests pass. They inspect actual messages exchanged with a local WebSocket server and cover:
+Run `npm test` for the complete server suite or `npx tsx --test server/test/providers.test.ts` for the provider suite. Fourteen provider tests pass. They inspect actual messages exchanged with a local WebSocket server and cover:
 
 - Gemini setup, exact image/question pairing, PCM format, activity boundaries, and native tool result IDs.
 - Captions, thought-part exclusion, interruption, cancellation signals, and resumption-handle secrecy.
@@ -62,3 +62,11 @@ The provider socket allows at most approximately 250 ms of queued input audio, c
 - [GPT Live WebSocket guide](https://developers.openai.com/api/docs/guides/voice-websockets?api=live)
 - [GPT Live delegation](https://developers.openai.com/api/docs/guides/live-delegation)
 - [GPT Live API reference](https://developers.openai.com/api/reference/typescript/resources/live)
+
+## Shared inspection iteration
+
+A live synthetic native Gemini inspection completed in 1,453 ms with `gemini-3.8-flash` visual evidence identifying panel B. The session forwarded zero audio samples while inspection was pending and received output PCM after the evidence response, with no provider errors. This checks one successful tool/observer/audio sequence, not reliable speech fidelity or hands-free operation.
+
+New deferred-observer regressions cover typed-question replacement, native inspection supersession, explicit activity, provider interruption, reconnect, End, provider cancellation, stale and unknown capture timing, complete maximum-length evidence, safe failure messages, and exactly one terminal inspection summary. Provider wire tests cover blocking inspection declarations and GPT's nonspoken evidence preceding the spoken instruction.
+
+The observer's existing 15-second timeout, 30-second work deadline, and configured frame-age limit remain. No second response is injected on a speculative short timeout. Multi-frame history and speech suppression are deferred until task identity and response identity can be measured reliably.

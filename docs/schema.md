@@ -61,7 +61,7 @@ File writes and SQLite commits are not one transaction. For retained media, writ
 | Object | Required content |
 | --- | --- |
 | `speaker` | Provider `gemini | openai | mock`; exact model ID; voice; explicit adapter/API version; transport `relay_ws` initially; provider-specific permitted options. |
-| `observer` | `null` for Gemini native vision or explicit audio-only mode; otherwise exact provider/model and prompt version. GPT grounded mode requires an observer. |
+| `observer` | Exact model and prompt version for real-provider inspections; mock mode performs no visual inference. Both Gemini and GPT inspection paths require the observer. |
 | `taskHandler` | GPT client delegation: exact ordinary model/provider, prompt version, tool schema version, request timeout and call budget. Otherwise omitted. |
 | `device` | Requested mode `meta_display | phone | mock`; actual camera/microphone/output/HUD capabilities recorded separately in status events. |
 | `coachPrompt` | Version, hash, and exact non-secret application prompt or exportable content reference. |

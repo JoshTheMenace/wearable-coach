@@ -57,12 +57,12 @@ The Android build is configured for local USB testing. Its credential-free setup
 
 | Path | Evidence |
 | --- | --- |
-| Server contracts and provider wire protocols | `npm test`: 42 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads and teardown. |
+| Server contracts and provider wire protocols | `npm test`: 60 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads and teardown. |
 | Complete mock pipeline | `npm run smoke`: PCM received, HUD tool accepted, requested frame uploaded, selected image exported, connection replaced, session ended. |
-| Browser UI | Actual desktop/mobile browser runs: start, tools, inspection, timer expiry, clear, stop, reconnect, refresh, read-only spectator, export download and end. |
+| Browser UI | Actual desktop/mobile browser runs: start, tools, inspection, timer expiry, clear, stop, reconnect, refresh, read-only spectator, export download and end. The inspection iteration also passed in-place cancellation, retry, and missing-camera timeout checks. |
 | Gemini adapter | Live synthetic image/audio/tool tests, ordinary observer and task handler, native resumption, silent seeded history. See [provider results](docs/provider-validation.md). |
 | Full Gemini server relay | Synthetic image question correctly answered B, paced microphone fixture correctly transcribed/answered, HUD tool applied, 390,244 output PCM bytes received, zero provider errors. [Recorded result](docs/live-relay-result.json). |
-| Android | APK compilation, 9 passing JVM audio/recovery tests, lint with zero errors, emulator mock flow and real CameraX phone-mode capture. [Android results](docs/android-setup.md). |
+| Android | APK compilation, 12 passing JVM audio/recovery/inspection tests, lint with zero errors, emulator mock flow and real CameraX phone-mode capture. [Android results](docs/android-setup.md). |
 | GPT Live-1 | Wire tests and a real authenticated GPT Live-1 startup/clean shutdown passed. Full audio/delegation rehearsal remains pending. |
 | Galaxy S21 + glasses | Physical S21 mock/Gemini playback, Stop/End and offline diagnostic recovery verified. Meta glasses and Bluetooth quality still require hardware rehearsal. [S21 results](docs/s21-validation.json). |
 
@@ -98,7 +98,7 @@ The server keeps at most 10,000 diagnostic reports for seven days; deleting a se
 - `server/src/store.ts` creates six SQLite tables: sessions, connections, command receipts, work, assets and ordered events. State changes and their evidence commit in one transaction.
 - `server/src/coordinator.ts` controls session lifecycle, provider callbacks, work deadlines, idempotency, image freshness, HUD changes, timers, retention and exports. Async results recheck their original connection/work before applying anything.
 - `server/src/app.ts` handles scoped authentication, HTTP endpoints and separate control/audio/spectator sockets. Disconnecting either device socket invalidates both bindings. Replay only updates views.
-- `server/src/providers/` translates Gemini and GPT Live protocols. GPT's observer and task handler are silent ordinary-model requests; only the chosen live coach speaks.
+- `server/src/providers/` translates Gemini and GPT Live protocols. Both live providers use a silent structured image observer; GPT also uses a delegated task handler; only the chosen live coach speaks.
 - `android/app/src/main/java/dev/coach/` contains the Compose UI, foreground session service, Android/Meta camera and HUD bridge, and bounded capture/playback engine.
 - `server/src/diagnostics.ts` validates and stores bounded device reports; Android `DeviceTelemetry.kt` keeps an offline journal and syncs deduplicated reports.
 - `web/src/App.tsx` renders the operator/spectator view and optional browser mock device. Desired HUD and render receipts are shown separately.
@@ -117,3 +117,15 @@ The server owns desired state; Android owns immediate hardware control. This sep
 - **Deferred features:** Neural Band controls, rich spatial overlays, generated imagery, raw-audio recording, training rubrics, retrieval and independent after-action grading.
 
 The earlier [architecture](docs/architecture.md), [schema plan](docs/schema.md), and [design discussion](docs/design-review.md) explain the design. [Implementation review](docs/implementation-review.md) records the corrections made during the build.
+
+## Inspection flow
+
+Both live providers use the same structured image observer. Gemini waits for its blocking inspection tool response; GPT receives attributed evidence before the spoken instruction. The complete claims and limitations stay together, including when the response is longer than 1,400 characters.
+
+A newer inspection, typed question, explicit activity start, provider interruption, reconnect, or End cancels pending visual work. Cancellation aborts inference and checks the work again before dispatch, so an upstream request that finishes late cannot answer an obsolete question. Individual transcript fragments do not count as new questions because transcription can arrive late.
+
+The phone and dashboard show capture, analysis, completion, and failure beside the inspection controls. Retry requests a new capture using the original question. Completion means evidence was sent to the coach, not that it was spoken or that a real-world action was verified.
+
+Session exports include `observation.started`, `observation.completed`, `observation.rejected`, and one `inspection.summary` per terminal inspection. The summary records elapsed time, outcome, frame ID, and `audioWhilePendingMs`: provider PCM forwarded while the request was pending. This is a timing measurement, not proof of audible or ungrounded speech. Existing exports include the structured observation and observer usage.
+
+This iteration uses one explicitly requested image. It does not track scene changes after capture, infer task completion, or guarantee faithful spoken wording. A spoken correction that produces neither an interruption nor a new tool request cannot be reliably distinguished from delayed transcript fragments. Frame-age checks remain in force, and unknown capture timing is disclosed to the coach.

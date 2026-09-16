@@ -30,7 +30,7 @@ export class GeminiProvider extends SocketProvider {
         ...(extended ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
       },
       systemInstruction: { parts: [{ text: COACH_PROMPT }] },
-      tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: 'NON_BLOCKING' })) }],
+      tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: tool.name === 'inspect_frame' ? 'BLOCKING' : 'NON_BLOCKING' })) }],
       inputAudioTranscription: {}, outputAudioTranscription: {},
       sessionResumption: this.options.resumeHandle ? { handle: this.options.resumeHandle } : {},
       contextWindowCompression: { slidingWindow: {} },
@@ -106,7 +106,7 @@ export class GeminiProvider extends SocketProvider {
     if (this.config.manualActivity) this.send({ realtimeInput: active ? { activityStart: {} } : { activityEnd: {} } });
   }
   appendContext(text: string, _delegationId?: string | null, spoken = false) {
-    this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text: `Application evidence update (not a learner request): ${boundedText(text)}${spoken ? '\nBriefly explain this result to the learner.' : '\nUse this context only when relevant.'}` }] }], turnComplete: spoken } });
+    this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text: `Application evidence update (not a learner request): ${boundedText(text, 12000)}${spoken ? '\nBriefly explain this result to the learner.' : '\nUse this context only when relevant.'}` }] }], turnComplete: spoken } });
     this.callbacks.event('context.dispatched', { acknowledged: false });
   }
 }

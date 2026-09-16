@@ -52,6 +52,9 @@ test('Gemini sends aligned image/question, manual boundaries and exact tool resu
   assert.deepEqual(fixture.messages[0].setup.generationConfig.responseModalities, ['AUDIO']);
   assert.equal(fixture.messages[0].setup.realtimeInputConfig.automaticActivityDetection.disabled, true);
   assert.equal(fixture.messages[0].setup.generationConfig.thinkingConfig, undefined);
+  assert.deepEqual(fixture.messages[0].setup.tools[0].functionDeclarations.map((tool:{name:string;behavior:string})=>[tool.name,tool.behavior]),[
+    ['set_hud','NON_BLOCKING'],['clear_hud','NON_BLOCKING'],['inspect_frame','BLOCKING'],
+  ]);
   adapter.activity(true); adapter.sendAudio(Buffer.from([1, 0, 2, 0])); adapter.activity(false);
   adapter.inspect(Buffer.from('exact-frame'), 'image/png', 'Which block is blue?');
   await until(() => fixture.messages.length === 5);
@@ -182,6 +185,37 @@ test('GPT context chunks stay below the documented append limit without corrupti
   await until(() => fixture.messages.slice(1).map(m => m.content).join('') === text);
   assert.ok(fixture.messages.slice(1).every(m => Buffer.byteLength(m.content) <= 450 && m.delegation_id === null));
   await adapter.close();
+});
+
+test('GPT native inspection sends full evidence as thinking before a spoken instruction with the same delegation ID',async t=>{
+  process.env.OPENAI_API_KEY='test-only-openai';
+  const fixture=await wire({type:'session.started',session:{id:'inspection'}});t.after(()=>fixture.close());
+  const adapter=createProvider({provider:'openai',model:'gpt-live-1'},recorder().callbacks,fixture.options);
+  await adapter.connect();
+  const result={status:'context_dispatched',frameId:'frame-one',observation:{claims:['界'.repeat(1200)],limitations:['Capture age is unknown.']},instruction:'Describe the supplied observation briefly and mention its unknown age.'};
+  adapter.toolResult('inspection-delegation',result);
+  await until(()=>fixture.messages.some(message=>message.type==='session.commentary.append'));
+  const messages=fixture.messages.slice(1),spoken=messages.filter(message=>message.type==='session.commentary.append');
+  assert.equal(messages.filter(message=>message.type==='session.thinking.append').map(message=>message.content).join(''),JSON.stringify(result));
+  assert.equal(spoken.map(message=>message.content).join(''),result.instruction);
+  assert.ok(messages.every(message=>message.delegation_id==='inspection-delegation'&&Buffer.byteLength(message.content)<=450));
+  assert.equal(messages.at(-1).type,'session.commentary.append');assert.ok(messages.slice(0,-1).every(message=>message.type==='session.thinking.append'));
+  await adapter.close();
+});
+
+test('GPT cancelled native outcomes update thinking without speaking cancellation JSON',async t=>{
+  process.env.OPENAI_API_KEY='test-only-openai';
+  const fixture=await wire({type:'session.started',session:{id:'cancelled-inspection'}});t.after(()=>fixture.close());
+  const adapter=createProvider({provider:'openai',model:'gpt-live-1'},recorder().callbacks,fixture.options);
+  await adapter.connect();
+  const result={status:'cancelled',reason:'new_inspection',applicationEffect:'not_applied'};
+  adapter.toolResult('cancelled-delegation',result);
+  await until(()=>fixture.messages.length===2);
+  assert.deepEqual(fixture.messages.slice(1).map(message=>({type:message.type,content:message.content,delegation_id:message.delegation_id})),[
+    {type:'session.thinking.append',content:JSON.stringify(result),delegation_id:'cancelled-delegation'},
+  ]);
+  await adapter.close();
+  assert.ok(!fixture.messages.some(message=>message.type==='session.commentary.append'));
 });
 
 test('startup errors are bounded and do not expose vendor error text or keys', async t => {
