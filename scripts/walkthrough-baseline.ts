@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/src/app.ts';
+import type { KnowledgeSearchResult, KnowledgeStatus } from '../server/src/knowledge.ts';
 
 // Diagnose the existing prototype; known gaps are observations, not passing safety tests.
 const results: { name: string; outcome: 'pass' | 'gap_present' | 'not_observed'; detail: string }[]=[];
@@ -55,9 +56,11 @@ try {
   assert.equal((await command('clear_hud')).status,200);
   await reconnect();
   gap('cleared_checklist_not_restored',Object.keys(state().hud).length===0,'After clear and reconnect, the current checklist is absent; this prototype has no lesson progress separate from presentation.');
-  gap('no_knowledge_endpoint',(await request('/knowledge')).status===404,'GET /api/knowledge returns 404. Source ingestion is deferred.');
-  await propose('retrieve_knowledge',{query:'Training manikin setup'},'baseline-missing-retrieval');
-  gap('no_retrieval_tool',app.store.events(id).some(event=>event.type==='provider.tool_result'&&event.payload.id==='baseline-missing-retrieval'&&(event.payload.result as {status?:string})?.status==='rejected'),'A simulated retrieve_knowledge proposal is rejected.');
+  const knowledgeResponse=await request('/knowledge'),knowledge=await knowledgeResponse.json() as KnowledgeStatus;
+  pass('knowledge_endpoint','GET /api/knowledge reports the loaded compression-only dataset and its content hash.',()=>{assert.equal(knowledgeResponse.status,200);assert.equal(knowledge.status,'ready');assert.equal(knowledge.mode,'compression_only');assert.ok(knowledge.indexedFactCount>0);assert.match(knowledge.dataset!.hash,/^[a-f0-9]{64}$/);});
+  await propose('lookup_training_reference',{query:'CPR hand placement',limit:1},'baseline-reference');
+  const reference=app.store.events(id).find(event=>event.type==='provider.tool_result'&&event.payload.id==='baseline-reference')?.payload.result as KnowledgeSearchResult;
+  pass('reference_lookup_tool','A simulated lookup_training_reference proposal returns a cited fact and records reference-only telemetry.',()=>{assert.equal(reference.status,'found');assert.equal(reference.results[0].factId,'hand_location');assert.match(reference.results[0].source.url,/^https:\/\//);assert.equal(reference.dataset?.hash,knowledge.dataset?.hash);assert.ok(app.store.events(id).some(event=>event.type==='knowledge.retrieved'&&event.payload.origin==='coach'&&event.payload.applicationEffect==='reference_only'));});
   const mode=await request('/sessions',{createKey:randomUUID(),config:{provider:'mock',model:'mock-coach',device:'mock',mode:'walkthrough',lessonId:'practice'}});
   gap('no_walkthrough_config',mode.status===400,'mode and lessonId are rejected as unknown session config fields.');
   const hudVideo=await command('set_hud',{hud:{videoAssetId:randomUUID()}});
@@ -65,7 +68,7 @@ try {
   const exported=await request(`/sessions/${id}/export`);
   assert.equal(exported.status,200);
   const evidence=await exported.json() as ReturnType<typeof app.coordinator.export>;
-  pass('export_history','Export retains accepted HUD versions, tool rejections, and explicit unrecorded-video coverage.',()=>{assert.ok(evidence.events.filter(event=>event.type==='hud.accepted').length>=5);assert.equal(evidence.evidenceCoverage.liveVideo,'streamed_not_recorded');assert.equal(evidence.snapshot.hudRevision,state().hudRevision);});
+  pass('export_history','Export retains accepted HUD versions, cited lookup results, and explicit unrecorded-video coverage.',()=>{assert.ok(evidence.events.filter(event=>event.type==='hud.accepted').length>=5);assert.ok(evidence.events.some(event=>event.type==='knowledge.retrieved'));assert.equal(evidence.evidenceCoverage.liveVideo,'streamed_not_recorded');assert.equal(evidence.snapshot.hudRevision,state().hudRevision);});
   const report={runAt:new Date().toISOString(),head:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),environment:'Temporary SQLite, ephemeral loopback port, mock provider; no device, external API, or running backend',counts:{passed:results.filter(result=>result.outcome==='pass').length,presentGaps:results.filter(result=>result.outcome==='gap_present').length,previousGapsNotObserved:results.filter(result=>result.outcome==='not_observed').length},results,limits:['No Gemini reasoning, clinical assessment, acoustic output, or physical HUD layout is tested.','Injected provider proposals demonstrate application validation, not observed model behavior.','Exit zero means the diagnostic completed; it does not mean coaching is ready.']};
   mkdirSync('.tools/walkthrough-baseline',{recursive:true});
   writeFileSync('.tools/walkthrough-baseline/result.json',JSON.stringify(report,null,2)+'\n');

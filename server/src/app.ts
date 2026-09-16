@@ -94,6 +94,7 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
       }
       if(route[1]==='time'){json(res,200,{serverTime:Date.now()});return;}
       if(route[1]==='providers'){json(res,200,{providers:availability()});return;}
+      if(url.pathname==='/api/knowledge'&&req.method==='GET'){json(res,200,coordinator.knowledge.status());return;}
       if(route[1]!=='sessions')throw new HttpError(404,'Unknown endpoint');
       if(!id){
         if(req.method==='GET'){json(res,200,{sessions:store.list()});return;}
@@ -103,6 +104,12 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
         const s=coordinator.create(key,config);armGrace(s.id);json(res,201,{sessionId:s.id,token:token(s.id,'operator'),spectatorToken:token(s.id,'spectator'),snapshot:s,serverTime:Date.now()});return;
       }
       if(route.length===3){if(req.method==='GET'){json(res,200,snapshot(id));return;}if(req.method==='DELETE'){await coordinator.delete(id);json(res,200,{deleted:true});return;}}
+      if(route[3]==='knowledge'){
+        coordinator.get(id);
+        if(req.method==='GET'){json(res,200,coordinator.knowledge.status());return;}
+        if(req.method==='POST'){json(res,200,coordinator.lookupReference(id,JSON.parse((await read(req)).toString())));return;}
+        throw new HttpError(405,'Method not allowed');
+      }
       if(route[3]==='reconnect'&&req.method==='POST'){const body=JSON.parse((await read(req)).toString());const s=coordinator.reconnect(id,z.number().int().positive().parse(body.generation),idSchema.parse(body.requestId));json(res,200,{snapshot:s,serverTime:Date.now()});return;}
       if(route[3]==='commands'&&req.method==='POST'){const command=commandSchema.parse(JSON.parse((await read(req)).toString()));json(res,200,coordinator.command(id,command));return;}
       if(route[3]==='frames'&&req.method==='POST'){

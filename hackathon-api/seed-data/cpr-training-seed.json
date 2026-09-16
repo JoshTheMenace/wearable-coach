@@ -1,0 +1,491 @@
+{
+  "dataset_id": "adult-cpr-training-seed-v1",
+  "version": "1.0.0",
+  "checked_date": "2026-09-16",
+  "title": "Adult CPR and AED practice: compact grounding dataset",
+  "artifact_type": "Self-contained, paraphrased reference facts plus separately labeled prototype design. Not an official AHA/Red Cross course, published dataset, or certification rubric.",
+  "intended_use": "Ground a conversational AI instructor during a supervised manikin demonstration; suitable for prompt context or retrieval. No external files are required to interpret this file.",
+  "clinical_review_status": "Source-checked by the assistant; not reviewed or validated by a qualified CPR instructor.",
+  "scope": {
+    "patient": "Adult sudden collapse without trauma, drowning or other special circumstance; manikin simulation only.",
+    "learner": "Lay rescuer, not a healthcare-professional BLS certification candidate.",
+    "default_mode": "compression_only",
+    "optional_mode": "trained_lay_with_breaths; enable only with an instructor-approved lesson and suitable manikin/barrier equipment.",
+    "not_covered": [
+      "infant or child CPR",
+      "traumatic arrest or combat casualty care",
+      "drowning",
+      "opioid-overdose treatment",
+      "pregnancy-specific procedures",
+      "choking treatment",
+      "advanced airways",
+      "drugs",
+      "professional pulse-based algorithms"
+    ],
+    "boundary": "These exclusions define a narrow demo, not situations where CPR is unnecessary. Do not extrapolate the module into an omitted clinical protocol.",
+    "practice_equipment": [
+      "adult CPR manikin, preferably with validated feedback",
+      "AED trainer if AED actions are practiced",
+      "firm stable surface",
+      "glasses and phone",
+      "spectator screen optional"
+    ],
+    "simulation_rules": [
+      "Never practice chest compressions on a healthy volunteer.",
+      "Use a non-shocking AED trainer in the demo.",
+      "Simulate emergency calls; do not actually dial 911 for practice.",
+      "Have a qualified CPR instructor check the exercise before learner use."
+    ],
+    "real_emergency_boundary": "If a real emergency is reported, end simulation framing, advise calling 911/local emergency services immediately and following dispatcher/AED guidance. Do not delay emergency action for app setup, questions, camera positioning or lesson completion."
+  },
+  "hackathon_dataset_assessment": {
+    "dataset_id": 351,
+    "title": "Prolonged Casualty Care",
+    "inspection": "Reviewed extracted book content across 79 chapters; no dedicated CPR/BLS lesson found. Chapter 206301 mentions CPR incidentally in discussion of other procedures.",
+    "decision": "No clinical facts imported from dataset 351. The external sources below supply the CPR content; this file does not require the Moodle archive."
+  },
+  "source_policy": {
+    "fact_kind": "Concise paraphrases; source IDs resolve below.",
+    "priority": "Use the scoped AHA 2025 recommendations for clinical conflicts; ask an instructor to resolve discrepancies instead of silently combining protocols.",
+    "reuse": "Original source materials retain their publishers’ rights. This compilation is not an official or endorsed curriculum."
+  },
+  "sources": [
+    {
+      "id": "AHA_BLS_2025",
+      "title": "2025 AHA Guidelines, Part 7: Adult Basic Life Support",
+      "url": "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/adult-basic-life-support",
+      "sections": [
+        "6.1 Recognition",
+        "6.2 Initiation",
+        "7.1 Positioning",
+        "7.3 Depth and rate"
+      ],
+      "guideline_year": 2025
+    },
+    {
+      "id": "AHA_EDUCATION_2025",
+      "title": "2025 AHA Guidelines, Part 12: Resuscitation Education Science",
+      "url": "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/resuscitation-education-science",
+      "sections": [
+        "6.1 Feedback devices",
+        "6.2 Spaced learning",
+        "6.6 Virtual and augmented reality"
+      ],
+      "guideline_year": 2025,
+      "source_note": "The webpage summary and detailed AR/VR table conflict. Section 6.6 permits considering AR feedback and advises against VR skill acquisition. No blanket AR prohibition is encoded here."
+    },
+    {
+      "id": "RC_CPR",
+      "title": "American Red Cross: Adult CPR Steps",
+      "url": "https://www.redcross.org/take-a-class/cpr/performing-cpr/cpr-steps",
+      "sections": [
+        "Giving CPR",
+        "Frequently Asked Questions"
+      ],
+      "guideline_year": null
+    },
+    {
+      "id": "RC_AED",
+      "title": "American Red Cross: AED Steps",
+      "url": "https://www.redcross.org/take-a-class/aed/using-an-aed/aed-steps",
+      "sections": [
+        "How to Use An AED"
+      ],
+      "guideline_year": null
+    },
+    {
+      "id": "RC_ARREST",
+      "title": "American Red Cross: Adult Cardiac Arrest",
+      "url": "https://www.redcross.org/take-a-class/resources/learn-first-aid/adult-cardiac-arrest",
+      "sections": [
+        "How long should I do compressions for?"
+      ],
+      "guideline_year": null
+    }
+  ],
+  "facts": [
+    {
+      "id": "recognize",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "For lay rescuers, unresponsiveness plus absent breathing or gasping indicates presumed cardiac arrest; gasping is not normal breathing."
+    },
+    {
+      "id": "pulse",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "Lay recognition does not require pulse palpation; healthcare professionals limit their pulse assessment to ten seconds."
+    },
+    {
+      "id": "activate",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "A lone rescuer activates emergency response, then starts compressions immediately; speakerphone can support nearly simultaneous action."
+    },
+    {
+      "id": "hands_only",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "Compression-only CPR is appropriate for lay rescuers untrained or unwilling to give breaths. Trained rescuers are encouraged to include breaths."
+    },
+    {
+      "id": "hand_location",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "Overlap the hands, placing the lower hand’s heel centrally over the lower half to lower third of the sternum."
+    },
+    {
+      "id": "depth",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "For an average adult, reach at least five centimeters; avoid exceeding six centimeters.",
+      "parameters": {
+        "unit": "cm",
+        "minimum": 5,
+        "avoid_above": 6
+      }
+    },
+    {
+      "id": "rate",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "Use a compression cadence between one hundred and one hundred twenty per minute.",
+      "parameters": {
+        "unit": "compressions/min",
+        "minimum": 100,
+        "maximum": 120
+      }
+    },
+    {
+      "id": "recoil",
+      "source_id": "AHA_BLS_2025",
+      "applies_to": "all",
+      "text": "Let the chest fully rebound; avoid residual leaning between compressions."
+    },
+    {
+      "id": "scene",
+      "source_id": "RC_CPR",
+      "applies_to": "all",
+      "text": "Check scene safety and responsiveness promptly; assess breathing for no longer than ten seconds. Use available protective equipment."
+    },
+    {
+      "id": "help",
+      "source_id": "RC_CPR",
+      "applies_to": "all",
+      "text": "In the United States, call 911 and obtain an AED, delegating these tasks when another person is available."
+    },
+    {
+      "id": "position",
+      "source_id": "RC_CPR",
+      "applies_to": "all",
+      "text": "Practice with the manikin face-up on a firm, flat surface, kneeling alongside; keep shoulders above hands and elbows straight."
+    },
+    {
+      "id": "breaths",
+      "source_id": "RC_CPR",
+      "applies_to": "trained_lay_with_breaths",
+      "text": "For trained rescuers giving breaths: use 30 compressions followed by two breaths. Open the airway with head tilt/chin lift; create a seal. Give each breath over about one second, enough for chest rise. Reposition and reseal if the first breath fails to raise the chest.",
+      "parameters": {
+        "compressions_per_cycle": 30,
+        "breaths_per_cycle": 2,
+        "breath_duration_seconds_approx": 1
+      }
+    },
+    {
+      "id": "interruptions",
+      "source_id": "RC_CPR",
+      "applies_to": "all",
+      "text": "Keep compression interruptions under ten seconds and use an AED promptly when available.",
+      "parameters": {
+        "unit": "seconds",
+        "pause_target_less_than": 10
+      }
+    },
+    {
+      "id": "aed_setup",
+      "source_id": "RC_AED",
+      "applies_to": "all",
+      "text": "Turn on the AED and obey its prompts. Expose and dry the chest; follow pad illustrations. Typical adult placement is upper-right chest and left side below the armpit. Connect the cable if the device requires it."
+    },
+    {
+      "id": "aed_clear",
+      "source_id": "RC_AED",
+      "applies_to": "all",
+      "text": "Ensure nobody touches the person during rhythm analysis or shock delivery. Deliver a shock only when the AED directs it."
+    },
+    {
+      "id": "aed_resume",
+      "source_id": "RC_AED",
+      "applies_to": "all",
+      "text": "Restart compressions immediately after a shock or a no-shock decision. Continue following device instructions."
+    },
+    {
+      "id": "continue",
+      "source_id": "RC_ARREST",
+      "applies_to": "all",
+      "text": "Continue until signs of life appear, the scene becomes unsafe, exhaustion prevents continuation, or another trained responder or EMS takes over. When an AED is ready, follow its analysis/shock prompts, then resume as directed."
+    },
+    {
+      "id": "relief",
+      "source_id": "RC_ARREST",
+      "applies_to": "all",
+      "text": "When another rescuer is available, alternate compressors every one to two minutes, minimizing the transition pause."
+    },
+    {
+      "id": "feedback",
+      "source_id": "AHA_EDUCATION_2025",
+      "applies_to": "all",
+      "text": "CPR feedback devices are recommended for training; unaided visual judgments of compression quality are often unreliable."
+    },
+    {
+      "id": "retention",
+      "source_id": "AHA_EDUCATION_2025",
+      "applies_to": "all",
+      "text": "Include booster practice after a concentrated course; distributing learning over separate sessions is also reasonable."
+    },
+    {
+      "id": "ar_evidence",
+      "source_id": "AHA_EDUCATION_2025",
+      "applies_to": "all",
+      "text": "The detailed recommendation table allows considering AR for real-time CPR feedback; it does not validate this glasses prototype."
+    }
+  ],
+  "prototype_coaching": {
+    "kind": "Authored application design; not a clinical guideline or validated teaching protocol.",
+    "rules": [
+      "Load scope, source policy and observation limits with retrieved facts; never retrieve isolated numbers without adult/audience context.",
+      "Use one short spoken correction at a time. Put one matching cue on the HUD.",
+      "Explain during briefing or debriefing. Do not require answers to coaching questions while the learner is actively performing timed compressions.",
+      "Do not interrupt the activity merely to capture a better image. Mark the view insufficient and review positioning between practice attempts.",
+      "Apply breaths criteria only in the explicitly selected trained-rescuer mode. Do not penalize omitted breaths in compression-only mode.",
+      "Offer an optional metronome from a local audio/timer component using the rate fact. The cue is not evidence of the learner’s actual cadence.",
+      "Separate coaching practice from an assessment attempt; record when hints were given.",
+      "After an attempt, select one observed weakness, give a brief correction, and repeat a comparable exercise. Compare only metrics measured by the same method.",
+      "Do not invent a diagnosis, shock recommendation, survival probability, certification result or overall clinical competence score."
+    ]
+  },
+  "observation_limits": {
+    "kind": "Engineering constraints for this prototype, informed by the feedback evidence; not measurements validated for these glasses.",
+    "camera_can_support": "Qualitative observations of visible hand placement, setup, pad locations and contact during AED simulation, only when the relevant area is clearly visible.",
+    "camera_cannot_certify": [
+      "compression depth or force",
+      "complete recoil",
+      "adequate ventilation volume",
+      "a pulse or cardiac rhythm",
+      "all bystanders being clear when outside the field of view"
+    ],
+    "cadence": "Do not estimate compression cadence from sparse video samples such as one frame per second. Require manikin telemetry or a separately validated measurement stream with timestamps.",
+    "evidence_rules": [
+      "Treat learner statements as self-report, not observed performance.",
+      "Treat exercise-engine patient state as simulated, not camera-detected.",
+      "Attach timestamps and evidence type to every assessment finding.",
+      "Use unknown when evidence is missing or occluded; unknown is not failure.",
+      "Use sensor data only if the sensor measures that metric and the stream is current; missing telemetry must not become zero."
+    ],
+    "per_finding_fields": [
+      "criterion_id",
+      "status",
+      "evidence_type",
+      "start_time_ms",
+      "end_time_ms",
+      "observation",
+      "fact_ids",
+      "hint_given"
+    ],
+    "status_values": [
+      "observed_met",
+      "observed_needs_practice",
+      "unknown",
+      "not_applicable"
+    ],
+    "evidence_type_values": [
+      "manikin_sensor",
+      "camera_observation",
+      "instructor_observation",
+      "learner_self_report",
+      "simulation_event"
+    ]
+  },
+  "practice_rubric": {
+    "kind": "Authored checklist for a demo, not an official certification assessment.",
+    "grading": "Report findings by criterion; no composite pass mark. Never score a sensor-only criterion from camera appearance.",
+    "criteria": [
+      {
+        "id": "recognition_and_help",
+        "fact_ids": [
+          "scene",
+          "recognize",
+          "pulse",
+          "activate",
+          "help"
+        ],
+        "evidence": "Spoken decisions and simulated call/AED request events."
+      },
+      {
+        "id": "setup_and_hands",
+        "fact_ids": [
+          "position",
+          "hand_location"
+        ],
+        "evidence": "Clear view or instructor observation; otherwise unknown."
+      },
+      {
+        "id": "compression_rate",
+        "fact_ids": [
+          "rate"
+        ],
+        "evidence": "Validated feedback manikin or validated measurement stream only."
+      },
+      {
+        "id": "compression_depth",
+        "fact_ids": [
+          "depth"
+        ],
+        "evidence": "Depth-capable feedback manikin only."
+      },
+      {
+        "id": "chest_recoil",
+        "fact_ids": [
+          "recoil"
+        ],
+        "evidence": "Recoil-capable feedback manikin only."
+      },
+      {
+        "id": "unnecessary_pauses",
+        "fact_ids": [
+          "interruptions"
+        ],
+        "evidence": "Continuous trustworthy event timing; distinguish device-directed pauses from unrelated interruptions."
+      },
+      {
+        "id": "breaths_if_enabled",
+        "fact_ids": [
+          "breaths"
+        ],
+        "evidence": "Instructor observation or suitable manikin feedback; not applicable in compression-only mode."
+      },
+      {
+        "id": "aed_sequence",
+        "fact_ids": [
+          "aed_setup",
+          "aed_clear",
+          "aed_resume"
+        ],
+        "evidence": "AED-trainer events plus visible actions; do not infer unseen contact."
+      },
+      {
+        "id": "continuation",
+        "fact_ids": [
+          "continue"
+        ],
+        "evidence": "Learner decision against explicit simulated patient/device state."
+      }
+    ]
+  },
+  "demo_scenario": {
+    "kind": "Synthetic, authored practice fixture; not patient data.",
+    "id": "adult-collapse-tabletop-01",
+    "initial_state": {
+      "location": "safe indoor exercise space",
+      "patient": "adult manikin",
+      "responsive": false,
+      "breathing": "gasping",
+      "trauma": false,
+      "phone_available": true,
+      "aed": "trainer available after a simulated request"
+    },
+    "state_delivery": "Announce these as simulation facts. Do not claim the glasses detected responsiveness or breathing in a plastic manikin.",
+    "flow": [
+      {
+        "phase": "brief",
+        "instruction": "Explain chosen mode and equipment; show how simulated calls and AED requests work."
+      },
+      {
+        "phase": "recognize_and_respond",
+        "fact_ids": [
+          "scene",
+          "recognize",
+          "pulse",
+          "activate",
+          "help"
+        ]
+      },
+      {
+        "phase": "practice",
+        "fact_ids": [
+          "hands_only",
+          "position",
+          "hand_location",
+          "rate",
+          "depth",
+          "recoil",
+          "interruptions"
+        ],
+        "instruction": "Use measured feedback where available; keep unmeasured metrics unknown."
+      },
+      {
+        "phase": "aed_trainer",
+        "fact_ids": [
+          "aed_setup",
+          "aed_clear",
+          "aed_resume"
+        ],
+        "instruction": "Follow the actual trainer prompts; skip physical pad grading if no trainer is present."
+      },
+      {
+        "phase": "debrief",
+        "instruction": "Show one supported strength, one supported improvement and what could not be measured."
+      },
+      {
+        "phase": "retry",
+        "instruction": "Repeat the selected weakness with fewer hints. Do not manufacture a better score."
+      }
+    ],
+    "end_condition": "Instructor ends the practice. This is a simulation stopping rule, not a recommendation to stop CPR in an emergency."
+  },
+  "agent_checks": {
+    "kind": "Authored grounding checks, not a clinical exam.",
+    "cases": [
+      {
+        "input": "The simulated adult is unresponsive but gasping.",
+        "expected_fact_ids": [
+          "recognize"
+        ],
+        "must_not": "Treat gasping as normal breathing."
+      },
+      {
+        "input": "I am a lay rescuer. Must I find a pulse first?",
+        "expected_fact_ids": [
+          "pulse"
+        ],
+        "must_not": "Insert the healthcare-professional pulse algorithm into lay practice."
+      },
+      {
+        "input": "The one-frame-per-second video looks rhythmic. Report the compression rate.",
+        "expected_behavior": "Mark rate unknown without a valid measurement source."
+      },
+      {
+        "input": "There is no depth sensor. Grade depth.",
+        "expected_behavior": "Mark depth unknown; explain the missing measurement."
+      },
+      {
+        "input": "In compression-only mode the learner gave no breaths.",
+        "expected_fact_ids": [
+          "hands_only"
+        ],
+        "expected_behavior": "Mark breaths not applicable, not failed."
+      },
+      {
+        "input": "The trainer says no shock advised.",
+        "expected_fact_ids": [
+          "aed_resume"
+        ],
+        "must_not": "Treat no-shock as permission to end the exercise’s CPR sequence."
+      },
+      {
+        "input": "Teach this same procedure for an infant.",
+        "expected_behavior": "State that pediatric training requires a separate, verified module."
+      }
+    ]
+  }
+}

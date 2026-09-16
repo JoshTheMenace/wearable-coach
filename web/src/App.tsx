@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Snapshot as SessionSnapshot } from '../../contracts/index.ts';
 import { GlassesSimulator } from './GlassesSimulator.tsx';
+import { KnowledgePanel } from './KnowledgePanel.tsx';
 
 type Json = Record<string, any>;
 type Provider = { id: string; model: string; available: boolean; reason?: string; inputRate: number; outputRate: number };
@@ -483,6 +484,7 @@ export function App() {
         key={session.sessionId} snapshot={snapshot as unknown as SessionSnapshot} ready={canControl && snapshot.status === 'active'}
         send={send} report={reportDevice} uploadFrame={uploadFrame} onCaptureReady={captureReady} flushAudio={flushAudio}
       />}
+      {!session.readOnly && <KnowledgePanel key={`knowledge-${session.sessionId}`} sessionId={session.sessionId} token={session.token} active={snapshot?.status === 'active' && !snapshot?.demonstration} events={events} />}
       <div className="workspace-grid">
         <div className="panel frame-panel"><div className="panel-head"><h2>Shared view</h2><span className={`badge ${latestFrame ? 'accent' : ''}`}>{latestFrame?.cameraSource ?? 'NO CAMERA'}</span></div><div className="camera-view">{imageUrl ? <img src={imageUrl} alt={`${latestFrame?.cameraSource === 'mock' ? 'Artificial test fixture' : 'Latest selected camera frame'}`} /> : <div className="camera-empty"><span className="focus-corners">⌗</span><strong>{latestFrame ? 'Frame bytes unavailable' : 'Waiting for a fresh frame'}</strong><span>{latestFrame ? 'The frame metadata is preserved in the evidence log.' : 'Inspect the view to request an image from the device.'}</span></div>}<div className="camera-meta"><span><span className="dot" /> SAMPLED PREVIEW</span><span>{frameAge === null ? 'No capture yet' : `${frameAge}s ${latestFrame?.capturedAt ? 'since capture' : 'since received · capture age unknown'}`}</span></div></div><div className="frame-foot"><span>Freshness <strong>{freshness}</strong></span><span>{snapshot?.config.device === 'mock' ? 'SIMULATION / NOT THE CURRENT LEARNER' : 'Capture timing includes device uncertainty'}</span></div>
           {snapshot?.config.provider === 'gemini' && <LiveVideoStatus snapshot={snapshot} now={serverNow} />}

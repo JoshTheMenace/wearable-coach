@@ -53,7 +53,7 @@ test('Gemini sends aligned image/question, manual boundaries and exact tool resu
   assert.equal(fixture.messages[0].setup.realtimeInputConfig.automaticActivityDetection.disabled, true);
   assert.equal(fixture.messages[0].setup.generationConfig.thinkingConfig, undefined);
   assert.deepEqual(fixture.messages[0].setup.tools[0].functionDeclarations.map((tool:{name:string;behavior:string})=>[tool.name,tool.behavior]),[
-    ['set_hud','NON_BLOCKING'],['clear_hud','NON_BLOCKING'],['inspect_frame','BLOCKING'],
+    ['set_hud','NON_BLOCKING'],['clear_hud','NON_BLOCKING'],['inspect_frame','BLOCKING'],['lookup_training_reference','BLOCKING'],
   ]);
   adapter.activity(true); adapter.sendAudio(Buffer.from([1, 0, 2, 0])); adapter.activity(false);
   adapter.inspect(Buffer.from('exact-frame'), 'image/png', 'Which block is blue?');
@@ -70,6 +70,29 @@ test('Gemini sends aligned image/question, manual boundaries and exact tool resu
   adapter.toolResult('opaque-call', { status: 'cancelled', applicationEffect: 'not_applied' });
   await until(() => fixture.messages.length === 6);
   assert.deepEqual(fixture.messages[5].toolResponse.functionResponses[0], { id: 'opaque-call', name: 'clear_hud', response: { status: 'cancelled', applicationEffect: 'not_applied' } });
+  await adapter.close();
+});
+
+test('Gemini reference lookup preserves its query, source payload and opaque response ID', async t => {
+  process.env.GEMINI_KEY = 'test-only-gemini';
+  const fixture = await wire({ setupComplete: {} }); t.after(() => fixture.close());
+  const r = recorder();
+  const adapter = createProvider({ provider: 'gemini', model: 'gemini-3.8-live' }, r.callbacks, fixture.options);
+  await adapter.connect();
+  const lookup = fixture.messages[0].setup.tools[0].functionDeclarations.find((tool: { name: string }) => tool.name === 'lookup_training_reference');
+  assert.equal(lookup.behavior, 'BLOCKING');
+  assert.deepEqual(lookup.parameters.required, ['query']);
+  assert.equal(lookup.parameters.properties.query.maxLength, 1200);
+  assert.equal(lookup.parameters.properties.limit.maximum, 5);
+  const args = { query: 'What does the CPR reference say about hand placement?', limit: 2 };
+  fixture.send({ toolCall: { functionCalls: [{ id: 'reference-opaque-71', name: lookup.name, args }] } });
+  await until(() => r.calls.length === 1);
+  assert.deepEqual(r.calls[0], { id: 'reference-opaque-71', name: 'lookup_training_reference', args });
+  const response = { status: 'found', dataset: { version: 'fixture-v1' }, results: [{ id: 'fact-1', source: { title: 'Fixture reference', year: 2025 } }] };
+  adapter.toolResult('reference-opaque-71', response);
+  await until(() => fixture.messages.length === 2);
+  assert.deepEqual(fixture.messages[1].toolResponse.functionResponses, [{ id: 'reference-opaque-71', name: lookup.name, response }]);
+  assert.throws(() => adapter.toolResult('reference-opaque-71', response), /Unknown provider tool call/);
   await adapter.close();
 });
 
@@ -218,6 +241,24 @@ test('GPT cancelled native outcomes update thinking without speaking cancellatio
   assert.ok(!fixture.messages.some(message=>message.type==='session.commentary.append'));
 });
 
+test('GPT delegated lookup appends reference data before requesting a sourced answer', async t => {
+  process.env.OPENAI_API_KEY = 'test-only-openai';
+  const fixture = await wire({ type: 'session.started', session: { id: 'reference-session' } }); t.after(() => fixture.close());
+  const adapter = createProvider({ provider: 'openai', model: 'gpt-live-1' }, recorder().callbacks, fixture.options);
+  await adapter.connect();
+  assert.match(fixture.messages[0].session.instructions, /Delegate requests for CPR\/AED reference lookup/);
+  const result = { status: 'context_dispatched', reference: { status: 'no_match', results: [] },
+    instruction: 'Explain that the reference lookup found no matching facts; do not supply guidance from memory.' };
+  adapter.toolResult('reference-delegation', result);
+  await until(() => fixture.messages.some(message => message.type === 'session.commentary.append'));
+  const messages = fixture.messages.slice(1);
+  assert.equal(messages.filter(message => message.type === 'session.thinking.append').map(message => message.content).join(''), JSON.stringify(result));
+  assert.equal(messages.at(-1).type, 'session.commentary.append');
+  assert.equal(messages.at(-1).content, result.instruction);
+  assert.ok(messages.every(message => message.delegation_id === 'reference-delegation'));
+  await adapter.close();
+});
+
 test('startup errors are bounded and do not expose vendor error text or keys', async t => {
   process.env.OPENAI_API_KEY = 'test-only-openai';
   const fixture = await wire({ type: 'error', error: { message: 'secret-key-and-signed-url' } }); t.after(() => fixture.close());
@@ -303,6 +344,40 @@ test('mock emits labeled audible PCM and close fences delayed tools and audio', 
   assert.ok(r.events.some(e => e.type === 'playback.simulated' && e.payload.kind === 'tone'));
   adapter.sendText('delayed card'); await adapter.close();
   const count = r.audio.length; await pause(60); assert.equal(r.audio.length, count); assert.equal(r.calls.length, 1);
+});
+
+test('task handler maps reference questions to lookup queries and rejects missing or oversized arguments', async () => {
+  process.env.GEMINI_KEY = 'test-only-gemini';
+  let request: any;
+  const infer = (question: string | null, action = 'lookup_training_reference') => inferTask('Look up the CPR training reference', {}, new AbortController().signal, {
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(String(init?.body));
+      return Response.json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ action, message: 'Look up the training reference.', hud: null, question }) }] } }] });
+    },
+  });
+  const result = await infer('  CPR hand placement  ');
+  assert.equal(result.action, 'lookup_training_reference');
+  assert.deepEqual(result.args, { query: 'CPR hand placement' });
+  assert.ok(request.generationConfig.responseJsonSchema.properties.action.enum.includes('lookup_training_reference'));
+  assert.match(request.systemInstruction.parts[0].text, /Reference facts never prove learner performance/);
+  await assert.rejects(infer(null), /required action arguments/);
+  await assert.rejects(infer('   '), /required action arguments/);
+  await assert.rejects(infer('q'.repeat(1201)), /invalid structured result/);
+  assert.equal((await infer('q'.repeat(1200))).args.query, 'q'.repeat(1200));
+  await assert.rejects(infer('q'.repeat(1001), 'inspect_frame'), /required action arguments/);
+});
+
+test('mock lookup and reference prefixes take precedence over camera inspection', async () => {
+  const r = recorder(); const adapter = createProvider({ provider: 'mock', model: 'mock-coach-v1' }, r.callbacks);
+  await adapter.connect();
+  adapter.sendText('lookup CPR hand placement');
+  adapter.sendText(' Reference can the camera measure depth?');
+  await until(() => r.calls.length === 2);
+  assert.deepEqual(r.calls.map(({ name, args }) => ({ name, args })), [
+    { name: 'lookup_training_reference', args: { query: 'CPR hand placement' } },
+    { name: 'lookup_training_reference', args: { query: 'can the camera measure depth?' } },
+  ]);
+  await adapter.close();
 });
 
 test('Gemini video uses realtime input without starting a turn and drops congested frames', async t => {

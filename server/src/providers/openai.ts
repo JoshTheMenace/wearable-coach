@@ -12,7 +12,7 @@ export class OpenAIProvider extends SocketProvider {
   }
   protected setup() {
     return { type: 'session.start', event_id: randomUUID(), session: {
-      model: this.config.model, instructions: `${COACH_PROMPT} Delegate requests for HUD changes, camera inspection, or application actions to the backend. Backend observations are attributed image inferences; you cannot see camera frames directly.`,
+      model: this.config.model, instructions: `${COACH_PROMPT} Delegate requests for CPR/AED reference lookup, HUD changes, camera inspection, or application actions to the backend. Backend observations are attributed image inferences; you cannot see camera frames directly.`,
       audio: { format: { type: 'audio/pcm', rate: 24000 }, output: { voice: this.config.voice || 'marin' } },
       delegation: { type: 'client' }, store: false,
     } };

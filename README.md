@@ -4,7 +4,7 @@ A native Android device bridge, a TypeScript session server, and a browser opera
 
 This is a working integration prototype. No training exercise, rubric, scoring system, or independent evaluator is included yet.
 
-The working glasses build is preserved on `main` and `codex/grounded-live-coaching` at `7d19ac6`. The `codex/coaching-walkthrough` branch adds a [browser glasses simulator](docs/glasses-simulator.md), [repeatable coaching baseline](docs/walkthrough-baseline.md), and [AI-led manikin practice plan](docs/coaching-walkthrough-plan.md). Source ingestion and clinical lesson content are deferred.
+The working glasses build is preserved on `main` and `codex/grounded-live-coaching` at `7d19ac6`. The `codex/coaching-walkthrough` branch adds a [browser glasses simulator](docs/glasses-simulator.md), [training reference lookup](docs/training-reference-lookup.md), [repeatable coaching baseline](docs/walkthrough-baseline.md), and [AI-led manikin practice plan](docs/coaching-walkthrough-plan.md). The supplied CPR dataset is searchable with citations; a persisted clinical lesson is still pending.
 
 ## Run the server and dashboard
 
@@ -59,7 +59,8 @@ The Android build is configured for local USB testing. Its credential-free setup
 
 | Path | Evidence |
 | --- | --- |
-| Server contracts and provider wire protocols | `npm test`: 86 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads, demonstration lifecycle, recorded-source attribution and teardown. |
+| Server contracts and provider wire protocols | `npm test`: 109 passing tests covering retry, stale lease, cancellation, bounded memory, auth, frame pinning, render receipts, audio packets, native provider payloads, demonstration lifecycle, recorded-source attribution, reference retrieval/auth/idempotency and teardown. |
+| Training reference lookup | Local corpus and scope tests, HTTP authentication and export checks, browser search/error recovery, and a live Gemini lookup with source citation. [Reference evidence](docs/reference-validation.json). |
 | Glasses simulator | Browser card/movie/card transitions, deferred HUD changes, repeat and stop, mobile layout, and a real Gemini session with 23 recorded frames and zero drops. [Simulator evidence](docs/simulator-validation.json). |
 | Complete mock pipeline | `npm run smoke`: PCM received, HUD tool accepted, requested frame uploaded, selected image exported, connection replaced, session ended. |
 | Browser UI | Actual desktop/mobile browser runs: start, tools, inspection, timer expiry, clear, stop, reconnect, refresh, read-only spectator, export download and end. The inspection iteration also passed in-place cancellation, retry, and missing-camera timeout checks. |
@@ -118,7 +119,7 @@ The server owns desired state; Android owns immediate hardware control. This sep
 - **Evidence:** raw audio is not recorded. Selected inspection images are retained only when enabled; exports include retained image bytes and declare missing evidence. Provider transcripts are estimates, not proof of exactly what someone heard. Device playback/render reports are not acoustic or optical measurements.
 - **Retention:** local sessions expire after 24 hours. `DELETE /api/sessions/:id` with operator/session credentials ends and removes a session and its files. Provider-side retention is separate; GPT is configured with `store:false`.
 - **Costs:** usage events include native live usage and ordinary-model token usage where reported. They are not a complete dollar invoice; cumulative GPT values must not be summed. Automatic maximum session length defaults to 30 minutes. The initial UI does not estimate unreported modality costs.
-- **Deferred features:** Neural Band controls, rich spatial overlays, generated imagery, raw-audio recording, training rubrics, retrieval and independent after-action grading.
+- **Deferred features:** Neural Band controls, rich spatial overlays, generated imagery, raw-audio recording, training rubrics and independent after-action grading.
 
 The earlier [architecture](docs/architecture.md), [schema plan](docs/schema.md), and [design discussion](docs/design-review.md) explain the design. [Implementation review](docs/implementation-review.md) records the corrections made during the build.
 

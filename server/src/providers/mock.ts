@@ -12,7 +12,7 @@ export class MockProvider implements ProviderAdapter {
   async connect() {
     this.open = true;
     this.callbacks.event('provider.ready', { provider: 'mock', model: this.config.model, simulated: true, inputRate: this.inputRate, outputRate: this.outputRate });
-    this.callbacks.event('transcript.fragment', { speaker: 'assistant', text: 'Simulated coach connected. Type “show card”, “clear”, or “inspect”. Audio is a test tone.', simulated: true });
+    this.callbacks.event('transcript.fragment', { speaker: 'assistant', text: 'Simulated coach connected. Type “show card”, “clear”, “inspect”, or “lookup <question>”. Audio is a test tone.', simulated: true });
   }
   sendAudio(pcm: Buffer) {
     if (!this.open) throw new Error('Provider is not ready');
@@ -41,7 +41,8 @@ export class MockProvider implements ProviderAdapter {
       const id = `mock-call-${++this.sequence}`;
       this.later(() => this.callbacks.tool({ id, name, args }), delay);
     };
-    if (/invalid/i.test(text)) call('set_hud', { card: { body: 'x'.repeat(241) } });
+    if (/^(lookup|reference)\s+/i.test(text.trim())) call('lookup_training_reference', { query: text.trim().replace(/^(lookup|reference)\s+/i, '').slice(0, 1200) });
+    else if (/invalid/i.test(text)) call('set_hud', { card: { body: 'x'.repeat(241) } });
     else if (/inspect|look|camera/i.test(text)) call('inspect_frame', { question: text.slice(0, 1000) });
     else if (/clear/i.test(text)) call('clear_hud', {});
     else if (/show|card|hud|delayed/i.test(text)) call('set_hud', { card: { title: 'Simulated coach', body: 'Pause, inspect your setup, and explain your next step.' } }, /delayed/i.test(text) ? 2500 : 25);

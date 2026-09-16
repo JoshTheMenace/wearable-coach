@@ -1,0 +1,68 @@
+{
+  "testedAt": "2026-09-16T16:50:43.017Z",
+  "provider": "gemini",
+  "model": "gemini-3.8-live",
+  "device": "browser glasses simulator",
+  "sessionStatus": "ended",
+  "lookups": [
+    {
+      "origin": "manual",
+      "query": "hand placement",
+      "status": "found",
+      "factIds": [
+        "hand_location",
+        "hands_only",
+        "aed_setup",
+        "position"
+      ],
+      "datasetHash": "7a3c52594377dfe54a8537cf91fa76493c159db1bf02b13480d3319c814b46a6",
+      "elapsedMs": 1
+    },
+    {
+      "origin": "coach",
+      "query": "compression rate for adult CPR",
+      "status": "found",
+      "factIds": [
+        "rate",
+        "hands_only",
+        "recoil"
+      ],
+      "datasetHash": "7a3c52594377dfe54a8537cf91fa76493c159db1bf02b13480d3319c814b46a6",
+      "elapsedMs": 1
+    },
+    {
+      "origin": "manual",
+      "query": "quasar astronomy",
+      "status": "no_match",
+      "factIds": [],
+      "datasetHash": "7a3c52594377dfe54a8537cf91fa76493c159db1bf02b13480d3319c814b46a6",
+      "elapsedMs": 0
+    },
+    {
+      "origin": "manual",
+      "query": "depth",
+      "status": "found",
+      "factIds": [
+        "depth"
+      ],
+      "datasetHash": "7a3c52594377dfe54a8537cf91fa76493c159db1bf02b13480d3319c814b46a6",
+      "elapsedMs": 0
+    }
+  ],
+  "coachTranscript": "According to the 2025 AHA Guidelines, Part 7: Adult Basic Life Support, you should use a compression cadence between one hundred and one hundred twenty per minute.That information is outside the scope of our current reference material, which only covers adult lay-rescuer manikin practice. What would you like to practice next?",
+  "providerErrors": 0,
+  "browserChecks": {
+    "manualSearch": true,
+    "noMatch": true,
+    "temporary503ErrorAndRetry": true,
+    "mobile390pxNoHorizontalOverflow": true,
+    "desktop1440px": true
+  },
+  "limitations": [
+    "Two typed Gemini prompts in one session; model reliability across other wording remains unproven.",
+    "The infant/breaths follow-up was refused from the stated scope without another tool call.",
+    "No physical glasses or clinical competence tested.",
+    "Live lookup ran before the final mixed-breath-query regression fix; that fix is covered by automated tests.",
+    "GPT lookup has wire/inference tests; no paid end-to-end GPT lookup trial."
+  ]
+}

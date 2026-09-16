@@ -102,7 +102,9 @@ Next · Review feedback
 
 Two design alternatives are useful to compare: a large current cue with previous/next rows, and a short checklist with one highlighted current item. Default to the large cue during physical practice. Do not introduce bottom-edge controls, tiny clinical paragraphs, or unsupported Neural Band gestures. Phone buttons work in noisy settings; voice remains an alternative when available.
 
-## Retrieval after sources arrive
+## Retrieval and lesson integration
+
+The supplied CPR seed is now connected through [training reference lookup](training-reference-lookup.md): local fact search, provider tool, citations, scope checks, and exported retrieval evidence. The remaining plan below covers integration with a future persisted lesson and step attempts.
 
 1. Keep sources local initially. Import and version approved material; preserve page/section/video timestamps and course/audience metadata. Flag conflicting or missing provenance for review.
 2. Pin a knowledge version to the lesson/run. Begin with exact step-to-source references and bounded keyword search; add embeddings only if retrieval tests demonstrate a need.
@@ -111,7 +113,7 @@ Two design alternatives are useful to compare: a large current cue with previous
 5. Give the speaking coach the excerpt and citation; put full source detail on the phone. Do not imply that a source-backed explanation is evidence the learner performed it.
 6. Evaluate with questions from the supplied material: correct source, version/audience filtering, answerability, contradictions, malicious embedded instructions, and source-unavailable behavior. Do not silently substitute model memory for missing approved material.
 
-No source import, RAG endpoint, vector database, or clinical content is added in this branch.
+The current tool is `lookup_training_reference({query, limit})`. There is no vector database, lesson binding, or step-attempt state yet; the source is loaded and versioned once per server process.
 
 ## Requested video
 

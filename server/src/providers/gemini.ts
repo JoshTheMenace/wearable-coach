@@ -11,6 +11,9 @@ export const hudTools = [
   { name: 'clear_hud', description: 'Clear the entire HUD.', parameters: { type: 'OBJECT', properties: {} } },
   { name: 'inspect_frame', description: 'Request a fresh camera frame to answer a specific question. Do not infer that an older view is current.',
     parameters: { type: 'OBJECT', properties: { question: { type: 'STRING' } }, required: ['question'] } },
+  { name: 'lookup_training_reference', description: 'Look up CPR/AED reference facts for adult lay-rescuer compression-only manikin practice. Wait for the result before factual guidance; never invent missing or out-of-scope guidance. References do not verify learner performance.',
+    parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', minLength: 1, maxLength: 1200 },
+      limit: { type: 'INTEGER', minimum: 1, maximum: 5 } }, required: ['query'] } },
 ];
 
 export class GeminiProvider extends SocketProvider {
@@ -31,7 +34,7 @@ export class GeminiProvider extends SocketProvider {
         ...(extended ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
       },
       systemInstruction: { parts: [{ text: COACH_PROMPT }] },
-      tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: tool.name === 'inspect_frame' ? 'BLOCKING' : 'NON_BLOCKING' })) }],
+      tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: ['inspect_frame', 'lookup_training_reference'].includes(tool.name) ? 'BLOCKING' : 'NON_BLOCKING' })) }],
       inputAudioTranscription: {}, outputAudioTranscription: {},
       sessionResumption: this.options.resumeHandle ? { handle: this.options.resumeHandle } : {},
       contextWindowCompression: { slidingWindow: {} },

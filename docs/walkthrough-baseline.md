@@ -15,7 +15,7 @@ The diagnostic starts its own temporary SQLite database and loopback server on a
 
 ## Results
 
-The September 16, 2026 baseline reported **6 working capabilities and 8 present gaps**. The separate live-video suite passed all **7 tests**.
+The September 16, 2026 baseline with reference lookup reports **8 working capabilities and 6 present gaps**. The earlier baseline had no knowledge endpoint or retrieval tool; both now pass explicit capability checks. The separate live-video suite passed all **7 tests**.
 
 | Working capability | Evidence |
 | --- | --- |
@@ -23,8 +23,10 @@ The September 16, 2026 baseline reported **6 working capabilities and 8 present 
 | Checklist replacement | A complete HUD document can change a row to checked. |
 | Reconnect persistence | The current HUD survives a transport reconnect. |
 | Generation checks | An old connection cannot mutate the new connection's checklist. |
-| Export history | Earlier HUD documents remain available in exported session events. |
+| Export history | Earlier HUD documents and cited lookup results remain available in exported session events. |
 | Separate video ownership | HUD documents reject `videoAssetId`; video uses the dedicated demonstration contract. |
+| Knowledge status | `GET /api/knowledge` reports a loaded compression-only dataset and its content hash. |
+| Reference lookup | `lookup_training_reference` returns the matching fact with its source URL and records reference-only telemetry. |
 
 | Present gap | Consequence for coaching |
 | --- | --- |
@@ -34,8 +36,6 @@ The September 16, 2026 baseline reported **6 working capabilities and 8 present 
 | Stop speech replaces the provider connection | It does not implement lesson pause. |
 | No coaching pause command | The server rejects `pause_coaching`. |
 | No walkthrough configuration | The server rejects `mode` and `lessonId`. |
-| No knowledge endpoint | `GET /api/knowledge` returns 404. Source ingestion is deferred. |
-| No retrieval tool | The server rejects a simulated `retrieve_knowledge` proposal. |
 
 The demonstration suite adds **11 tests** for playback switching, audio/camera suppression, HUD restoration, stale callbacks, failures/timeouts, unsupported devices, dimensions, and recorded-media provenance. Run it with `node --import tsx --test server/test/demonstration.test.ts`.
 
@@ -47,7 +47,7 @@ Keep durable practice progress separate from the HUD. Model proposals should tar
 
 For AI-led practice, pause/resume should preserve the active step and block progression while paused. Timer expiry, clearing the display, clip playback, and reconnect must preserve progress. Missing or stale camera evidence should produce an explicit uncertainty state.
 
-These checks do not require a human instructor. Clinical training content, assessment criteria, and source ingestion are outside this diagnostic. The fixtures contain only practice setup text, not CPR instructions. Requested demonstrations now use a separate playback contract and explicit device capability check. This implementation supports the browser simulator; physical glasses playback remains unsupported.
+These checks do not require a human instructor. The diagnostic verifies lookup against the supplied CPR seed file, including source attribution and dataset identity; it does not validate that file's clinical claims or assessment criteria. Checklist fixtures contain only practice setup text. Requested demonstrations use a separate playback contract and explicit device capability check. This implementation supports the browser simulator; physical glasses playback remains unsupported.
 
 ## Limits
 
