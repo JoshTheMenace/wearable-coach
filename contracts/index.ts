@@ -35,7 +35,7 @@ export type Hud = z.infer<typeof hudSchema>;
 export const commandSchema = z.object({
   schemaVersion: z.literal(1), sessionId: idSchema, generation: z.number().int().positive(),
   messageId: idSchema, commandId: idSchema,
-  type: z.enum(['send_text','set_mic','stop_speech','clear_hud','set_hud','inspect_frame','end_session','activity','cancel_work','set_live_video','start_demo','stop_demo','lesson_action','play_training_video']),
+  type: z.enum(['send_text','set_mic','stop_speech','clear_hud','set_hud','inspect_frame','end_session','activity','cancel_work','set_live_video','start_demo','stop_demo','lesson_action','play_training_video','set_practice_mode']),
   payload: z.record(z.string(), z.unknown()),
 });
 export type Command = z.infer<typeof commandSchema>;

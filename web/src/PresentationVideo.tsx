@@ -15,8 +15,14 @@ export function PresentationVideo({ demo, clip, sound, report }: { demo: Demonst
     player.onplaying = () => { if (!sent.current) { sent.current = true; callback.current(demo.requestId, 'playing'); } };
     player.onended = () => { if (sent.current) callback.current(demo.requestId, 'ended'); };
     player.onerror = failed;
+    // A replacement presentation window joins the current movie instead of replaying it.
+    player.onloadedmetadata = () => {
+      if (demo.status === 'playing' && demo.playbackStartedAt)
+        player.currentTime = Math.min(player.duration, Math.max(0, (Date.now() - demo.playbackStartedAt) / 1000));
+    };
+    if (player.readyState >= 1) player.onloadedmetadata(new Event('loadedmetadata'));
     void player.play().catch(failed);
-    return () => { cancelled = true; player.onplaying = null; player.onended = null; player.onerror = null; player.pause(); };
+    return () => { cancelled = true; player.onplaying = null; player.onended = null; player.onerror = null; player.onloadedmetadata = null; player.pause(); };
   }, [demo.requestId, clip?.localUrl]);
   return <div className="presentation-video">
     {clip && <video ref={video} src={clip.localUrl} muted={!sound} playsInline preload="auto" aria-label="Presentation lesson video" />}

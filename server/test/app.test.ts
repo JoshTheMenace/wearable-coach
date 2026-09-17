@@ -315,3 +315,38 @@ test('losing the presentation during a movie clears playback instead of strandin
   assert.ok(h.app.store.events(id).some(e=>e.type==='demo.finished'&&e.payload.reason==='failed'));
   assert.throws(()=>h.app.coordinator.command(id,h.command(id,'start_demo',{assetId:asset.id},2) as any),/enable presentation/);
 });
+
+test('authorized backup takes over presentation and changes practice mode without dropping the active movie',async t=>{
+  const h=await setup(t),created=await h.create(),id=created.sessionId;
+  h.app.coordinator.mutate(id,s=>{s.config.videoTarget='presentation';});
+  const connect=async(token:string,presentation:boolean,takeover=false)=>{
+    const ws=new WebSocket(h.base.replace('http','ws')+`/api/sessions/${id}/events`),messages:any[]=[];
+    t.after(()=>ws.terminate());ws.on('message',data=>messages.push(JSON.parse(data.toString())));
+    await new Promise(resolve=>ws.once('open',resolve));ws.send(JSON.stringify({type:'hello',token,presentation,takeover}));
+    await wait(()=>messages.some(m=>['snapshot','error'].includes(m.type)));return{ws,messages};
+  };
+  const owner=await connect(created.token,true);
+  owner.ws.send(JSON.stringify({type:'presentation.ready',ready:true}));await wait(()=>!!h.app.coordinator.get(id).presentation?.ready);
+  const asset=h.app.coordinator.get(id).presentation!.assets[0];
+  h.app.coordinator.command(id,h.command(id,'start_demo',{assetId:asset.id}) as any);
+  const requestId=h.app.coordinator.get(id).demonstration!.requestId;
+  owner.ws.send(JSON.stringify({type:'demo.playback',generation:1,messageId:randomUUID(),payload:{requestId,status:'playing'}}));
+  await wait(()=>h.app.coordinator.get(id).demonstration?.status==='playing');
+  const denied=await connect(created.spectatorToken,true,true);assert.equal(denied.messages[0].code,401);
+  const reader=await connect(created.spectatorToken,false);
+  const mode={type:'presentation.practice_mode',mode:'scripted_demo',commandId:randomUUID()};
+  reader.ws.send(JSON.stringify(mode));await wait(()=>reader.messages.some(m=>m.code===403));
+  assert.equal(h.app.coordinator.get(id).config.practiceMode,'live');
+  let closeCode=0;owner.ws.on('close',code=>{closeCode=code;});
+  const backup=await connect(created.token,true,true);await wait(()=>closeCode===4001);
+  assert.equal(h.app.coordinator.get(id).generation,1);assert.equal(h.app.coordinator.get(id).demonstration?.requestId,requestId);
+  assert.equal(h.app.coordinator.get(id).presentation?.connected,true);
+  backup.ws.send(JSON.stringify(mode));await wait(()=>h.app.coordinator.get(id).config.practiceMode==='scripted_demo');
+  backup.ws.send(JSON.stringify(mode));await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.app.store.events(id).filter(e=>e.type==='lesson.practice_mode.changed').length,1);
+  assert.equal(h.app.coordinator.get(id).demonstration?.status,'playing');
+  const frame=await h.app.coordinator.frame(id,randomUUID(),Buffer.from('89504e470d0a1a0a00000000','hex'),'image/png',{generation:1,preview:true,frameAgeMs:0,cameraSource:'meta_display'});
+  assert.equal(frame.assessment,'off');assert.equal((await h.request(`/sessions/${id}/camera-preview`)).status,200);
+  backup.ws.send(JSON.stringify({type:'demo.playback',generation:1,messageId:randomUUID(),payload:{requestId,status:'ended'}}));
+  await wait(()=>h.app.coordinator.get(id).generation===2);assert.equal(h.app.coordinator.get(id).config.practiceMode,'scripted_demo');
+});

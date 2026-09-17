@@ -183,8 +183,10 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
           if(binary)throw new HttpError(401,'Authenticate first');const hello=JSON.parse(data.toString());if(hello.type!=='hello'||typeof hello.token!=='string')throw new HttpError(401,'Authenticate first');
           authorize(hello.token,id,channel!=='events'||hello.presentation===true);const s=coordinator.get(id);
           if(hello.presentation===true){
-            if(channel!=='events'||presentations.get(id)?.readyState===WebSocket.OPEN)throw new HttpError(409,'Another presentation window is already connected');
+            const prior=presentations.get(id);
+            if(channel!=='events'||prior?.readyState===WebSocket.OPEN&&hello.takeover!==true)throw new HttpError(409,'Another presentation window is already connected');
             presentations.set(id,ws);
+            prior?.close(4001,'Presentation moved to another window');
             coordinator.mutate(id,(state,emit)=>{state.presentation={connected:true,ready:false,assets:[]};emit('presentation.connected',{});});
           }
           if(channel!=='events'){generation=z.number().int().positive().parse(hello.generation);coordinator.checkGeneration(s,generation);const map=channel==='control'?controls:audios;const prior=map.get(id);if(prior&&prior.readyState===WebSocket.OPEN)throw new HttpError(409,'Device channel already bound');map.set(id,ws);}
@@ -200,6 +202,8 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
             const ready=z.boolean().parse(message.ready);
             const assets=ready?lessonMedia.list(id).map(({id,width,height,durationMs,mime,lessonKey})=>({id,width,height,durationMs,mime,lessonKey})):[];
             coordinator.mutate(id,(s,emit)=>{s.presentation={connected:true,ready,assets};emit('presentation.ready',{ready});});
+          }else if(message.type==='presentation.practice_mode'){
+            coordinator.command(id,{schemaVersion:1,sessionId:id,generation:state.generation,messageId:randomUUID(),commandId:idSchema.parse(message.commandId),type:'set_practice_mode',payload:{mode:message.mode}});
           }else if(message.type==='demo.playback'&&state.demonstration?.target==='presentation'){
             coordinator.report(id,z.number().int().parse(message.generation),idSchema.parse(message.messageId),'demo.playback',message.payload,'presentation');
           }else throw new HttpError(403,'Unsupported presentation report');

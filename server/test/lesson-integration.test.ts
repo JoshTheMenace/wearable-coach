@@ -1052,6 +1052,58 @@ test('default live mode does not silently become scripted after an observation f
   assert.equal(h.state().lesson!.lastObservation,undefined);
 });
 
+test('emergency backup cancels a pending observer without replacing voice, attempt, or live preview',async t=>{
+  const h=await setup(t);h.enterPlacement();await h.frame();
+  const {generation,lesson}=h.state(),instance=h.instances[0];
+  h.command('set_practice_mode',{mode:'scripted_demo'});
+  assert.equal(h.requests[0].signal.aborted,true);assert.equal(h.state().generation,generation);
+  assert.equal(h.instances.length,1);assert.equal(h.state().lesson!.attemptId,lesson!.attemptId);
+  assert.equal(h.state().lesson!.scriptedStage,'correction');assert.equal(h.state().liveVideo,false);
+  assert.ok(instance.contexts.some(context=>/replaces earlier placement instructions/.test(context.text)&&context.spoken===false));
+  h.requests[0].resolve(correct);await settle();
+  assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().lesson!.lastObservation,undefined);
+  const preview=await h.frame({liveVideo:false,preview:true});assert.equal(preview.assessment,'off');
+  assert.ok(h.coordinator.cameraPreview(h.id));assert.equal(h.requests.length,1);
+  h.coordinator.audio(h.id,generation,Buffer.alloc(640));assert.ok(instance.audio.length);
+  const revision=h.state().lesson!.revision,count=h.events().filter(e=>e.type==='lesson.practice_mode.changed').length;
+  h.command('set_practice_mode',{mode:'scripted_demo'});
+  assert.equal(h.state().lesson!.revision,revision);assert.equal(h.events().filter(e=>e.type==='lesson.practice_mode.changed').length,count);
+  h.action('ready');assert.equal(h.state().lesson!.phase,'practice');
+  assert.equal(h.state().lesson!.completed.find(step=>step.step==='placement')!.evidence,'scripted_demo');
+  h.command('set_practice_mode',{mode:'live'});
+  assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().lesson!.scriptedStage,undefined);
+  assert.equal(h.state().lesson!.completed.some(step=>step.step==='placement'),false);assert.equal(h.state().liveVideo,true);
+  h.advance(2000);await h.frame();assert.equal(h.requests.length,2);
+  h.requests[1].resolve(correct);await settle();assert.equal(h.state().lesson!.phase,'placement');
+  h.advance();await h.frame();h.requests[2].resolve(correct);await settle();assert.equal(h.state().lesson!.phase,'practice');
+});
+
+test('backup can be armed before CPR and does not replay the welcome or start another provider',async t=>{
+  const h=await setup(t,{lessonId:undefined,tutorMode:'marine'}),instance=h.instances[0];
+  const spoken=instance.contexts.filter(c=>c.spoken).length;
+  h.command('set_practice_mode',{mode:'scripted_demo'});
+  assert.equal(h.state().lesson,undefined);assert.equal(h.instances.length,1);
+  assert.equal(instance.contexts.filter(c=>c.spoken).length,spoken);
+  h.command('lesson_action',{action:'start'});await settle();assert.equal(h.state().lesson!.scriptedStage,'awaiting_ready');
+});
+
+for(const playing of [false,true])test(`backup preserves a ${playing?'playing movie':'pending spoken video cue'}`,async t=>{
+  const h=await setup(t);h.advertise();h.command('play_training_video',{clipId:'overview'});
+  if(playing){h.cue();h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'playing'});}
+  const before=h.state(),narrations=h.events().filter(e=>e.type==='lesson.narration.requested').length;
+  h.command('set_practice_mode',{mode:'scripted_demo'});
+  assert.equal(h.state().generation,before.generation);assert.equal(h.state().demonstration!.requestId,before.demonstration!.requestId);
+  assert.equal(h.events().filter(e=>e.type==='lesson.narration.requested').length,narrations);
+  if(!playing)h.cue();
+  h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();
+  assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().lesson!.scriptedStage,'awaiting_ready');
+  assert.equal(h.state().liveVideo,false);h.action('ready');assert.equal(h.state().lesson!.scriptedStage,'correction');
+  h.advertise();h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+  h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();
+  assert.equal(h.state().lesson!.scriptedStage,'correction');h.action('ready');h.action('finish_practice');
+  assert.equal(h.state().lesson!.phase,'complete');assert.equal(h.requests.length,0);
+});
+
 
 test('a recheck does not leak a single provisional negative direction to the speaking coach',async t=>{
   const h=await setup(t);h.enterPlacement();

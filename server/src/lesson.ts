@@ -19,6 +19,23 @@ function complete(lesson:LessonState,step:LessonState['completed'][number]['step
 function freshPlacement(lesson:LessonState,now:number) {
   lesson.correctStreak=0;lesson.observationAfter=now;delete lesson.lastObservation;delete lesson.feedback;
 }
+export function changePracticeMode(current:LessonState,mode:'live'|'scripted_demo',now=Date.now()):LessonState {
+  const lesson=structuredClone(current);
+  if(mode==='scripted_demo'){
+    lesson.scriptedStage=(lesson.phase==='practice'&&!lesson.needsPlacementCheck)||lesson.phase==='complete'?'practice':lesson.ready?'correction':'awaiting_ready';
+    if(lesson.phase==='practice'&&lesson.needsPlacementCheck)lesson.phase='placement';
+    lesson.needsPlacementCheck=false;
+  }else{
+    delete lesson.scriptedStage;
+    if(['placement','practice'].includes(lesson.phase)){
+      lesson.phase='placement';lesson.needsPlacementCheck=true;
+      lesson.completed=lesson.completed.filter(step=>step.step!=='placement');
+      delete lesson.placementEvidence;
+    }
+  }
+  freshPlacement(lesson,now);delete lesson.pendingCorrection;delete lesson.observerError;
+  lesson.observerStatus='idle';lesson.revision++;return lesson;
+}
 export function lessonAction(current:LessonState,action:LessonAction,now=Date.now()):LessonState {
   if(action==='restart')return {...createLesson(now,current.scriptedStage?'scripted_demo':'live'),id:current.id,revision:current.revision+1};
   const lesson=structuredClone(current);

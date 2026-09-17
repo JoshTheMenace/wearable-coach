@@ -9,7 +9,7 @@ import { Store } from './store.ts';
 import { createProvider, observeFrame, inferTask } from './providers/index.ts';
 import { COACH_PROMPT } from './providers/shared.ts';
 import { createKnowledgeBase, knowledgeQuerySchema } from './knowledge.ts';
-import { createLesson, lessonAction, lessonVideoStarted, lessonVideoEnded, applyLessonObservation, lessonHud } from './lesson.ts';
+import { createLesson, changePracticeMode, lessonAction, lessonVideoStarted, lessonVideoEnded, applyLessonObservation, lessonHud } from './lesson.ts';
 import { lessonPresentation } from './lesson-content.ts';
 import { observeLessonFrame, loadPlacementReferences } from './lesson-observer.ts';
 
@@ -526,6 +526,27 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
       // An authorized stop must still work after a lease change or completed end.
       if(c.type!=='end_session')this.checkGeneration(s,c.generation);let result:Record<string,unknown>={status:'accepted'};
       switch(c.type){
+        case 'set_practice_mode': {
+          const mode=z.enum(['live','scripted_demo']).parse(c.payload.mode),previous=s.config.practiceMode;
+          if(mode===previous)break;
+          const pageId=s.hud.lessonPage?.id;
+          s.config.practiceMode=mode;
+          this.cancelVisualWork(s,emit,'practice_mode_changed');
+          if(s.lesson)s.lesson=changePracticeMode(s.lesson,mode);
+          this.lessonCamera(s,emit,!s.demonstration&&!!s.lesson?.ready);
+          if(s.demonstration)s.demonstration.resumeLiveVideo=mode==='live'&&!!s.lesson?.ready;
+          this.lessonChanged(s,emit);
+          emit('lesson.practice_mode.changed',{previous,mode,simulated:mode==='scripted_demo',attemptId:s.lesson?.attemptId,phase:s.lesson?.phase});
+          effect=()=>{
+            const current=this.get(id),rt=this.runtime.get(id);
+            rt?.provider.appendContext(`The operator changed practice mode. This replaces earlier placement instructions and findings. ${this.coachInstructions(current)}`,null,false);
+            // Keep an in-flight video cue or explanation intact when its page did not change.
+            if(rt?.narration&&pageId===current.hud.lessonPage?.id){rt.narration.revision=current.lesson!.revision;rt.narration.hudRevision=current.hudRevision;}
+            this.emit('snapshot',id);
+            if(pageId!==current.hud.lessonPage?.id){this.flush(id,'practice_mode_changed');this.scheduleNarration(current);}
+          };
+          break;
+        }
         case 'set_hud': this.setHud(s,c.payload.hud,emit);result.hudRevision=s.hudRevision;break;
         case 'clear_hud':this.setHud(s,{},emit);result.hudRevision=s.hudRevision;break;
         case 'lesson_action': {
