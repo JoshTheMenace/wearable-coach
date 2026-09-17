@@ -14,6 +14,7 @@ type Snapshot = Json & { id: string; generation: number; speechEpoch: number; hu
 const uuid = () => crypto.randomUUID();
 const time = (value: number) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const terminal = (status?: string) => ['ended', 'failed', 'interrupted'].includes(status ?? '');
+const hasNativeDevice = (item: Json) => !terminal(item.status) && ['meta_display', 'phone'].includes(item.config?.device) && !!item.device?.sdkVersion;
 const wsUrl = (path: string) => `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`;
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : String(error);
 const latestSnapshot = (current: Snapshot | null, next: Snapshot) => !current || current.id !== next.id || next.throughSeq >= current.throughSeq ? next : current;
@@ -219,10 +220,32 @@ export function App() {
     void connectWorkspace();
     return () => workspaceRequest.current?.abort();
   }, [connectWorkspace]);
+  useEffect(() => {
+    if (!operatorToken || session) return;
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        const data = await (await request('/sessions', operatorToken, { signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]) })).json();
+        if (!abort.signal.aborted) setSessionList(data.sessions ?? []);
+      } catch { /* Keep the last list; the next poll retries. */ }
+      if (!abort.signal.aborted) timer = setTimeout(refresh, 5000);
+    };
+    void refresh();
+    return () => { abort.abort(); clearTimeout(timer); };
+  }, [operatorToken, session]);
   const start = async () => {
-    if (connecting || !operatorToken || !selected?.available) return;
+    if (connecting || !operatorToken || device === 'mock' && !selected?.available) return;
     setBusy(true); setError('');
     try {
+      if (device !== 'mock') {
+        const data = await (await request('/sessions', operatorToken, { signal: AbortSignal.timeout(5000) })).json();
+        setSessionList(data.sessions ?? []);
+        const connected = (data.sessions ?? []).filter((item: Json) => hasNativeDevice(item) && item.config.device === device);
+        if (connected.length !== 1) throw new Error(connected.length ? 'Choose the phone session under Live device sessions.' : 'Start the coach in the Android app first, then open its mirror here.');
+        await join(connected[0].id, operatorToken);
+        return;
+      }
       const data = await (await request('/sessions', operatorToken, { method: 'POST', body: JSON.stringify({ createKey: uuid(), config: { provider, model: selected?.model ?? 'mock-coach', device, recordFrames, ...(cprMode ? { tutorMode: 'marine' } : {}) } }) })).json();
       setEvents([]); cursor.current = 0; renderer.current = uuid(); ending.current = false;
       setSnapshot(data.snapshot); setSession({ sessionId: data.sessionId, token: data.token, spectatorToken: data.spectatorToken });
@@ -501,9 +524,10 @@ export function App() {
     <section className="heading"><div><div className="eyebrow">{tutorMode || (!session && cprMode) ? 'YOUR AI PRACTICE COACH' : 'LIVE SESSION WORKSPACE'}</div><h1>{tutorMode || (!session && cprMode) ? 'Your training. Your AI coach.' : <>A second set<br className="mobile-break" /> of eyes.</>}</h1><p>{tutorMode || (!session && cprMode) ? 'Start a conversation, choose a topic, and train through your glasses.' : 'One coach. A shared view. Every action accounted for.'}</p></div><div className="session-tag"><span>{session ? session.readOnly ? 'SPECTATOR' : 'OPERATOR' : 'AWAITING SESSION'}</span><strong>{snapshot?.status ?? 'Ready when you are'}</strong>{session && <code>{session.sessionId.slice(0, 8)} / G{snapshot?.generation}</code>}</div></section>
     {error && <div className="alert" role="alert"><span>{error}</span><button className="plain" onClick={() => setError('')} aria-label="Dismiss error">×</button></div>}
     {!session ? <section className="setup-grid">
+      {sessionList.some(hasNativeDevice) && <section className="panel session-history" aria-label="Live device sessions"><h2>Live device sessions</h2><p className="hint">Open the session already running on your phone to see its camera, coaching cards, and videos.</p><div className="history-list">{sessionList.filter(hasNativeDevice).map(item => <div key={item.id}><code>{item.id.slice(0, 8)}</code><span>{item.config.device === 'meta_display' ? 'Meta glasses' : 'Android phone'}</span><button className="primary compact" disabled={busy} onClick={() => void join(item.id, operatorToken)}>Open live mirror ↗</button></div>)}</div></section>}
       <div className="panel setup-panel"><div className="panel-title"><span className="step">01</span><h2>Your local workspace</h2></div><p className="hint">Connects automatically to the coach running on this computer.</p>{connecting ? <p role="status">Connecting to the local server…</p> : connectionError ? <div className="diagnostic-error" role="alert">{connectionError}</div> : <div className="connected-note"><span className="dot on" /> Server connected · {providers.filter(item => item.available).length} providers available</div>}<button className="secondary" onClick={() => void connectWorkspace()} disabled={busy || connecting}>Retry connection <span>↗</span></button>
         <div className="divider" /><div className="panel-title"><span className="step">02</span><h2>Choose a coach</h2></div><div className="provider-list">{(providers.length ? providers : [{ id: 'mock', model: 'Deterministic development coach', available: true, inputRate: 16000, outputRate: 24000 }]).map(item => <button key={item.id} className={`provider ${provider === item.id ? 'selected' : ''}`} onClick={() => setProvider(item.id)} disabled={!item.available}><span className="radio" /><span><strong>{item.id === 'mock' ? 'Mock coach' : item.id === 'gemini' ? 'Gemini Live' : 'GPT Live'}</strong><small>{item.available ? item.model : item.reason ?? 'Not configured'}</small></span><span className="provider-status">{item.available ? 'AVAILABLE' : 'UNAVAILABLE'}</span></button>)}</div>
-        <div className="lesson-entry-toggle" aria-label="Session type"><button className={cprMode ? 'selected' : ''} onClick={() => setCprMode(true)}>Marine tutor<small>Choose your training by voice</small></button><button className={!cprMode ? 'selected' : ''} onClick={() => setCprMode(false)}>General lab<small>Open conversation and device testing</small></button></div><div className="form-row"><label>Device<select value={device} onChange={event => setDevice(event.target.value)}><option value="mock">Glasses simulator</option><option value="phone">Android phone</option><option value="meta_display">Meta display glasses</option></select></label></div><label className="checkbox"><input type="checkbox" checked={recordFrames} onChange={event => setRecordFrames(event.target.checked)} />Retain selected inspection images with session evidence</label><button className="primary start" onClick={start} disabled={busy || connecting || !operatorToken || !selected?.available}>{cprMode ? 'Start coach' : 'Start session'} <span>↗</span></button>
+        <div className="lesson-entry-toggle" aria-label="Session type"><button className={cprMode ? 'selected' : ''} onClick={() => setCprMode(true)}>Marine tutor<small>Choose your training by voice</small></button><button className={!cprMode ? 'selected' : ''} onClick={() => setCprMode(false)}>General lab<small>Open conversation and device testing</small></button></div><div className="form-row"><label>Device<select value={device} onChange={event => setDevice(event.target.value)}><option value="mock">Glasses simulator</option><option value="phone">Android phone</option><option value="meta_display">Meta display glasses</option></select></label></div><label className="checkbox"><input type="checkbox" checked={recordFrames} onChange={event => setRecordFrames(event.target.checked)} />Retain selected inspection images with session evidence</label><button className="primary start" onClick={start} disabled={busy || connecting || !operatorToken || device === 'mock' && !selected?.available}>{device !== 'mock' ? 'Open phone mirror' : cprMode ? 'Start coach' : 'Start session'} <span>↗</span></button>
       </div>
       <div className="setup-aside"><div className="intro-visual"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="visual-card"><div className="tiny">COACH → LEARNER</div><div className="visual-line" /><strong>{cprMode ? <>Ask.<br />Learn.<br /><span>Practice.</span></> : <>Notice.<br />Understand.<br /><span>Act.</span></>}</strong><div className="visual-caption"><span className="dot on" />A clear view of what happens next</div></div><span className="axis axis-top">VISION / VOICE / CONTEXT</span><span className="axis axis-bottom">DESIGNED FOR THE MOMENT</span></div><div className="panel spectator-join"><h2>Watch a session</h2><p className="hint">Join with a read-only spectator capability. Camera previews may be visible.</p><form onSubmit={event => { event.preventDefault(); void join(); }}><label>Session ID<input value={joinId} onChange={event => setJoinId(event.target.value)} required placeholder="Session UUID" /></label><label>Spectator token<input type="password" value={joinToken} onChange={event => setJoinToken(event.target.value)} required placeholder="Session-scoped token" autoComplete="off" /></label><button className="secondary" disabled={busy}>Open spectator view <span>↗</span></button></form></div></div>
       {providers.length > 0 && <DiagnosticsPanel key="workspace-diagnostics" path="/diagnostics" token={operatorToken} scope="Workspace" />}

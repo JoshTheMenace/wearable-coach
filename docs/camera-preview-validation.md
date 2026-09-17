@@ -24,6 +24,8 @@ The shipped path therefore pauses camera capture while a lesson movie plays, the
 
 ## Laptop display mirror
 
+Start the coach on Android, then use **Live device sessions → Open live mirror** on the laptop. The home screen refreshes the list every five seconds. Choosing a native device in the laptop setup joins its existing session; it no longer creates a separate session with no attached camera. Device candidates must have reported native SDK status. If several match, the user chooses one explicitly.
+
 The camera panel also renders the current session HUD: Marine welcome, lesson pages, coaching cards, checklists, and timers. It uses the same content renderer as the diagnostic display panel. Cleared, expired, and ended-session cards are hidden. Full screen includes both camera and coaching content; narrow screens put the card below the camera.
 
 During a lesson movie, the panel replaces the camera and card with the matching cached MP4. It waits for the device's `playing` report, then follows `demonstration.playbackStartedAt`. Repeated playback reports preserve that timestamp. A late viewer seeks to the elapsed position, and drift greater than 750 ms is corrected. Stopping, skipping, failing, or finishing playback restores the current card and resumes preview polling; the camera image appears when fresh frames arrive.
