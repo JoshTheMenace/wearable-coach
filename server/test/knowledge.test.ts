@@ -60,6 +60,15 @@ test('every search carries scope, observation limits and exact source references
   }
 });
 
+test('rescuer handoff questions retrieve relief guidance before unrelated CPR facts',()=>{
+  for(const query of ['swapping rescuers during CPR','switching compressors','changing rescuers','How do we do a handover?',
+    "I have a question, though. If I'm doing some compressions and then another volunteer, another helper comes over, how can we do a proper handoff?"]){
+    const result=search(query,1);
+    assert.equal(result.results[0]?.factId,'relief',query);
+    assert.equal(result.results[0].text,source.facts.find((fact:{id:string})=>fact.id==='relief').text);
+  }
+});
+
 test('excluded and mixed populations return no adult protocol facts', () => {
   for (const query of ['How deep for an infant?', 'Compare adult and child compression depth', 'CPR after drowning', 'CPR in pregnancy', 'AED pads for a choking baby', 'Healthcare professional pulse algorithm', 'Naloxone overdose treatment', 'Compression depth for a 12-year-old', 'How fast for a three year old?', 'CPR for a dog']) {
     const result = search(query);

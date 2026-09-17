@@ -187,7 +187,7 @@ test('CPR lesson starts with seeded facts and a durable intro; stale commands an
   assert.equal(h.state().hud.lessonPage!.id,'cpr-opening');
   assert.doesNotMatch(introduction,/choose Continue|read the short reference/);
   assert.equal(h.events()[0].payload.coachPrompt,h.instances[0].options?.instructions);
-  assert.equal(h.events()[0].payload.promptVersion,'coach-v13-placement-recheck');
+  assert.equal(h.events()[0].payload.promptVersion,'coach-v14-spoken-intents');
   assert.equal(h.state().hud.checklist?.length, 2);
   const initial = structuredClone(h.state().lesson);
   assert.throws(() => h.action('continue', 0), /changed|revision|stale/i);
@@ -1011,6 +1011,18 @@ test('rejected movie controls explicitly await new input without triggering a pr
   }
 });
 
+test('rejected placement navigation waits silently instead of prompting repeated tool calls',async t=>{
+  const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement();
+  const instance=h.instances[0];
+  h.command('send_text',{text:'What happens if I am not ready?'});
+  instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+  const result=instance.results.at(-1)!.result;
+  assert.equal(result.status,'rejected');assert.equal(result.retryable,false);assert.equal(result.silent,true);
+  assert.equal(h.state().lesson!.scriptedStage,'correction');
+  h.command('send_text',{text:'I’m ready.'});instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+  assert.equal(h.state().lesson!.phase,'practice');
+});
+
 
 test('explicit scripted demo needs separate Ready turns, records simulation evidence, and never opens the observer',async t=>{
   const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement(false);
@@ -1056,7 +1068,7 @@ test('scripted reference replay and reconnect preserve the correction without re
   assert.equal(h.state().lesson!.phase,'practice');
 });
 
-for(const text of ['Okay, how about this?','How about now?','Is this correct?','Does this look right?'])
+for(const text of ['Okay, how about this?','How about now?','Is this correct?','Does this look right?','Okay. Is Is this right?','Is this Is this right?'])
   for(const name of ['lesson_action','play_training_video'])
     test(`demo placement recheck “${text}” continues once even when Gemini selects ${name}`,async t=>{
       const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
@@ -1074,7 +1086,7 @@ for(const text of ['Okay, how about this?','How about now?','Is this correct?','
       assert.equal((await call()).status,'rejected');assert.equal(h.state().lesson!.phase,'practice');
     });
 
-for(const text of ['What is the correct hand position?','This is not correct.','How about this? Show the hand placement again.'])
+for(const text of ['What is the correct hand position?','This is not correct.','Is Is this not right?','How about this? Show the hand placement again.'])
   test(`demo does not treat “${text}” as placement readiness`,async t=>{
     const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
     h.command('play_training_video',{clipId:'hand-placement'});h.cue();
@@ -1194,7 +1206,7 @@ test('a recheck does not leak a single provisional negative direction to the spe
 });
 
 
-for(const action of ['next','end_session'])for(const text of ["I've finished the practice.","I'm done with the practice.",'I finished this round.','We have finished compressions.',"Okay, I'm finished for now.","I'm finished for now with the compressions.","I'm done with chest compressions for now."])
+for(const action of ['next','end_session'])for(const text of ["I've finished the practice.","I'm done with the practice.",'I finished this round.','We have finished compressions.',"Okay, I'm finished for now.","I'm finished for now with the compressions.","I'm done with chest compressions for now.","Okay. I think I'm I'm finished with that."])
   test(`${action} maps fresh completion “${text}” to the scripted recap without ending coaching`,async t=>{
     const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement();h.action('ready');
     const instance=h.instances[0];
@@ -1226,7 +1238,7 @@ test('changing visibility retries silently without interrupting, changing cards,
 test('practice completion objects still reject negation, questions, other activities, other people and past or stale completion',async t=>{
   const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement();h.action('ready');
   const instance=h.instances[0],next=async()=>{instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();return instance.results.at(-1)!.result;};
-  for(const text of ["I'm not finished with the practice.",'Have I finished the practice?',"I've finished the video.",'He finished the practice.',"I've finished their practice.","That's not mine. I've finished the practice.","I've finished the practice earlier.",'Earlier I finished this round.',"I've finished the session."]){
+  for(const text of ["I'm not finished with the practice.","I think I'm I'm not finished with that.",'Have I finished the practice?',"I've finished the video.",'He finished the practice.',"I've finished their practice.","That's not mine. I've finished the practice.","I've finished the practice earlier.",'Earlier I finished this round.',"I've finished the session."]){
     h.command('send_text',{text});assert.equal((await next()).status,'rejected',text);
     assert.equal(h.state().lesson!.phase,'practice');assert.equal(h.state().status,'active');
   }

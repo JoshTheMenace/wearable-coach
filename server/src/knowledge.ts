@@ -95,7 +95,7 @@ const limitations = [
   'This application has not clinically reviewed or independently verified these facts. Clinical review status and source claims are supplied by the dataset.',
   'Reference facts are not evidence that the learner performed a step. Prototype rules, practice rubrics and synthetic scenarios are not searched as clinical facts.',
 ];
-const stopwords = new Set('a an and are as at be been but by can could do does for from give how i if in is it me my of on or our please should tell than that the their them then there these they this to us use was we what when where which who why will with would you your cpr training practice adult manikin'.split(' '));
+const stopwords = new Set('a an and are as at be been but by can could do does during for from give how i if in is it me my of on or our please should tell than that the their them then there these they this to us use was we what when where which who why will with would you your cpr training practice adult manikin'.split(' '));
 const tokens = (text: string) => text.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
   .match(/[a-z0-9]+/g)?.filter(word => !stopwords.has(word)).map(word => word.length > 4 ? word.replace(/s$/, '') : word) ?? [];
 // Query vocabulary belongs to individual reference facts, never the authored assessment rubric.
@@ -115,7 +115,7 @@ const aliases: Record<string, string> = {
   aed_clear: 'aed clear nobody touches touching contact analysis shock safety stand back',
   aed_resume: 'aed resume restart after shock no shock decision continue',
   continue: 'continue stop stopping end duration exhaustion unsafe signs life responder ems',
-  relief: 'relief rotate rotation alternate switch swap tired compressors minute minutes',
+  relief: 'relief rotate rotation alternate switch switching swap swapping change changing handoff handover helper volunteer tired compressors minute minutes',
   feedback: 'feedback sensor manikin measurement measured quality grading grade evaluate assessment accurate reliable',
   retention: 'retention booster refresh refresher spacing spaced learning repeat later',
   ar_evidence: 'ar augmented reality glasses evidence validated prototype',
