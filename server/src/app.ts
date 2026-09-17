@@ -32,6 +32,7 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
   };
   const controls=new Map<string,WebSocket>(),audios=new Map<string,WebSocket>();
   const spectators=new Map<string,Set<WebSocket>>();
+  const audioSpectators=new Map<string,Set<WebSocket>>(),presentations=new Map<string,WebSocket>();
   const deviceGrace=new Map<string,NodeJS.Timeout>(),pendingEnds=new Set<Promise<void>>();
   const clearGrace=(id:string)=>{clearTimeout(deviceGrace.get(id));deviceGrace.delete(id);};
   const armGrace=(id:string)=>{
@@ -52,17 +53,24 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
   coordinator.on('event',listener);
   coordinator.on('snapshot',(id:string)=>broadcast(id,snapshot(id)));
   coordinator.on('capture',({id,...message})=>send(controls.get(id),{type:'capture',...message}));
-  coordinator.on('flush',({id,...message})=>send(controls.get(id),{type:'flush',...message}));
+  coordinator.on('flush',({id,...message})=>broadcast(id,{type:'flush',...message}));
   coordinator.on('rebind',(id:string)=>{
+    for(const spectator of spectators.get(id)??[])send(spectator,snapshot(id));
     const ws=controls.get(id);send(ws,{type:'rebind',snapshot:coordinator.get(id),serverTime:Date.now()});
     controls.delete(id);audios.get(id)?.close(4001,'Binding replaced');audios.delete(id);ws?.close(4001,'Binding replaced');
     armGrace(id);
   });
   coordinator.on('deleted',(id:string)=>{clearGrace(id);diagnostics.deleteSession(id);controls.get(id)?.close(4004,'Deleted');audios.get(id)?.close(4004,'Deleted');for(const ws of spectators.get(id)??[])ws.close(4004,'Deleted');});
   coordinator.on('audio',({id,generation,speechEpoch,seq,pcm})=>{
+    const packet=encodeAudio(pcm,generation,speechEpoch,seq);
+    for(const spectator of audioSpectators.get(id)??[]){
+      if(spectator.readyState!==WebSocket.OPEN)continue;
+      if(spectator.bufferedAmount>24000){spectator.close(1013,'Presentation audio fell behind');continue;}
+      spectator.send(packet);
+    }
     const ws=audios.get(id);if(!ws||ws.readyState!==WebSocket.OPEN)return;
     if(ws.bufferedAmount>24000){coordinator.flush(id,'output_backpressure');ws.close(1013,'Output discontinuity');return;}
-    ws.send(encodeAudio(pcm,generation,speechEpoch,seq));
+    ws.send(packet);
   });
   const read=async(req:IncomingMessage,max=65536)=>{const parts:Buffer[]=[];let size=0;for await(const part of req){if(shuttingDown)throw new HttpError(503,'Server is shutting down');size+=part.length;if(size>max)throw new HttpError(413,'Request too large');parts.push(part);}if(shuttingDown)throw new HttpError(503,'Server is shutting down');return Buffer.concat(parts);};
   const json=(res:ServerResponse,status:number,value:unknown)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(value));};
@@ -105,6 +113,10 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
       }
       if(route[1]==='time'){json(res,200,{serverTime:Date.now()});return;}
       if(route[1]==='providers'){json(res,200,{providers:availability()});return;}
+      if(url.pathname==='/api/presentation-session'&&req.method==='GET'){
+        const session=store.list().find(s=>s.config.device==='meta_display'&&['starting','active','reconnecting'].includes(s.status));
+        json(res,200,{snapshot:session??null,serverTime:Date.now()});return;
+      }
       if(url.pathname==='/api/knowledge'&&req.method==='GET'){json(res,200,coordinator.knowledge.status());return;}
       if(route[1]!=='sessions')throw new HttpError(404,'Unknown endpoint');
       if(!id){
@@ -169,13 +181,30 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
         if(shuttingDown)return;
         if(!authenticated){
           if(binary)throw new HttpError(401,'Authenticate first');const hello=JSON.parse(data.toString());if(hello.type!=='hello'||typeof hello.token!=='string')throw new HttpError(401,'Authenticate first');
-          authorize(hello.token,id,channel!=='events');const s=coordinator.get(id);
+          authorize(hello.token,id,channel!=='events'||hello.presentation===true);const s=coordinator.get(id);
+          if(hello.presentation===true){
+            if(channel!=='events'||presentations.get(id)?.readyState===WebSocket.OPEN)throw new HttpError(409,'Another presentation window is already connected');
+            presentations.set(id,ws);
+            coordinator.mutate(id,(state,emit)=>{state.presentation={connected:true,ready:false,assets:[]};emit('presentation.connected',{});});
+          }
           if(channel!=='events'){generation=z.number().int().positive().parse(hello.generation);coordinator.checkGeneration(s,generation);const map=channel==='control'?controls:audios;const prior=map.get(id);if(prior&&prior.readyState===WebSocket.OPEN)throw new HttpError(409,'Device channel already bound');map.set(id,ws);}
-          else {const set=spectators.get(id)??new Set();set.add(ws);spectators.set(id,set);}
+          else {const set=spectators.get(id)??new Set();set.add(ws);spectators.set(id,set);
+            if(hello.audio===true){const listeners=audioSpectators.get(id)??new Set();listeners.add(ws);audioSpectators.set(id,listeners);}}
           authenticated=true;clearTimeout(timeout);send(ws,snapshot(id));
           if(channel==='control'){clearGrace(id);if(!s.demonstration)send(ws,{type:'hud',generation:s.generation,hud:s.hud,hudRevision:s.hudRevision});}return;
         }
-        if(channel==='events')throw new HttpError(403,'Read-only stream');
+        if(channel==='events'){
+          if(binary||presentations.get(id)!==ws)throw new HttpError(403,'Read-only stream');
+          const message=JSON.parse(data.toString()),state=coordinator.get(id);
+          if(message.type==='presentation.ready'){
+            const ready=z.boolean().parse(message.ready);
+            const assets=ready?lessonMedia.list(id).map(({id,width,height,durationMs,mime,lessonKey})=>({id,width,height,durationMs,mime,lessonKey})):[];
+            coordinator.mutate(id,(s,emit)=>{s.presentation={connected:true,ready,assets};emit('presentation.ready',{ready});});
+          }else if(message.type==='demo.playback'&&state.demonstration?.target==='presentation'){
+            coordinator.report(id,z.number().int().parse(message.generation),idSchema.parse(message.messageId),'demo.playback',message.payload,'presentation');
+          }else throw new HttpError(403,'Unsupported presentation report');
+          send(ws,snapshot(id));return;
+        }
         if(binary){
           if(channel!=='audio')throw new HttpError(400,'Binary only on audio channel');const bytes=Buffer.isBuffer(data)?data:Buffer.from(data as ArrayBuffer);const packet=decodeAudio(bytes);
           if(packet.generation!==generation||packet.seq<=lastAudioSeq)throw new HttpError(409,'Stale audio packet');lastAudioSeq=packet.seq;
@@ -190,6 +219,15 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
     });
     ws.on('error',()=>{});
     ws.on('close',()=>{clearTimeout(timeout);spectators.get(id)?.delete(ws);
+      audioSpectators.get(id)?.delete(ws);
+      if(presentations.get(id)===ws){
+        presentations.delete(id);
+        if(!shuttingDown&&store.get(id)){
+          coordinator.mutate(id,(s,emit)=>{s.presentation={connected:false,ready:false,assets:[]};emit('presentation.disconnected',{});});
+          const s=coordinator.get(id);
+          if(s.status==='active'&&s.demonstration?.target==='presentation')coordinator.reconnect(id,s.generation,'presentation:'+randomUUID(),false,'failed');
+        }
+      }
       if(shuttingDown)return;
       const bound=controls.get(id)===ws||audios.get(id)===ws;
       if(controls.get(id)===ws)controls.delete(id);

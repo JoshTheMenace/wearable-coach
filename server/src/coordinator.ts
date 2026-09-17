@@ -352,7 +352,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   private lessonClip(s:Snapshot,key:unknown) {
     if(!s.lesson||s.lesson.status!=='active')throw new HttpError(409,'Start or resume the lesson before requesting a clip');
     const clipId=z.enum(['overview','hand-placement']).parse(key);
-    const matches=demoAssetsSchema.parse(s.device?.demoAssets??[]).filter(asset=>asset.lessonKey===clipId);
+    const matches=demoAssetsSchema.parse(s.config.videoTarget==='presentation'?s.presentation?.assets??[]:s.device?.demoAssets??[]).filter(asset=>asset.lessonKey===clipId);
     if(matches.length!==1)throw new HttpError(404,'The requested clip is not cached on this device yet');
     return matches[0].id;
   }
@@ -440,9 +440,11 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   private startDemo(s:Snapshot,emit:Emit,assetId:string,workId?:string) {
     if(s.status!=='active'||s.lesson?.status==='paused')throw new HttpError(409,'Resume active coaching before playing a demonstration');
     if(s.demonstration)throw new HttpError(409,'A demonstration is already active');
-    const caps=displayCapabilitiesSchema.safeParse(s.device?.displayCapabilities);
+    const presenting=s.config.videoTarget==='presentation';
+    if(presenting&&(!s.presentation?.connected||!s.presentation.ready))throw new HttpError(409,'Open the laptop mirror and enable presentation before playing a video');
+    const caps=displayCapabilitiesSchema.safeParse(presenting?{video:true,source:'device-local',maxWidth:400,maxHeight:400,maxPixels:70000}:s.device?.displayCapabilities);
     if(!caps.success||!caps.data.video)throw new HttpError(422,'Demonstration playback is unsupported on this device');
-    const asset=demoAssetsSchema.parse(s.device?.demoAssets??[]).find(asset=>asset.id===assetId);
+    const asset=demoAssetsSchema.parse(presenting?s.presentation?.assets??[]:s.device?.demoAssets??[]).find(asset=>asset.id===assetId);
     if(!asset)throw new HttpError(404,'Demonstration asset is not registered on this device');
     if(asset.width>Math.min(SIMULATOR_DISPLAY_LIMITS.maxWidth,caps.data.maxWidth)||asset.height>Math.min(SIMULATOR_DISPLAY_LIMITS.maxHeight,caps.data.maxHeight)||asset.width*asset.height>Math.min(SIMULATOR_DISPLAY_LIMITS.maxPixels,caps.data.maxPixels))throw new HttpError(400,'Demonstration exceeds display dimensions');
     if(s.lesson&&asset.lessonKey){s.lesson=lessonVideoStarted(s.lesson,asset.lessonKey);this.lessonChanged(s,emit);}
@@ -450,7 +452,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     if(s.liveVideoStats)emit('video.summary',{...s.liveVideoStats,liveVideoEpoch:s.liveVideoEpoch,reason:'demonstration_started'});
     const resumeLiveVideo=s.liveVideo;
     s.liveVideo=false;s.liveVideoEpoch++;s.liveVideoStats=undefined;
-    s.demonstration={requestId:randomUUID(),assetId,status:s.lesson?'cueing':'starting',startedAt:Date.now(),deadlineAt:Date.now()+(s.lesson?30000:asset.durationMs+30000),durationMs:asset.durationMs,...(asset.lessonKey?{lessonKey:asset.lessonKey}:{}),resumeLiveVideo};
+    s.demonstration={requestId:randomUUID(),assetId,target:presenting?'presentation':'glasses',status:s.lesson?'cueing':'starting',startedAt:Date.now(),deadlineAt:Date.now()+(s.lesson?30000:asset.durationMs+30000),durationMs:asset.durationMs,...(asset.lessonKey?{lessonKey:asset.lessonKey}:{}),resumeLiveVideo};
     emit('demo.started',{...s.demonstration});
   }
   private observeLesson(s:Snapshot,frameId:string,bytes:Buffer,mime:string,meta:Record<string,unknown>,at:number) {
@@ -618,7 +620,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     const status=available?'The glasses display connection is restored.':restartingCamera?'The camera is restarting; the display is temporarily unavailable.':'The glasses display connection was lost; lesson progress is saved and conversation remains available.';
     rt.provider.appendContext(`${status} ${spoken?'In one short sentence, tell the learner.':'State update only; do not announce this transition unless asked.'} The app handles display and camera recovery automatically; do not ask the learner to resume the feed. Retain the current lesson step and evidence without advancing it.`,null,spoken);
   }
-  report(id:string,generation:number,messageId:string,type:string,payload:Record<string,unknown>) {
+  report(id:string,generation:number,messageId:string,type:string,payload:Record<string,unknown>,source:'device'|'presentation'='device') {
     if(this.store.report(id,messageId))return;
     let demoFinished:string|undefined;
     let displayChanged:boolean|undefined;
@@ -636,13 +638,14 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
       }
       else if(type==='demo.playback') {
         payload=z.object({requestId:z.string().uuid(),status:z.enum(['playing','ended','failed']),reason:z.string().max(300).optional()}).strict().parse(payload);
+        if((s.demonstration?.target==='presentation')!==(source==='presentation'))throw new HttpError(403,'Playback report belongs to another display');
         if(!s.demonstration||s.demonstration.requestId!==payload.requestId){emit('demo.playback.stale',payload,'device',messageId);return;}
         if(s.demonstration.status==='cueing'){emit('demo.playback.stale',payload,'device',messageId);return;}
         if(payload.status==='playing'){s.demonstration.status='playing';s.demonstration.playbackStartedAt??=Date.now();s.demonstration.deadlineAt=s.demonstration.playbackStartedAt+(s.demonstration.durationMs??55000)+15000;}else demoFinished=String(payload.status);
       }
       else if(type==='capture.failed'){const w=s.work.find(w=>w.id===payload.workId);if(w&&pending(w)){this.finishIn(s,w,'failed',{reason:'capture_failed',instruction:'No image arrived because camera capture failed. Explain the camera connection failure and ask the learner to retry inspection. Do not imply the object was absent, obscured, or out of view; no visual evidence was received.',applicationEffect:'not_applied',providerOutcomeKnown:true},emit);}}
       else if(!['playback.metric','media.summary','clock.sample'].includes(type))throw new HttpError(400,'Unsupported device report');
-      emit(type,payload,'device',messageId);
+      emit(type,payload,source,messageId);
     });
     if(type==='hud.receipt'){const s=this.get(id);if(s.lesson&&payload.hudRevision===s.hudRevision)this.mutate(id,(_,emit)=>emit('lesson.page.receipt',{pageId:s.hud.lessonPage?.id,...payload,wearerConfirmed:false}));this.dispatchNarration(id);this.welcomeLesson(this.get(id));}
     if(type==='playback.metric'&&payload.speechEpoch===this.get(id).speechEpoch)this.releaseVideoCue(id,payload.metrics as Record<string,unknown>);

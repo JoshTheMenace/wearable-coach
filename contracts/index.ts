@@ -7,6 +7,7 @@ export const configSchema = z.object({
   device: z.enum(['mock', 'phone', 'meta_display']).default('mock'), voice: z.string().max(40).optional(),
   lessonId: z.literal('adult-cpr-demo-v1').optional(), tutorMode: z.literal('marine').optional(),
   practiceMode: z.enum(['live','scripted_demo']).default('live'),
+  videoTarget: z.enum(['glasses','presentation']).optional(),
   manualActivity: z.boolean().default(false), recordFrames: z.boolean().default(false),
   observerModel: z.string().max(100).optional(), maxFrameAgeMs: z.number().int().min(1000).max(60000).default(15000),
   maxSessionMinutes: z.number().int().min(1).max(120).default(30),
@@ -46,7 +47,7 @@ export const displayCapabilitiesSchema=z.object({video:z.boolean(),source:z.lite
 export const demoAssetsSchema=z.array(z.object({id:idSchema,width:z.number().int().positive(),height:z.number().int().positive(),durationMs:z.number().int().min(100).max(SIMULATOR_DISPLAY_LIMITS.maxDurationMs),mime:z.literal('video/mp4'),lessonKey:z.enum(['overview','hand-placement']).optional()}).strict()).max(20).refine(assets=>new Set(assets.map(asset=>asset.id)).size===assets.length,'Duplicate demonstration asset');
 export type DemoAsset = z.infer<typeof demoAssetsSchema>[number];
 export type DisplayCapabilities = z.infer<typeof displayCapabilitiesSchema>;
-export type Demonstration = { requestId: string; assetId: string; status: 'cueing'|'starting'|'playing'; startedAt: number; playbackStartedAt?: number; deadlineAt: number; durationMs?:number;lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean; restart?: boolean };
+export type Demonstration = { requestId: string; assetId: string; target?: 'glasses'|'presentation'; status: 'cueing'|'starting'|'playing'; startedAt: number; playbackStartedAt?: number; deadlineAt: number; durationMs?:number;lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean; restart?: boolean };
 export type LessonAction = 'start'|'continue'|'next'|'back'|'repeat'|'ready'|'skip_demo'|'skip_placement'|'pause'|'resume'|'finish_practice'|'restart';
 export type LessonObservation = { placement:'too_low'|'off_target'|'correct'|'unknown';confidence:number;reason:string;landmarksVisible:boolean;manikinVisible:boolean;at:number;cameraSource:string };
 export type TeachingPageId='opening'|'hand-placement'|'compression-pattern';
@@ -68,6 +69,7 @@ export type Snapshot = {
   transcripts: Transcript[]; work: Work[]; receipts: Record<string, unknown>[]; usage: Record<string, unknown>[];
   device?: Record<string, unknown>; latestFrame?: Frame; muted: boolean; finalization: string;
   demonstration?: Demonstration;
+  presentation?: { connected: boolean; ready: boolean; assets: DemoAsset[] };
   lesson?: LessonState;
   tutorWelcomeRequestedAt?: number;
   liveVideo: boolean; liveVideoEpoch: number; liveVideoStats?: {submitted:number; dropped:number; lastFrameReceivedAt?:number; cameraSource?:string; sourcePositionMs?:number};

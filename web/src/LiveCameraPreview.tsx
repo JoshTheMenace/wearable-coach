@@ -3,14 +3,17 @@ import type { Snapshot } from '../../contracts/index.ts';
 import type { CachedLessonClip } from './lesson-media.ts';
 import { HudContent } from './HudContent.tsx';
 import { MirrorVideo } from './MirrorVideo.tsx';
+import { PresentationVideo, type PlaybackReport } from './PresentationVideo.tsx';
 import './camera-preview.css';
 
-export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, mediaError, retryMedia }: {
+export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, mediaError, retryMedia, sound, onPlayback }: {
   snapshot: Snapshot; token: string; now: number; clips: CachedLessonClip[]; mediaLoading: boolean; mediaError: string; retryMedia: () => void;
+  sound?: boolean; onPlayback?: PlaybackReport;
 }) {
   const { id: sessionId, hud, demonstration: demo } = snapshot;
   const active = !['ended', 'failed', 'interrupted'].includes(snapshot.status);
   const playingVideo = active && !!demo && demo.status !== 'cueing';
+  const laptopVideo = demo?.target === 'presentation';
   const assessing = snapshot.liveVideo && snapshot.lesson?.ready && !demo;
   const clip = clips.find(clip => clip.id === demo?.assetId);
   const showHud = active && !playingVideo && (hud.expiresAt ?? Infinity) > now && !!(hud.brand || hud.lessonPage || hud.card || hud.checklist?.length || hud.timer);
@@ -19,7 +22,7 @@ export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, m
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     setImage('');
-    if (!active || playingVideo) return;
+    if (!active || playingVideo && !laptopVideo) return;
     const abort = new AbortController();
     let timer:ReturnType<typeof setTimeout>, url='', receivedAt='';
     const clear = () => { if(url)URL.revokeObjectURL(url);url='';receivedAt='';setImage(''); };
@@ -44,17 +47,20 @@ export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, m
     };
     void poll();
     return () => { abort.abort();clearTimeout(timer);if(url)URL.revokeObjectURL(url); };
-  }, [sessionId,token,active,playingVideo]);
+  }, [sessionId,token,active,playingVideo,laptopVideo]);
   return <section ref={panel} className="live-camera-preview" aria-label="Glasses camera preview">
     <header><div><strong>Glasses mirror</strong><span>{!active?'Session ended':playingVideo?'Lesson video':image?'Live camera + coach display':'Waiting for the glasses camera'}</span></div>
       <button className="plain" onClick={()=>void panel.current?.requestFullscreen().catch(()=>{})}>Full screen</button></header>
     <div className="live-camera-picture">
-      {playingVideo ? <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError || (!mediaLoading && !clip ? 'This video is unavailable in the laptop mirror.' : '')} retryMedia={retryMedia} />
+      {playingVideo && !laptopVideo ? <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} sound={sound} mediaError={mediaError || (!mediaLoading && !clip ? 'This video is unavailable in the laptop mirror.' : '')} retryMedia={retryMedia} />
         : <div className="mirror-scene" style={{ '--camera-aspect': aspect } as CSSProperties}>
           {image ? <img className="mirror-camera-image" src={image} onLoad={event => setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)} alt="Current view from the glasses camera" /> : <p className="mirror-camera-empty">{active ? 'The camera preview will appear here.' : 'Camera session ended.'}</p>}
           {showHud && <aside className="mirror-hud" aria-label="Mirrored coach display"><HudContent hud={hud} now={now} /></aside>}
         </div>}
+      {playingVideo && laptopVideo && <div className="mirror-movie-overlay">{onPlayback
+        ? <PresentationVideo key={demo.requestId} demo={demo} clip={clip} sound={!!sound} report={onPlayback} />
+        : <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError} retryMedia={retryMedia} sound={sound} />}</div>}
     </div>
-    <footer>{playingVideo?'Camera resumes after the video':assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>{playingVideo?'Lesson playback mirror':'Sampled camera · live coaching cards'}</span></footer>
+    <footer>{playingVideo?laptopVideo?'Camera stays live during the video':'Camera resumes after the video':assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>{playingVideo?'Lesson playback mirror':'Sampled camera · live coaching cards'}</span></footer>
   </section>;
 }

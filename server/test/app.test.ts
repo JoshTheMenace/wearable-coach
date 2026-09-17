@@ -252,3 +252,66 @@ test('crash recovery marks unfinished sessions and work interrupted without resu
   assert.equal(store.events(id).filter(e=>e.type==='session.interrupted').length,1);
   await coordinator.close();rmSync(dir,{recursive:true,force:true});
 });
+
+test('presentation audio is opt-in and does not replace or interrupt the phone binding',async t=>{
+  const h=await setup(t),created=await h.create(),id=created.sessionId;
+  const connect=async(channel:string,extra:Record<string,unknown>={})=>{
+    const ws=new WebSocket(h.base.replace('http','ws')+`/api/sessions/${id}/${channel}`),messages:any[]=[],packets:Buffer[]=[];
+    t.after(()=>ws.terminate());ws.on('message',(data,binary)=>binary?packets.push(Buffer.from(data as Buffer)):messages.push(JSON.parse(data.toString())));
+    await new Promise(resolve=>ws.once('open',resolve));ws.send(JSON.stringify({type:'hello',token:created.token,generation:1,...extra}));
+    await wait(()=>messages.some(m=>m.type==='snapshot'));return{ws,messages,packets};
+  };
+  const phone=await connect('audio'),mirror=await connect('events',{audio:true}),silent=await connect('events');
+  h.app.coordinator.emit('audio',{id,generation:1,speechEpoch:0,seq:1,pcm:Buffer.from([1,0,2,0])});
+  await wait(()=>phone.packets.length===1&&mirror.packets.length===1);
+  assert.deepEqual(phone.packets[0],mirror.packets[0]);assert.equal(silent.packets.length,0);
+  h.app.coordinator.flush(id,'test-interruption');await wait(()=>mirror.messages.some(m=>m.type==='flush'));
+  mirror.ws.close();await new Promise(resolve=>mirror.ws.once('close',resolve));
+  assert.equal(h.app.coordinator.get(id).generation,1);assert.equal(phone.ws.readyState,WebSocket.OPEN);
+  h.app.coordinator.emit('audio',{id,generation:1,speechEpoch:1,seq:2,pcm:Buffer.from([3,0])});await wait(()=>phone.packets.length===2);
+});
+
+test('one authorized presentation plays videos while camera preview continues and native receipts are fenced',async t=>{
+  const h=await setup(t),created=await h.create(),id=created.sessionId;
+  h.app.coordinator.mutate(id,s=>{s.config.device='meta_display';s.config.videoTarget='presentation';});
+  const connect=async(token:string)=>{
+    const ws=new WebSocket(h.base.replace('http','ws')+`/api/sessions/${id}/events`),messages:any[]=[];
+    t.after(()=>ws.terminate());ws.on('message',data=>messages.push(JSON.parse(data.toString())));
+    await new Promise(resolve=>ws.once('open',resolve));ws.send(JSON.stringify({type:'hello',token,presentation:true}));
+    await wait(()=>messages.some(m=>['snapshot','error'].includes(m.type)));return{ws,messages};
+  };
+  const denied=await connect(created.spectatorToken);assert.equal(denied.messages[0].code,401);
+  const owner=await connect(created.token),duplicate=await connect(created.token);assert.equal(duplicate.messages[0].code,409);
+  owner.ws.send(JSON.stringify({type:'presentation.ready',ready:true}));await wait(()=>!!h.app.coordinator.get(id).presentation?.ready);
+  const asset=h.app.coordinator.get(id).presentation!.assets[0];assert.ok(asset);
+  assert.equal(h.app.coordinator.get(id).device?.demoAssets,undefined);
+  const found=await(await h.request('/presentation-session')).json() as any;assert.equal(found.snapshot.id,id);
+  const start=()=>h.app.coordinator.command(id,h.command(id,'start_demo',{assetId:asset.id}) as any);
+  start();const demo=h.app.coordinator.get(id).demonstration!;assert.equal(demo.target,'presentation');
+  assert.throws(()=>h.app.coordinator.report(id,1,randomUUID(),'demo.playback',{requestId:demo.requestId,status:'playing'}),/another display/);
+  owner.ws.send(JSON.stringify({type:'demo.playback',generation:1,messageId:randomUUID(),payload:{requestId:demo.requestId,status:'playing'}}));
+  await wait(()=>h.app.coordinator.get(id).demonstration?.status==='playing');
+  const bytes=Buffer.from('89504e470d0a1a0a00000000','hex');
+  const frame=await h.app.coordinator.frame(id,randomUUID(),bytes,'image/png',{generation:1,preview:true,frameAgeMs:0,cameraSource:'meta_display'});
+  assert.equal(frame.assessment,'off');assert.equal((await h.request(`/sessions/${id}/camera-preview`)).status,200);
+  owner.ws.send(JSON.stringify({type:'demo.playback',generation:1,messageId:randomUUID(),payload:{requestId:demo.requestId,status:'ended'}}));
+  await wait(()=>h.app.coordinator.get(id).generation===2);assert.equal(h.app.coordinator.get(id).demonstration,undefined);
+  assert.ok(h.app.store.events(id).some(e=>e.type==='demo.playback'&&e.source==='presentation'));
+  owner.ws.close();await wait(()=>h.app.coordinator.get(id).presentation?.connected===false);
+  assert.equal(h.app.coordinator.get(id).generation,2);
+});
+
+test('losing the presentation during a movie clears playback instead of stranding the lesson',async t=>{
+  const h=await setup(t),created=await h.create(),id=created.sessionId;
+  h.app.coordinator.mutate(id,s=>{s.config.videoTarget='presentation';});
+  const ws=new WebSocket(h.base.replace('http','ws')+`/api/sessions/${id}/events`);t.after(()=>ws.terminate());
+  await new Promise(resolve=>ws.once('open',resolve));ws.send(JSON.stringify({type:'hello',token:created.token,presentation:true}));
+  await wait(()=>!!h.app.coordinator.get(id).presentation?.connected);
+  ws.send(JSON.stringify({type:'presentation.ready',ready:true}));await wait(()=>!!h.app.coordinator.get(id).presentation?.ready);
+  const asset=h.app.coordinator.get(id).presentation!.assets[0];
+  h.app.coordinator.command(id,h.command(id,'start_demo',{assetId:asset.id}) as any);ws.close();
+  await wait(()=>h.app.coordinator.get(id).generation===2);
+  assert.equal(h.app.coordinator.get(id).demonstration,undefined);
+  assert.ok(h.app.store.events(id).some(e=>e.type==='demo.finished'&&e.payload.reason==='failed'));
+  assert.throws(()=>h.app.coordinator.command(id,h.command(id,'start_demo',{assetId:asset.id},2) as any),/enable presentation/);
+});

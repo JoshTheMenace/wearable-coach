@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
         var observer by remember { mutableStateOf("") }
         var cprLesson by remember { mutableStateOf(true) }
         var scriptedDemo by remember { mutableStateOf(false) }
+        var presentationVideo by remember { mutableStateOf(true) }
         var recordFrames by remember { mutableStateOf(false) }
         var manualActivity by remember { mutableStateOf(false) }
         var activity by remember { mutableStateOf(false) }
@@ -102,7 +103,7 @@ class MainActivity : ComponentActivity() {
         val telemetryStatus = session?.telemetry?.status?.collectAsState()?.value.orEmpty()
         val active = state.status !in setOf("idle", "ended", "failed", "interrupted")
         val ready = state.status == "active"
-        val settings = Settings(provider, model, device, recordFrames, manualActivity && !cprLesson, observer, cprLesson, if (cprLesson && scriptedDemo) "scripted_demo" else "live")
+        val settings = Settings(provider, model, device, recordFrames, manualActivity && !cprLesson, observer, cprLesson, if (cprLesson && scriptedDemo) "scripted_demo" else "live", presentationVideo)
         val providerAccess = remember(state.providers, provider) {
             val providers = runCatching { JSONObject(state.providers).getJSONArray("providers") }.getOrNull()
             (0 until (providers?.length() ?: 0)).map { providers!!.getJSONObject(it) }.firstOrNull { it.optString("id") == provider }
@@ -176,6 +177,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             DetailSection("Session settings") {
+                                Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(presentationVideo, { presentationVideo = it }); Text("Play videos on laptop / TV; keep glasses camera live") }
                                 if (cprLesson) {
                                     Text("Practice mode", style = MaterialTheme.typography.titleSmall)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

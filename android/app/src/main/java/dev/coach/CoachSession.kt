@@ -26,7 +26,7 @@ import kotlin.coroutines.resumeWithException
 fun json(vararg values: Pair<String, Any?>) = JSONObject().apply { values.forEach { (key, value) -> if (value != null) put(key, value) } }
 fun id(): String = UUID.randomUUID().toString()
 data class Settings(val provider: String = "mock", val model: String = "mock-coach", val device: String = "mock",
-    val recordFrames: Boolean = false, val manualActivity: Boolean = false, val observerModel: String = "", val cprLesson: Boolean = true, val practiceMode: String = "live") {
+    val recordFrames: Boolean = false, val manualActivity: Boolean = false, val observerModel: String = "", val cprLesson: Boolean = true, val practiceMode: String = "live", val presentationVideo: Boolean = true) {
     val url get() = "http://127.0.0.1:8787"
 }
 data class CoachState(val status: String = "idle", val sessionId: String = "", val generation: Int = 0,
@@ -188,7 +188,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             val started = System.currentTimeMillis()
             val response = request("/api/sessions", json("createKey" to id(), "config" to json("provider" to config.provider,
                 "model" to config.model, "device" to config.device, "recordFrames" to config.recordFrames,
-                "manualActivity" to config.manualActivity, "practiceMode" to config.practiceMode, "tutorMode" to if (config.cprLesson) "marine" else null, "observerModel" to config.observerModel.ifBlank { null })))
+                "manualActivity" to config.manualActivity, "practiceMode" to config.practiceMode, "videoTarget" to if (config.cprLesson && config.presentationVideo) "presentation" else "glasses", "tutorMode" to if (config.cprLesson) "marine" else null, "observerModel" to config.observerModel.ifBlank { null })))
             updateClock(response, started)
             token = response.getString("token")
             generation = response.getJSONObject("snapshot").getInt("generation")
@@ -483,20 +483,22 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             if (previous?.optString("requestId") != demo.optString("requestId")) {
                 stopDemonstration(); audio.flush(generation, epoch)
                 _state.update { it.copy(demonstration = demo.toString()) }
-                cancelPresentation()
-                val cameraJobs = arrayOf(cameraFeedJob, glassesRecoveryJob, liveJob, hudRestoreJob)
-                cameraFeedJob = null; glassesRecoveryJob = null
-                stopLiveLocally()
-                videoPreparationJob = scope.launch(start = CoroutineStart.LAZY) {
-                    try {
-                        stopCameraForVideo(*cameraJobs)
-                        if (!device.canPlayLessonVideo) captureMutex.withLock { renderMutex.withLock {
-                            device.recoverVideo(withCamera = false) { log("Preparing video display, attempt $it") }
-                        } }
-                    } catch (error: CancellationException) { throw error }
-                    catch (error: Exception) { failed(error, "hud") }
+                if (demo.optString("target") != "presentation") {
+                    cancelPresentation()
+                    val cameraJobs = arrayOf(cameraFeedJob, glassesRecoveryJob, liveJob, hudRestoreJob)
+                    cameraFeedJob = null; glassesRecoveryJob = null
+                    stopLiveLocally()
+                    videoPreparationJob = scope.launch(start = CoroutineStart.LAZY) {
+                        try {
+                            stopCameraForVideo(*cameraJobs)
+                            if (!device.canPlayLessonVideo) captureMutex.withLock { renderMutex.withLock {
+                                device.recoverVideo(withCamera = false) { log("Preparing video display, attempt $it") }
+                            } }
+                        } catch (error: CancellationException) { throw error }
+                        catch (error: Exception) { failed(error, "hud") }
+                    }
+                    videoPreparationJob?.start()
                 }
-                videoPreparationJob?.start()
             }
             videoPreparationJob?.join()
             if (closed || ending || generation != cueGeneration || binding != cueBinding ||
@@ -520,6 +522,11 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             return
         }
         cuePlaybackJob?.cancel(); cuePlaybackJob = null
+        if (demo?.optString("target") == "presentation") {
+            audio.suppress()
+            _state.update { it.copy(demonstration = demo.toString(), liveMessage = "Video is playing on the presentation screen. Glasses camera stays live.") }
+            return
+        }
         val requestId = demo?.optString("requestId")?.takeIf { it.isNotBlank() }
         if (requestId == demoRequestId) return
         stopDemonstration()
@@ -914,7 +921,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     private fun startCameraFeed() {
-        if (!continuousCamera || closed || ending || !controlReady || _state.value.demonstration.isNotEmpty() || cameraFeedJob?.isActive == true) return
+        if (!continuousCamera || closed || ending || !controlReady || (!config.presentationVideo && _state.value.demonstration.isNotEmpty()) || cameraFeedJob?.isActive == true) return
         cameraFeedJob = scope.launch {
             var failures = 0
             while (isActive && !closed && !ending) {
