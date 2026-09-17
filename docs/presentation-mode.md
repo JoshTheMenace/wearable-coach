@@ -8,7 +8,9 @@ The camera preview, Gemini conversation, microphone, audio, authored cards, and 
 
 1. Say **Ready** at the starting-position card to receive the hand-adjustment cue.
 2. Ask to see hand placement again if desired. The clip returns to the correction stage.
-3. Say **Ready** again to begin compressions, then **I'm done** to finish.
+3. After the clip, **How about this?**, **How about now?**, or **Is this correct?** continues with “Good. Now practise for a short round.” **Ready** also works. Say **I'm done** to finish.
+
+A placement recheck after the short replay advances the correction stage once, even if Gemini mistakenly selects the video tool. An explicit request to see hand placement again still replays the clip. This shortcut applies only to the scripted correction stage after that clip; live placement still requires observer evidence. Regression tests cover both tool choices, duplicate requests, unrelated questions, explicit replay and live-mode isolation. Two Gemini Live checks completed this sequence with “Okay, how about this?” supplied as text and synthesized microphone audio, each playing one clip and narrating practice without another replay. These used simulated playback reports, not a new glasses test. All 355 automated tests and the production build passed.
 
 Switching while a live placement check is already waiting gives the correction directly. It cancels outstanding observer requests and discards their late results. Switching during an already-approved compression round preserves that round. Pausing and reconnecting preserve the selected mode; returning to **Standard mode** requires fresh placement evidence before advancing. No camera failure enables backup automatically.
 

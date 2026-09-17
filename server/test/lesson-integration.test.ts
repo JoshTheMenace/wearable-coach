@@ -187,7 +187,7 @@ test('CPR lesson starts with seeded facts and a durable intro; stale commands an
   assert.equal(h.state().hud.lessonPage!.id,'cpr-opening');
   assert.doesNotMatch(introduction,/choose Continue|read the short reference/);
   assert.equal(h.events()[0].payload.coachPrompt,h.instances[0].options?.instructions);
-  assert.equal(h.events()[0].payload.promptVersion,'coach-v12-reference-questions');
+  assert.equal(h.events()[0].payload.promptVersion,'coach-v13-placement-recheck');
   assert.equal(h.state().hud.checklist?.length, 2);
   const initial = structuredClone(h.state().lesson);
   assert.throws(() => h.action('continue', 0), /changed|revision|stale/i);
@@ -1054,6 +1054,59 @@ test('scripted reference replay and reconnect preserve the correction without re
   instance.callbacks.tool({id:'old-ready',name:'lesson_action',args:{action:'next'}});await settle();assert.equal(instance.results.at(-1)!.result.status,'rejected');
   h.command('send_text',{text:'I’m ready.'});instance.callbacks.tool({id:'new-ready',name:'lesson_action',args:{action:'next'}});await settle();
   assert.equal(h.state().lesson!.phase,'practice');
+});
+
+for(const text of ['Okay, how about this?','How about now?','Is this correct?','Does this look right?'])
+  for(const name of ['lesson_action','play_training_video'])
+    test(`demo placement recheck “${text}” continues once even when Gemini selects ${name}`,async t=>{
+      const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
+      h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+      h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();h.advertise();
+      const instance=h.instances.at(-1)!,clips=h.events().filter(e=>e.type==='demo.started').length;
+      h.command('send_text',{text});
+      const call=async()=>{instance.callbacks.tool({id:randomUUID(),name,args:name==='lesson_action'?{action:'next'}:{clipId:'hand-placement'}});await settle();return instance.results.at(-1)!.result;};
+      assert.equal((await call()).applicationEffect,'lesson_changed');
+      assert.equal(h.state().lesson!.phase,'practice');assert.equal(h.state().demonstration,undefined);
+      assert.equal(h.events().filter(e=>e.type==='demo.started').length,clips);
+      assert.equal(h.state().lesson!.completed.find(step=>step.step==='placement')!.evidence,'scripted_demo');
+      assert.equal(h.requests.length,0);assert.equal(h.state().lesson!.placementEvidence,undefined);
+      assert.ok(instance.contexts.some(context=>context.spoken&&context.text.includes('Good. Now practise')));
+      assert.equal((await call()).status,'rejected');assert.equal(h.state().lesson!.phase,'practice');
+    });
+
+for(const text of ['What is the correct hand position?','This is not correct.','How about this? Show the hand placement again.'])
+  test(`demo does not treat “${text}” as placement readiness`,async t=>{
+    const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
+    h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+    h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();h.advertise();
+    const instance=h.instances.at(-1)!;
+    h.command('send_text',{text});instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+    assert.equal(instance.results.at(-1)!.result.status,'rejected');assert.equal(h.state().lesson!.phase,'placement');
+  });
+
+test('an explicit second reference replay stays available in demo mode',async t=>{
+  const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
+  h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+  h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();h.advertise();
+  const instance=h.instances.at(-1)!;
+  h.command('send_text',{text:'Show the hand placement again.'});
+  instance.callbacks.tool({id:randomUUID(),name:'play_training_video',args:{clipId:'hand-placement'}});await settle();
+  assert.equal(instance.results.at(-1)!.result.applicationEffect,'video_requested');
+  assert.equal(h.state().demonstration!.lessonKey,'hand-placement');assert.equal(h.state().lesson!.scriptedStage,'correction');
+});
+
+test('asking how about this in live mode cannot replay a reference or approve placement',async t=>{
+  const h=await setup(t);h.advertise();h.enterPlacement();
+  h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+  h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();h.advertise();
+  const instance=h.instances.at(-1)!;
+  h.command('send_text',{text:'Okay, how about this?'});
+  for(const name of ['play_training_video','lesson_action']){
+    instance.callbacks.tool({id:randomUUID(),name,args:name==='lesson_action'?{action:'next'}:{clipId:'hand-placement'}});await settle();
+    assert.equal(instance.results.at(-1)!.result.status,'rejected');
+  }
+  assert.equal(h.state().demonstration,undefined);assert.equal(h.state().lesson!.phase,'placement');
+  assert.equal(h.state().lesson!.completed.some(step=>step.step==='placement'),false);
 });
 
 test('default live mode does not silently become scripted after an observation failure',async t=>{
