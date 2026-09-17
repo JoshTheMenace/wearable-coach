@@ -4,6 +4,13 @@ package dev.coach
 internal class DemoPlaybackLease(val requestId: String, val generation: Int, val binding: Int) {
     var playing = false; private set
     var terminal = false; private set
+    private var retriedStartup = false
+    fun retryStartup(requestId: String?, generation: Int, binding: Int, reason: String?): Boolean {
+        if (terminal || playing || retriedStartup || requestId != this.requestId || generation != this.generation || binding != this.binding ||
+            reason != "Glasses video error: PLAYBACK_FAILED") return false
+        retriedStartup = true
+        return true
+    }
     fun accepts(requestId: String?, generation: Int, binding: Int, status: String): Boolean {
         if (terminal || requestId != this.requestId || generation != this.generation || binding != this.binding) return false
         return when (status) {

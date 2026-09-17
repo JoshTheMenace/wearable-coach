@@ -1,5 +1,6 @@
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { demoAssetsSchema } from '../../contracts/index.ts';
@@ -10,7 +11,7 @@ const clipSchema = demoAssetsSchema.element.extend({
   sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().min(1).max(16 * 1024 * 1024),
   sourceStartSeconds: z.number().finite().min(0).optional(),
 });
-export function loadLessonMedia(dir = process.env.COACH_LESSON_MEDIA_DIR ?? '.runtime/lesson-media') {
+export function loadLessonMedia(dir = process.env.COACH_LESSON_MEDIA_DIR ?? (existsSync('.runtime/lesson-media')?'.runtime/lesson-media':fileURLToPath(new URL('../assets/cpr-video',import.meta.url)))) {
   const clips: Array<z.infer<typeof clipSchema> & { data: Buffer }> = [];
   try {
     if(statSync(resolve(dir, 'manifest.json')).size>16000)throw new Error('Manifest too large');

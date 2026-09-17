@@ -9,7 +9,7 @@ export function validateDemo(width: number, height: number, duration: number, mi
   if (mime !== 'video/mp4') throw new Error('Choose an MP4 demonstration clip. Camera recordings can use other browser-supported formats.');
   if (![width, height, duration].every(value => Number.isFinite(value) && value > 0)) throw new Error('The clip has no usable video dimensions or duration.');
   if (width > maxWidth || height > maxHeight || width * height > maxPixels) throw new Error('Demo clips must be at most 400 pixels per side and 70,000 pixels total. Try 320 × 180.');
-  if (duration < 0.1 || duration * 1000 > maxDurationMs) throw new Error('This prototype accepts demonstration clips from 0.1 seconds to five minutes.');
+  if (duration < 0.1 || duration * 1000 > maxDurationMs) throw new Error('This prototype accepts demonstration clips from 0.1 seconds to ten minutes.');
 }
 
 // One outstanding operation survives resets: replacing a source cannot create an upload backlog.

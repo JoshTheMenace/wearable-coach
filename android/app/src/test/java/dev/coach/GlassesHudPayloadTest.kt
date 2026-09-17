@@ -7,6 +7,7 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.zip.GZIPInputStream
+import java.util.Base64
 
 class GlassesHudPayloadTest {
     private fun structure(value: Any?): Any? = when (value) {
@@ -69,6 +70,34 @@ class GlassesHudPayloadTest {
 
     @Test fun clearEncodesAnEmptyCanvasWithoutAnInteractiveCard() {
         assertEquals(0, root(GlassesHudPayload.encode(emptyList())).getJSONArray(" ").length())
+    }
+
+    @Test fun marineLobbyCarriesOneBoundedImageAndKeepsTheWelcomeAboveTheBottomRegion() {
+        val image = ByteArray(13_000).also { java.util.Random(42).nextBytes(it) }
+        val payload = GlassesHudPayload.encodeMarineLobby(image)
+        assertTrue(field3(field3(payload)).size <= 15_000)
+        val root = root(payload)
+        assertEquals("flex_start", root.getString(",")); assertEquals("center", root.getString("$"))
+        val children = root.getJSONArray(" ")
+        assertEquals(3, children.length())
+        val imageNode = children.getJSONObject(0).getJSONObject("\u340b")
+        assertArrayEquals(image, Base64.getDecoder().decode(imageNode.getString(")").substringAfter(',')))
+        assertEquals("fit_center", imageNode.getString("("))
+        val imageBounds = imageNode.getJSONObject("\u0084").getJSONObject("\u5e89")
+        assertEquals(220, imageBounds.getInt(":")); assertEquals(220, imageBounds.getInt(")"))
+        var bottom = root.getInt(";") + imageBounds.getInt(")")
+        for (i in 1 until children.length()) {
+            val text = children.getJSONObject(i).getJSONObject("\u3417")
+            bottom += text.getJSONObject("\u0084").getJSONObject("\u5e89").getInt("1") + text.getString(";").removeSuffix("sp").toInt()
+        }
+        assertTrue("Marine lobby extends below the readable region: $bottom", bottom <= 400)
+        assertEquals("MARINE TUTOR", children.getJSONObject(1).getJSONObject("\u3417").getString(")"))
+        assertEquals("What would you like to learn?", children.getJSONObject(2).getJSONObject("\u3417").getString(")"))
+    }
+
+    @Test fun marineLobbyRejectsMissingOrOversizedImagesBeforeTheyReachTheDisplayChannel() {
+        assertThrows(IllegalArgumentException::class.java) { GlassesHudPayload.encodeMarineLobby(byteArrayOf()) }
+        assertThrows(IllegalArgumentException::class.java) { GlassesHudPayload.encodeMarineLobby(ByteArray(13_001)) }
     }
 
     private fun textNodes(lines: List<GlassesHudPayload.Line>): List<JSONObject> {

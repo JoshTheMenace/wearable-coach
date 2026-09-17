@@ -1,0 +1,77 @@
+{
+  "testedAt": "2026-09-16T23:33:19.467Z",
+  "result": "PASS",
+  "model": "gemini-3.8-live",
+  "input": "Samantha synthesized microphone PCM, 16kHz mono, paced20ms packets with continuous silence; automatic VAD",
+  "limitations": [
+    "Isolated relay; no physical phone or glasses actions.",
+    "Device playback and display capability reports are simulated; no rendered video, camera feed, or speaker-loop echo tested."
+  ],
+  "audioOutputBytes": 1009442,
+  "protocolErrors": [],
+  "milestones": [
+    {
+      "name": "spoken introduction",
+      "generation": 1,
+      "phase": "intro",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice overview atomic from intro",
+      "generation": 1,
+      "phase": "demonstration",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice video pause",
+      "generation": 2,
+      "phase": "demonstration",
+      "status": "paused",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice resume",
+      "generation": 2,
+      "phase": "demonstration",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "overview completion restores placement",
+      "generation": 3,
+      "phase": "placement",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice explicit camera skip",
+      "generation": 3,
+      "phase": "practice",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice hand-placement replay returns to practice",
+      "generation": 4,
+      "phase": "practice",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice practice complete",
+      "generation": 4,
+      "phase": "complete",
+      "status": "active",
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice session ended",
+      "generation": 4,
+      "phase": "complete",
+      "status": "active",
+      "sessionStatus": "ended"
+    }
+  ]
+}

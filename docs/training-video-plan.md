@@ -1,6 +1,6 @@
 # Training clips on the glasses
 
-Status: proposed integration, September 16, 2026. Native clip playback has **not** been tested on this app or glasses. Camera capture, Gemini audio, and centered text cards are the verified baseline. No hardware changes are needed while the glasses charge.
+Status: production integration proposed; isolated playback verified September 16, 2026. The wearer confirmed video and sound for public URL playback, phone-local HTTP URL playback, internal byte-array delivery, and finite chunked Flow delivery on DAT 0.8.0. The preferred tested path for cached phone media is now the public URL player: six of seven repeated player starts were under five seconds, with one 6.060-second outlier. See [hardware results](display-lab-hardware-results.md) and [local CPR tests and implementation handoff](cpr-local-video-results.md). Camera capture, Gemini audio, and centered text cards remain the production baseline.
 
 ## Supported SDK path
 
@@ -14,9 +14,9 @@ Meta's current documentation specifies MP4 over HTTPS, no side larger than 400 p
 
 ## Integration choices
 
-- **Try the public player first.** Inspected SDK bytecode sends video through a separate DWA request, outside the old text layout format. Compatibility with our modern HUD bridge is plausible but untested. Do not mix SDK 0.8 core and 0.9 display; their result types are binary incompatible.
+- **Try the public player first.** Inspected SDK bytecode sends video through a separate DWA request, outside the old text layout format. Playback alongside our modern HUD bridge passed the isolated hardware test. Do not mix SDK 0.8 core and 0.9 display; their result types are binary incompatible.
 - **Use a server-owned media ID.** Resolve a short-lived HTTPS URL without custom authorization headers; `VideoSource.Url` has no header parameter. Never accept an invented media URL from the model. Source ingestion, media uploads, and clinical content remain deferred until the user supplies them.
-- **Do not assume localhost works.** The Android SDK forwards the URL through DWA; it does not decode the clip on the phone. The downstream networking route is unknown. Our phone's `adb reverse` does not establish native-player access to `127.0.0.1:8787`. Test URL access explicitly.
+- **Serve cached phone clips through loopback HTTP.** Explicit hardware testing established that the native URL player can fetch a selected MP4 from a server bound to `127.0.0.1` on this phone. The wearer confirmed all seven repeated starts with sound, including an unpadded 125 KB excerpt that failed via internal Flow. Keep the session open to avoid roughly two seconds of fresh-process setup. The debug server supports byte ranges; production needs ownership and cleanup tied to the playback lifecycle. The downstream radio route and offline operation remain untested.
 - **Preserve coaching state.** Playback is an interruption of solo AI-led manikin practice. It neither needs a human instructor's approval nor establishes that the learner practiced or mastered a step.
 
 ## Demonstration flow
@@ -40,4 +40,4 @@ Native clip audio and the current Gemini Bluetooth route remain untested togethe
 
 Log media ID/version, request/run/attempt/revision, playback timestamps, typed errors, fallback, camera freshness, and HUD restoration. Exclude signed URLs from routine telemetry; the inspected SDK itself logs video URLs in a debug path, so redact them from exported device logs. Neither an SDK submission acknowledgement nor `PLAYING` proves that the wearer saw the clip.
 
-Still unverified: camera/playback coexistence on this firmware, native video positioning, buffering and URL reachability, clip audio routing, encoding compatibility, and bitrate/duration limits. These are hardware test gates, not reasons to delay the [practice-state and UI design](coaching-walkthrough-plan.md).
+The isolated URL test with camera capture active visibly played video/sound and returned to a lesson card, but camera frames stalled and the SDK reported CRITICAL_STREAM_ERROR. Uninterrupted camera/playback coexistence therefore failed this trial. Still unverified: reliable camera recovery, production audio routing with Gemini, broader URL reachability and encoding compatibility, and bitrate/duration limits. These are hardware test gates, not reasons to delay the [practice-state and UI design](coaching-walkthrough-plan.md).

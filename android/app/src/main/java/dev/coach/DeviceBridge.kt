@@ -65,11 +65,12 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var videoMonitor: Job? = null
     private var videoFrames = VideoFrames()
     private var videoError: String? = null
+    private val marineLogo by lazy { MarineLobbyArtwork.encode(context.resources) }
     var mode = "mock"; private set
     var displayAvailable = false; private set
 
     @SuppressLint("MissingPermission")
-    suspend fun start(mode: String) {
+    suspend fun start(mode: String, withCamera: Boolean = true, restoreCameraDisplay: Boolean = true) {
         close()
         this.mode = mode
         when (mode) {
@@ -107,84 +108,100 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                         }
                     }.onFailure { error, _ -> report("Glasses display unavailable: ${error.description}; phone preview only") }
                 } finally { setDamBootstrap(false) }
-                val added = created.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 24, compressVideo = false))
-                    .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                stream = added
-                val frames = videoFrames
-                videoMonitor = scope.launch {
-                    launch { added.state.collect {
-                        if (it != StreamState.STREAMING) frames.reset()
-                        report("Meta video state: $it")
-                    } }
-                    launch { added.errorStream.collect {
-                        videoError = it.name
-                        report("Meta video error: ${it.description}")
-                    } }
-                    try {
-                        added.videoStream.collect { frame ->
-                            if (!frame.isCompressed && !frame.isCodecConfig) {
-                                try {
-                                    if (frames.receive(frame.buffer, frame.width, frame.height, SystemClock.elapsedRealtime(), frame.presentationTimeUs)) {
-                                        videoError = null
-                                        if (frames.current?.sequence == 1L) report("Meta video frames arriving: ${frame.width}x${frame.height}")
-                                    }
-                                } catch (_: IllegalArgumentException) {
-                                    if (videoError == null) report("Meta video frame layout unsupported: ${frame.width}x${frame.height}, bytes=${frame.buffer.remaining()}")
-                                    videoError = "UnsupportedVideoLayout"
-                                }
-                            }
-                        }
-                    } catch (error: CancellationException) { throw error }
-                    catch (error: Exception) {
-                        videoError = error.javaClass.simpleName
-                        report("Meta video stream failed: $videoError")
-                    }
+                if (!withCamera) {
+                    report("Meta display initialized; glasses display=$displayAvailable; camera deferred until practice")
+                    return
                 }
-                added.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                withTimeoutOrNull(20_000) { added.state.first { it == StreamState.STREAMING } }
-                    ?: throw CameraCaptureFailure("VideoStartTimeout")
-                frames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
-                restoreDisplay()
-                report("Meta camera ready; glasses display=$displayAvailable; using new video frames, sensor clock unknown")
+                startMetaCamera(created, restoreCameraDisplay)
             }
             else -> report("Mock camera and phone HUD ready; synthetic evidence is labeled")
         }
     }
 
-    // Called by the serialized live capture coroutine: cancelling live also cancels recovery.
-    suspend fun recoverVideo(onAttempt: (Int) -> Unit): VideoRecovery {
+    private suspend fun startMetaCamera(active: DeviceSession, restoreCameraDisplay: Boolean = true) {
+        check(session === active && active.state.value == DeviceSessionState.STARTED)
+        videoMonitor?.cancel(); videoMonitor = null
+        stream?.stop(); stream = null
+        videoFrames = VideoFrames(); videoError = null
+        val added = active.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 24, compressVideo = false))
+            .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
+        stream = added
+        val frames = videoFrames
+        videoMonitor = scope.launch {
+            launch { added.state.collect {
+                if (it != StreamState.STREAMING) frames.reset()
+                report("Meta video state: $it")
+            } }
+            launch { added.errorStream.collect {
+                videoError = it.name
+                report("Meta video error: ${it.description}")
+            } }
+            try {
+                added.videoStream.collect { frame ->
+                    if (!frame.isCompressed && !frame.isCodecConfig) {
+                        try {
+                            if (frames.receive(frame.buffer, frame.width, frame.height, SystemClock.elapsedRealtime(), frame.presentationTimeUs)) {
+                                videoError = null
+                                if (frames.current?.sequence == 1L) report("Meta video frames arriving: ${frame.width}x${frame.height}")
+                            }
+                        } catch (_: IllegalArgumentException) {
+                            if (videoError == null) report("Meta video frame layout unsupported: ${frame.width}x${frame.height}, bytes=${frame.buffer.remaining()}")
+                            videoError = "UnsupportedVideoLayout"
+                        }
+                    }
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                videoError = error.javaClass.simpleName
+                report("Meta video stream failed: $videoError")
+            }
+        }
+        try {
+            awaitCameraStartup(added.state, added.errorStream) {
+                added.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
+                withTimeoutOrNull(20_000) { added.state.first { it == StreamState.STREAMING } }
+                    ?: throw CameraCaptureFailure("VideoStartTimeout")
+                frames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
+            }
+            if (restoreCameraDisplay) restoreDisplay()
+            report("Meta camera ready; glasses display=$displayAvailable; using new video frames, sensor clock unknown")
+        } catch (error: Throwable) {
+            if (stream === added) {
+                videoMonitor?.cancel(); videoMonitor = null; stream = null; frames.reset()
+                runCatching { added.stop() }
+            }
+            throw error
+        }
+    }
+
+    // Callers serialize recovery with capture and cancel it when the lesson mode changes.
+    suspend fun recoverVideo(withCamera: Boolean = true, restoreCameraDisplay: Boolean = true, onAttempt: (Int) -> Unit): VideoRecovery {
         if (mode != "meta_display") return VideoRecovery.FAILED
         videoFrames.reset()
         var rebuilt = false
         try {
-            repeat(3) { attempt ->
+            val result = recoverCameraConnection(attempt = { reuseSession, attempt ->
                 currentCoroutineContext().ensureActive()
                 if (session?.state?.value == DeviceSessionState.PAUSED || stream?.state?.value == StreamState.PAUSED)
-                    return VideoRecovery.WAITING
+                    return@recoverCameraConnection VideoRecovery.WAITING
                 if (Wearables.devicesMetadata.values.none { it.value.linkState == LinkState.CONNECTED })
-                    return VideoRecovery.WAITING
-                onAttempt(attempt + 1)
-                try {
-                    val active = stream
-                    if (attempt == 0 && session?.state?.value == DeviceSessionState.STARTED && active?.state?.value == StreamState.STOPPED) {
-                        active.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
-                        withTimeoutOrNull(20_000) { active.state.first { it == StreamState.STREAMING } }
-                            ?: throw CameraCaptureFailure("VideoStartTimeout")
-                        videoFrames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
-                        restoreDisplay()
-                    } else {
-                        rebuilt = true
-                        start("meta_display") // A stopped parent session cannot be restarted.
-                    }
-                    return VideoRecovery.RECOVERED
-                } catch (error: CancellationException) { throw error }
-                catch (error: Exception) {
-                    report("Meta camera recovery attempt ${attempt + 1} failed: ${error.javaClass.simpleName}")
-                    if (attempt < 2) delay(2_000L * (attempt + 1))
+                    return@recoverCameraConnection VideoRecovery.WAITING
+                if (videoError == "HINGE_CLOSED" && withTimeoutOrNull(1_000) { AutoDeviceSelector().activeDeviceFlow().first() } == null)
+                    return@recoverCameraConnection VideoRecovery.WAITING
+                onAttempt(attempt)
+                val parent = session
+                if (reuseSession && withCamera && canPlayLessonVideo && parent?.state?.value == DeviceSessionState.STARTED) {
+                    startMetaCamera(parent, restoreCameraDisplay)
+                } else {
+                    rebuilt = true
+                    start("meta_display", withCamera, restoreCameraDisplay)
                 }
-            }
-            if (rebuilt) close()
-            return VideoRecovery.FAILED
+                VideoRecovery.RECOVERED
+            }, onFailure = { error, attempt ->
+                report("Meta camera recovery attempt $attempt failed: ${(error as? CameraCaptureFailure)?.cameraError ?: error.javaClass.simpleName}; rebuilding the device session")
+            })
+            if (result == VideoRecovery.FAILED && rebuilt) close()
+            return result
         } catch (error: CancellationException) {
             if (rebuilt) close() // Do not leave a partially started replacement behind.
             throw error
@@ -255,8 +272,22 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     suspend fun playLessonVideo(file: File, onState: (String, String?) -> Unit) {
         stopLessonVideo()
         check(canPlayLessonVideo) { "Glasses video display is unavailable" }
+        stream?.let { camera ->
+            // DAT 0.8 stop closes this capability; recovery must create a fresh stream.
+            camera.stop()
+            withTimeout(5_000) { camera.state.first { it == StreamState.CLOSED } }
+            videoMonitor?.cancel(); videoMonitor = null; stream = null; videoFrames.reset()
+            report("Meta camera closed for lesson video; restoring display foreground")
+            restoreDisplay()
+        }
+        if (!canPlayLessonVideo) {
+            report("Meta camera stop closed the display; reconnecting the display before video")
+            check(recoverVideo(withCamera = false) { report("Meta video display recovery attempt $it") } == VideoRecovery.RECOVERED && canPlayLessonVideo) {
+                "Glasses display could not reconnect for video"
+            }
+        }
         val target = checkNotNull(display)
-        val server = LessonVideoServer(file).also { demoServer = it }
+        val server = LessonVideoServer(file, report).also { demoServer = it }
         val player = VideoPlayer(VideoSource.Url(server.url), VideoCodec.MP4).also { demoPlayer = it }
         demoMonitor = scope.launch {
             launch { player.state.collect { state ->
@@ -289,7 +320,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     suspend fun render(hud: JSONObject, imageBytes: ByteArray? = null): String {
         if (hud.has("imageAssetId") && imageBytes == null) return "unsupported"
         if (mode != "meta_display") return "phone_received"
-        if (hud.has("imageAssetId")) return "unsupported" // DAT 0.8 cannot send local bitmap content.
+        if (hud.has("imageAssetId")) return "unsupported" // General images still need a bounded display encoding.
         val active = display ?: return "unsupported"
         if (!displayAvailable || active.state.value != DisplayState.STARTED) return "unsupported"
         val lines = buildList {
@@ -308,7 +339,9 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             }
         }
         return try {
-            GlassesHudTransport.send(checkNotNull(session), GlassesHudPayload.encode(lines))
+            val payload = if (hud.optString("brand") == "marines") GlassesHudPayload.encodeMarineLobby(marineLogo)
+                else hud.optJSONObject("lessonPage")?.let(GlassesHudPayload::encodeLesson) ?: GlassesHudPayload.encode(lines)
+            GlassesHudTransport.send(checkNotNull(session), payload)
             lastDisplayError = null
             "sdk_submitted" // Acknowledgment is not proof of visible pixels.
         } catch (error: CancellationException) { throw error }
@@ -320,6 +353,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         // The observer and pending send can report the same event; retain later repeated failures.
         if (lastDisplayError == code && now - lastDisplayErrorAt < 1000) return
         lastDisplayError = code; lastDisplayErrorAt = now
+        if (code == "CHANNEL_CLOSED" || code == "CHANNEL_ERROR") displayAvailable = false
         report("Meta display error: $code")
     }
 

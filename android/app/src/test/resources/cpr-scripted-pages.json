@@ -1,0 +1,99 @@
+[
+  {
+    "id": "cpr-opening",
+    "template": "teach",
+    "chapter": "ADULT CPR · MANIKIN PRACTICE",
+    "title": "Compression skills",
+    "body": "Hand position. Chest compressions. Letting the chest rise between presses.",
+    "support": {
+      "body": "Learn the technique, watch a demo, then practise together."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-hand-placement",
+    "template": "teach",
+    "chapter": "LEARN · 1 OF 2",
+    "title": "Start with your hands",
+    "body": "Centre of the chest, on the lower half of the breastbone.",
+    "support": {
+      "body": "Rest the firm base of your palm, just above the wrist, here. Stack your other hand on top."
+    },
+    "hint": "Say “Next” or “Back”"
+  },
+  {
+    "id": "cpr-compression-pattern",
+    "template": "teach",
+    "chapter": "LEARN · 2 OF 2",
+    "title": "Press, release, repeat",
+    "body": "100–120/min · Depth: 2–2.4 inches",
+    "support": {
+      "body": "Press down, then release your weight so the chest can rise fully before the next compression."
+    },
+    "hint": "Say “Show the demo”"
+  },
+  {
+    "id": "cpr-paused",
+    "template": "practice",
+    "chapter": "PRACTICE PAUSED",
+    "title": "Take your time",
+    "body": "Your place is saved. Questions are welcome.",
+    "hint": "Say “Resume”"
+  },
+  {
+    "id": "cpr-overview",
+    "template": "show",
+    "chapter": "WATCH · DEMONSTRATION",
+    "title": "Watch the hand contact point",
+    "body": "Preparing your video…",
+    "hint": "Say “Pause the video”"
+  },
+  {
+    "id": "cpr-hand-replay",
+    "template": "show",
+    "chapter": "HAND PLACEMENT · 5-SECOND REPLAY",
+    "title": "Review the contact point",
+    "body": "Preparing your video…",
+    "hint": "Say “Pause the video”"
+  },
+  {
+    "id": "cpr-overview",
+    "template": "show",
+    "chapter": "WATCH · DEMONSTRATION",
+    "title": "Watch the hand contact point",
+    "body": "Watch the overview, then try the starting position.",
+    "hint": "Say “Show the demo”"
+  },
+  {
+    "template": "practice",
+    "chapter": "PRACTISE · HAND PLACEMENT",
+    "hint": "Say “Ready” to continue",
+    "id": "cpr-scripted-setup",
+    "title": "Set your starting position",
+    "body": "Place both hands on the manikin’s chest and prepare for a short practice round."
+  },
+  {
+    "template": "practice",
+    "chapter": "PRACTISE · HAND PLACEMENT",
+    "hint": "Say “Ready” to continue",
+    "id": "cpr-scripted-correction",
+    "title": "Adjust your hands",
+    "body": "Move the firm base of your lower palm up onto the lower half of the breastbone."
+  },
+  {
+    "template": "practice",
+    "chapter": "PRACTISE · COMPRESSIONS",
+    "hint": "Say “I’m done” when finished",
+    "id": "cpr-scripted-practice",
+    "title": "Practise the movement",
+    "body": "Aim for 100–120 compressions/min."
+  },
+  {
+    "template": "recap",
+    "chapter": "RECAP · CPR PRACTICE",
+    "hint": "Say “End session”",
+    "id": "cpr-scripted-recap",
+    "title": "Practice complete",
+    "body": "You completed a short practice round. Review the hand placement whenever you need a reminder."
+  }
+]

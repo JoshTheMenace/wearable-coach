@@ -1,0 +1,30 @@
+{
+  "clips": [
+    {
+      "id": "e76bb20d-36d6-53bc-8a16-b02af0903d4e",
+      "lessonKey": "overview",
+      "title": "Adult CPR demonstration",
+      "file": "overview.mp4",
+      "width": 320,
+      "height": 180,
+      "durationMs": 534833,
+      "mime": "video/mp4",
+      "sha256": "c9e76b755fd988018232fc9f7abae7ebf1414de262c386c13836ad2f26ac66cf",
+      "bytes": 10056605,
+      "sourceStartSeconds": 0
+    },
+    {
+      "id": "13c7877d-f3b5-56cd-afc8-5c63f7d5911e",
+      "lessonKey": "hand-placement",
+      "title": "Hand placement replay",
+      "file": "hand-placement.mp4",
+      "width": 320,
+      "height": 180,
+      "durationMs": 5000,
+      "mime": "video/mp4",
+      "sha256": "1e58b1b95296168fe6b30ffd7cc12399bee6d6e040f3dee0b5b03a7735b3915d",
+      "bytes": 91707,
+      "sourceStartSeconds": 61.5
+    }
+  ]
+}

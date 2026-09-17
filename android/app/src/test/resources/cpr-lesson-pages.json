@@ -1,0 +1,230 @@
+[
+  {
+    "id": "cpr-opening",
+    "template": "teach",
+    "chapter": "ADULT CPR · MANIKIN PRACTICE",
+    "title": "Compression skills",
+    "body": "Hand position. Chest compressions. Letting the chest rise between presses.",
+    "support": {
+      "body": "Learn the technique, watch a demo, then practise together."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-hand-placement",
+    "template": "teach",
+    "chapter": "LEARN · 1 OF 2",
+    "title": "Start with your hands",
+    "body": "Centre of the chest, on the lower half of the breastbone.",
+    "support": {
+      "body": "Rest the firm base of your palm, just above the wrist, here. Stack your other hand on top."
+    },
+    "hint": "Say “Next” or “Back”"
+  },
+  {
+    "id": "cpr-compression-pattern",
+    "template": "teach",
+    "chapter": "LEARN · 2 OF 2",
+    "title": "Press, release, repeat",
+    "body": "100–120/min · Depth: 2–2.4 inches",
+    "support": {
+      "body": "Press down, then release your weight so the chest can rise fully before the next compression."
+    },
+    "hint": "Say “Show the demo”"
+  },
+  {
+    "id": "cpr-paused",
+    "template": "practice",
+    "chapter": "PRACTICE PAUSED",
+    "title": "Take your time",
+    "body": "Your place is saved. Questions are welcome.",
+    "hint": "Say “Resume”"
+  },
+  {
+    "id": "cpr-overview",
+    "template": "show",
+    "chapter": "WATCH · DEMONSTRATION",
+    "title": "Watch the hand contact point",
+    "body": "Watch the overview, then try the starting position.",
+    "hint": "Say “Show the demo”"
+  },
+  {
+    "id": "cpr-overview",
+    "template": "show",
+    "chapter": "WATCH · DEMONSTRATION",
+    "title": "Watch the hand contact point",
+    "body": "Preparing your video…",
+    "hint": "Say “Pause the video”"
+  },
+  {
+    "id": "cpr-hand-replay",
+    "template": "show",
+    "chapter": "HAND PLACEMENT · 5-SECOND REPLAY",
+    "title": "Review the contact point",
+    "body": "Preparing your video…",
+    "hint": "Say “Pause the video”"
+  },
+  {
+    "id": "cpr-placement",
+    "template": "practice",
+    "chapter": "PRACTISE · STARTING POSITION",
+    "title": "Show your starting position",
+    "body": "Place both hands on the manikin. Hold before beginning compressions.",
+    "hint": "Say “Ready”"
+  },
+  {
+    "id": "cpr-placement-check",
+    "template": "practice",
+    "chapter": "PRACTISE · PLACEMENT CHECK",
+    "title": "Hold your starting position",
+    "body": "I’m checking the hand contact point before practice.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-recheck",
+    "template": "practice",
+    "chapter": "PRACTISE · RECHECK",
+    "title": "Set your hands again",
+    "body": "Hold your starting position while I check a fresh view.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-correction",
+    "template": "practice",
+    "chapter": "PRACTISE · HAND POSITION",
+    "title": "Move your hands up",
+    "body": "Move the lower hand’s heel onto the lower half of the breastbone.",
+    "support": {
+      "body": "Hold there for a clear placement check."
+    },
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-off-target",
+    "template": "practice",
+    "chapter": "PRACTISE · HAND POSITION",
+    "title": "Find the hand position",
+    "body": "Set the base of your lower palm on the lower half of the breastbone.",
+    "support": {
+      "body": "Hold there while I check again."
+    },
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-placement-check",
+    "template": "practice",
+    "chapter": "PRACTISE · PLACEMENT CHECK",
+    "title": "Hold your starting position",
+    "body": "I’m checking the hand contact point before practice.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-camera-starting",
+    "template": "practice",
+    "chapter": "PRACTISE · CAMERA CONNECTING",
+    "title": "Connecting the camera",
+    "body": "Keep your position. The camera will reconnect automatically.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-position-check",
+    "template": "practice",
+    "chapter": "PRACTISE · PLACEMENT CHECK",
+    "title": "Checking your position",
+    "body": "Hold your hands still for another check.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-camera-check",
+    "template": "practice",
+    "chapter": "PRACTISE · PLACEMENT CHECK",
+    "title": "Show the hand contact point",
+    "body": "Tilt your view slightly to show where your lower palm meets the chest.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-camera-check",
+    "template": "practice",
+    "chapter": "PRACTISE · PLACEMENT CHECK",
+    "title": "Show the hand contact point",
+    "body": "Look down so the manikin’s chest is in view.",
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-practice",
+    "template": "practice",
+    "chapter": "PRACTISE · COMPRESSIONS",
+    "title": "Practise the compression pattern",
+    "body": "Aim for 100–120 compressions/min.",
+    "support": {
+      "body": "This is a target, not a measured rate."
+    },
+    "hint": "Say “Pause” or “Show placement again”"
+  },
+  {
+    "id": "cpr-recap-2",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 2 OF 2",
+    "title": "Keep building the technique",
+    "body": "Hand position. Steady presses. Let the chest rise fully.",
+    "support": {
+      "body": "Depth, force and cadence were not measured."
+    },
+    "hint": "Say “Practise again” or “End session”"
+  },
+  {
+    "id": "cpr-recap-1",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 1 OF 2",
+    "title": "Your practice record",
+    "body": "Demonstration not recorded. Placement not verified.",
+    "support": {
+      "body": "Practice completion not confirmed."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-recap-1",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 1 OF 2",
+    "title": "You adjusted and tried again",
+    "body": "Demonstration watched. Hand adjustment visually observed.",
+    "support": {
+      "body": "Practice finished · you confirmed."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-recap-1",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 1 OF 2",
+    "title": "You adjusted and tried again",
+    "body": "Demonstration not recorded. Hand adjustment visually observed.",
+    "support": {
+      "body": "Practice completion not confirmed. Placement recheck pending."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-recap-1",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 1 OF 2",
+    "title": "You adjusted and tried again",
+    "body": "Demonstration watched. Hand adjustment observed in simulation.",
+    "support": {
+      "body": "Practice finished · you confirmed."
+    },
+    "hint": "Say “Next”"
+  },
+  {
+    "id": "cpr-recap-1",
+    "template": "recap",
+    "chapter": "PRACTICE RECAP · 1 OF 2",
+    "title": "You adjusted and tried again",
+    "body": "Demonstration not recorded. Hand adjustment observed in simulation.",
+    "support": {
+      "body": "Practice completion not confirmed. Placement recheck pending."
+    },
+    "hint": "Say “Next”"
+  }
+]

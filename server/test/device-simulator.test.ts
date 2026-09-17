@@ -7,7 +7,7 @@ test('demo dimensions enforce both side and total-pixel limits independently of 
   assert.throws(() => validateDemo(400, 400, 12, 'video/mp4'), /70,000/);
   assert.throws(() => validateDemo(401, 100, 12, 'video/mp4'), /400/);
   assert.throws(() => validateDemo(320, 180, Infinity, 'video/mp4'), /duration/);
-  assert.throws(() => validateDemo(320, 180, 301, 'video/mp4'), /five minutes/);
+  assert.throws(() => validateDemo(320, 180, 601, 'video/mp4'), /ten minutes/);
   assert.throws(() => validateDemo(320, 180, 12, 'video/webm'), /MP4/);
 });
 

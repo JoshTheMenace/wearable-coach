@@ -2,9 +2,9 @@
 
 A native Android device bridge, a TypeScript session server, and a browser operator/spectator dashboard. The coach can listen, speak, inspect a selected image, and request validated HUD changes. Choose Gemini 3.8 Live, GPT Live-1, or a clearly labeled local mock before starting a session.
 
-This is a working integration prototype. No training exercise, rubric, scoring system, or independent evaluator is included yet.
+The CPR prototype teaches hand placement and compression basics, plays a demonstration, and coaches a short manikin practice. It uses reference-pose comparison for the initial hand check; it does not measure compression quality or certify competence.
 
-The working glasses build is preserved on `main` and `codex/grounded-live-coaching` at `7d19ac6`. The `codex/coaching-walkthrough` branch adds a [browser glasses simulator](docs/glasses-simulator.md), [training reference lookup](docs/training-reference-lookup.md), [repeatable coaching baseline](docs/walkthrough-baseline.md), and [AI-led manikin practice plan](docs/coaching-walkthrough-plan.md). The supplied CPR dataset is searchable with citations; a persisted clinical lesson is still pending.
+The original glasses build is preserved on `main` and `codex/grounded-live-coaching` at `7d19ac6`. The `codex/coaching-walkthrough` branch includes the [hands-free CPR lesson](docs/cpr-lesson-storyboard.md), [browser glasses simulator](docs/glasses-simulator.md), and [training reference lookup](docs/training-reference-lookup.md). See [rehearsal findings and current limits](docs/cpr-rehearsal-2026-09-17.md).
 
 ## Run the server and dashboard
 
@@ -16,23 +16,30 @@ npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:8787**. The first run creates a local operator credential in `.runtime/operator-token` unless `COACH_TOKEN` is set. Copy that credential into the dashboard's operator-token field. Provider keys never go into the browser or Android app.
+Open **http://127.0.0.1:8787**. Local browser and Android sessions connect without entering an operator token; internal credentials are generated in `.runtime`. Provider keys stay on the server.
 
 The existing `.env` is preserved. On a new checkout, create it using `.env.example`:
 
 | Setting | Purpose |
 | --- | --- |
 | `GEMINI_KEY` | Gemini live conversation, observer, and delegated task handler. |
-| `OPENAI_API_KEY` | Direct GPT Live-1 account access. OpenRouter is not a substitute. |
+| `OPENAI_API_KEY` | Luna CPR pose checks and optional direct GPT Live-1 access. |
 | `OBSERVER_MODEL` / `TASK_MODEL` | Ordinary Gemini models; default `gemini-3.8-flash`. |
+| `PLACEMENT_OBSERVER_MODEL` | CPR-only checker; default `gpt-5.6-luna`, priority tier, reasoning off. |
 | `COACH_TOKEN` | Optional persistent operator credential; otherwise generated locally. |
 | `HOST` / `PORT` | Defaults `127.0.0.1:8787`. |
 | `COACH_DATA_DIR` | Defaults `.runtime`. SQLite, credential and retained media live here. |
 | `TLS_CERT` / `TLS_KEY` | PEM files for remote HTTPS/WSS access. |
 
+For the glasses rehearsal, use Gemini and Meta glasses, leave **Live practice** selected in Session settings, and start the coach. Ask for CPR training. Ready begins pose checking; two agreeing correct findings advance to practice and stop assessment during compressions. Requesting the hand-placement video starts a fresh check after the replay. A separately selected Scripted demo backup is available in settings; its events and completion evidence remain explicitly simulated.
+
+The two wearer-labeled manikin references and prepared overview/five-second replay are bundled in `server/assets/` for this private rehearsal. `.runtime/cpr-placement-reference/` and `.runtime/lesson-media/` override them when present. Keys, raw camera captures, session databases, MCeLE downloads and build outputs remain local and ignored.
+
 Start with **mock** provider and **Glasses simulator**, then try `show card`, `timer`, `inspect`, `invalid`, and `delayed card`. Select zone A, zone B, or occlusion for synthetic image capture. The mock audio is a test tone and does not transcribe speech or interpret images. Enable sound with the dashboard button. Select **Gemini Live** with the same simulator to stream a local recording as camera input; a separate demo file can temporarily replace its HUD. See [simulator setup and limits](docs/glasses-simulator.md).
 
 The dashboard can export a session or share a session ID and read-only spectator token. Open the spectator on the projector laptop. Spectator credentials cannot operate the device or invoke models. Audience audio is off; captions avoid microphone feedback.
+
+The [MCeLE toolkit](docs/mcele-toolkit.md) provides local authenticated search, media downloads, course inspection, and library retrieval. Credentials, service endpoints, session state, and retrieved content stay in private local files; this repository includes only the adapter source and a placeholder configuration template.
 
 `npm run dev` restarts the server on edits and therefore ends active sessions. Use `npm start` for hardware tests or rehearsals.
 

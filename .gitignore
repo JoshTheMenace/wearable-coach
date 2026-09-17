@@ -16,3 +16,10 @@ android/local.properties
 *.keystore
 
 .playwright-cli/
+
+# Private integration investigation notes; public setup is docs/mcele-toolkit.md.
+docs/mcele-media-integration.md
+docs/mcele-course-integration.md
+docs/hmmwv-course-preview.md
+docs/hmmwv-glasses-device-test.md
+docs/display-web-course-feasibility.md

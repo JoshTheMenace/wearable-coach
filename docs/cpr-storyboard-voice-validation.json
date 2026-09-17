@@ -1,0 +1,182 @@
+{
+  "testedAt": "2026-09-17T00:26:21.571Z",
+  "result": "PASS",
+  "model": "gemini-3.8-live",
+  "elapsedMs": 150761,
+  "scope": "Real Gemini Live voice-control rehearsal with synthesized learner audio and simulated video playback. No physical-device test.",
+  "input": "Samantha synthesized microphone PCM,16kHz mono,paced20ms packets with continuous silence;automatic VAD",
+  "transport": {
+    "server": "isolated loopback, ephemeral port",
+    "deviceConfiguration": "phone",
+    "generations": [
+      1,
+      2,
+      3
+    ],
+    "protocolErrors": 0,
+    "failedTools": 0,
+    "outputPcmBytes": 4662246
+  },
+  "milestones": [
+    {
+      "name": "opening authored once",
+      "generation": 1,
+      "phase": "intro",
+      "page": "cpr-opening",
+      "ready": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice next hand page",
+      "generation": 1,
+      "phase": "intro",
+      "page": "cpr-hand-placement",
+      "ready": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "question holds hand page",
+      "generation": 1,
+      "phase": "intro",
+      "page": "cpr-hand-placement",
+      "ready": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice next compression pattern",
+      "generation": 1,
+      "phase": "intro",
+      "page": "cpr-compression-pattern",
+      "ready": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "overview complete placement waits for Ready",
+      "generation": 2,
+      "phase": "placement",
+      "page": "cpr-placement",
+      "ready": false,
+      "needsPlacementCheck": true,
+      "sessionStatus": "reconnecting"
+    },
+    {
+      "name": "Ready arms placement observation",
+      "generation": 2,
+      "phase": "placement",
+      "page": "cpr-camera-check",
+      "ready": true,
+      "needsPlacementCheck": true,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "explicit skip yields unverified practice",
+      "generation": 2,
+      "phase": "practice",
+      "page": "cpr-practice",
+      "ready": true,
+      "needsPlacementCheck": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "replay leaves fresh check pending",
+      "generation": 3,
+      "phase": "practice",
+      "page": "cpr-recheck",
+      "ready": true,
+      "needsPlacementCheck": true,
+      "sessionStatus": "reconnecting"
+    },
+    {
+      "name": "second explicit skip stays unverified",
+      "generation": 3,
+      "phase": "practice",
+      "page": "cpr-practice",
+      "ready": true,
+      "needsPlacementCheck": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice done recap",
+      "generation": 3,
+      "phase": "complete",
+      "page": "cpr-recap-1",
+      "ready": true,
+      "needsPlacementCheck": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice next limits",
+      "generation": 3,
+      "phase": "complete",
+      "page": "cpr-recap-2",
+      "ready": true,
+      "needsPlacementCheck": false,
+      "sessionStatus": "active"
+    },
+    {
+      "name": "voice session ended",
+      "generation": 3,
+      "phase": "complete",
+      "ready": true,
+      "needsPlacementCheck": false,
+      "sessionStatus": "ended"
+    }
+  ],
+  "narrationRequestCounts": {
+    "cpr-opening": 1,
+    "cpr-hand-placement": 1,
+    "cpr-compression-pattern": 1,
+    "video:fe55ef0a-34db-4d1e-9927-b7ae9142479d": 1,
+    "cpr-placement:fe55ef0a-34db-4d1e-9927-b7ae9142479d": 1,
+    "cpr-camera-check:fe55ef0a-34db-4d1e-9927-b7ae9142479d": 1,
+    "cpr-practice:fe55ef0a-34db-4d1e-9927-b7ae9142479d": 1,
+    "video:8528c665-8ec7-4347-b889-f29a948947d8": 1,
+    "cpr-recheck:8528c665-8ec7-4347-b889-f29a948947d8": 1,
+    "cpr-practice:8528c665-8ec7-4347-b889-f29a948947d8": 1,
+    "cpr-recap-1:8528c665-8ec7-4347-b889-f29a948947d8": 1,
+    "cpr-recap-2:8528c665-8ec7-4347-b889-f29a948947d8": 1
+  },
+  "spokenTranscriptReview": {
+    "method": "Joined actual assistant transcription fragments into utterances, then reviewed complete text and counted distinctive authored opening phrases.",
+    "authoredPhraseCounts": {
+      "opening": 1,
+      "handTeaching": 1,
+      "compressionTeaching": 1,
+      "overviewCue": 1,
+      "replayCue": 1,
+      "practice": 2,
+      "recapRecord": 1,
+      "recapLimits": 1
+    },
+    "unexpectedDuplicateDefaults": false,
+    "expectedRepetition": "The practice default occurred twice: initial explicit camera skip and a second explicit skip after the hand-placement replay.",
+    "interruptedDefaults": [
+      {
+        "page": "cpr-placement",
+        "capturedText": "Your turn. Set ",
+        "cause": "Harness sent Ready before the new generation completed its authored narration."
+      },
+      {
+        "page": "cpr-recheck",
+        "capturedText": "Now set your hands ",
+        "cause": "Harness sent explicit camera skip before the new generation completed its authored narration."
+      }
+    ],
+    "recapTranscript": "The demonstration was watched. Placement not verified. You confirmed finishing this practice round. Say “next” for the measurement limits.",
+    "limitsTranscript": "I haven’t measured compression depth, force or cadence. This practice does not certify competence. You can practise again, review placement or end the session."
+  },
+  "limitations": [
+    "No phone, glasses, camera frames, wearer-readable display, speaker playback or speaker-loop echo were exercised.",
+    "The phone device configuration does not test native HUD-receipt gating.",
+    "Device capabilities and playing/ended events were simulated. Playback ended after 500 ms; actual 55-second and 5-second media durations were not exercised.",
+    "Video cue drain used simulated pendingMs=0/writtenSamples reports, fenced by current generation and speechEpoch and sent only after narration.generatedAt.",
+    "Post-video Ready and explicit skip interrupted the two authored starting-position prompts due to an early harness settle condition. Their full audible delivery was not verified. Future harness waits now require a bound active generation and current-page narration generation.",
+    "No visual placement judgment was exercised; both skips remained learner-confirmed and the recap explicitly said placement was not verified.",
+    "One successful run establishes this voice-control path, not repeated reliability or physical end-to-end readiness."
+  ],
+  "evidence": {
+    "fullTrace": ".tools/storyboard-voice/result.json",
+    "relay": ".tools/storyboard-voice-relay.ts",
+    "log": ".tools/storyboard-voice-run-2.log"
+  }
+}

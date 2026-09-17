@@ -1,0 +1,29 @@
+{
+  "origins": {
+    "portal": "https://portal.example.invalid",
+    "media": "https://media.example.invalid",
+    "learning": "https://learning.example.invalid",
+    "content": "https://content.example.invalid"
+  },
+  "paths": {
+    "studentMedia": "/REPLACE_studentMedia",
+    "consent": "/REPLACE_consent",
+    "signIn": "/REPLACE_signIn",
+    "csrf": "/REPLACE_csrf",
+    "catalog": "/REPLACE_catalog?kind={kind}",
+    "playlist": "/REPLACE_playlist",
+    "mediaDetail": "/REPLACE_mediaDetail?shortId={shortId}",
+    "mediaDownload": "/REPLACE_mediaDownload?shortId={shortId}&extension={extension}",
+    "mediaPrefix": "/REPLACE_mediaPrefix/",
+    "learningCourse": "/REPLACE_learningCourse?courseId={courseId}",
+    "learningEnrollment": "/REPLACE_learningEnrollment?courseId={courseId}",
+    "courseDetail": "/REPLACE_courseDetail?courseId={courseId}",
+    "courseEnrollment": "/REPLACE_courseEnrollment?courseId={courseId}",
+    "playerConfiguration": "/REPLACE_playerConfiguration",
+    "concurrentLaunch": "/REPLACE_concurrentLaunch",
+    "coursePrefix": "/REPLACE_coursePrefix/",
+    "libraryDocument": "/REPLACE_libraryDocument?id={id}",
+    "libraryMetadata": "/REPLACE_libraryMetadata?shortId={shortId}",
+    "libraryDownload": "/REPLACE_libraryDownload"
+  }
+}

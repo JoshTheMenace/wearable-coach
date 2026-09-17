@@ -21,7 +21,7 @@ internal data class LessonClip(val id: String, val lessonKey: String, val title:
                 value.getLong("bytes"), value.getString("url"))
             require(UUID.fromString(clip.id).toString() == clip.id && clip.lessonKey in setOf("overview", "hand-placement"))
             require(value.getString("mime") == "video/mp4" && clip.width in 1..400 && clip.height in 1..400 && clip.width * clip.height <= 70000)
-            require(clip.durationMs in 100..300000 && clip.bytes in 1..MAX_BYTES && Regex("[a-f0-9]{64}").matches(clip.sha256))
+            require(clip.durationMs in 100..600000 && clip.bytes in 1..MAX_BYTES && Regex("[a-f0-9]{64}").matches(clip.sha256))
             require(clip.url.startsWith("/api/sessions/") && !clip.url.contains('\\') && !clip.url.contains('#'))
             return clip
         }

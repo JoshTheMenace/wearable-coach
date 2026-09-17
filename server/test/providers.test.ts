@@ -359,7 +359,7 @@ test('task handler maps reference questions to lookup queries and rejects missin
   assert.equal(result.action, 'lookup_training_reference');
   assert.deepEqual(result.args, { query: 'CPR hand placement' });
   assert.ok(request.generationConfig.responseJsonSchema.properties.action.enum.includes('lookup_training_reference'));
-  assert.match(request.systemInstruction.parts[0].text, /Reference facts never prove learner performance/);
+  assert.match(request.systemInstruction.parts[0].text, /facts do not prove learner performance/);
   await assert.rejects(infer(null), /required action arguments/);
   await assert.rejects(infer('   '), /required action arguments/);
   await assert.rejects(infer('q'.repeat(1201)), /invalid structured result/);
@@ -417,4 +417,40 @@ test('queued video does not consume the audio budget or conceal a growing audio 
   adapter.sendAudio(Buffer.alloc(3200));assert.equal(r.errors.length,0);
   adapter.sendAudio(Buffer.alloc(3200));assert.match(r.errors[0].message,/250 ms/);
   await adapter.close();
+});
+
+test('Gemini advertises course start and returns rejected movie controls silently with their exact call ID',async t=>{
+  process.env.GEMINI_KEY='test-only-gemini';
+  const fixture=await wire({setupComplete:{}});t.after(()=>fixture.close());
+  const r=recorder(),adapter=createProvider({provider:'gemini',model:'gemini-3.8-live'},r.callbacks,fixture.options);
+  await adapter.connect();
+  const tool=fixture.messages[0].setup.tools[0].functionDeclarations.find((tool:{name:string})=>tool.name==='lesson_action');
+  assert.ok(tool.parameters.properties.action.enum.includes('start'));
+  fixture.send({toolCall:{functionCalls:[{id:'pause-denied',name:'lesson_action',args:{action:'pause'}}]}});await until(()=>r.calls.length===1);
+  const result={status:'rejected',retryable:false,silent:true,reason:'No fresh learner request'};
+  adapter.toolResult('pause-denied',result);await until(()=>fixture.messages.length===2);
+  assert.deepEqual(fixture.messages[1].toolResponse.functionResponses,[{id:'pause-denied',name:'lesson_action',response:result,scheduling:'SILENT'}]);
+  await adapter.close();
+});
+
+test('task handler can propose the prepared course start from a Marine lobby',async()=>{
+  process.env.GEMINI_KEY='test-only-gemini';
+  const result=await inferTask('learner: Pull up some CPR training.',{tutorMode:'marine',hud:{brand:'marines'}},new AbortController().signal,{
+    fetchImpl:async()=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({action:'lesson_action',question:'start',message:'I’ll pull that up.',hud:null})}]}}]}),
+  });
+  assert.deepEqual(result.args,{action:'start'});assert.equal(result.promptVersion,'task-handler-v7-course-navigation');
+});
+
+test('Gemini exposes four course tools with contextual navigation and preserves generic lobby tools',async t=>{
+  process.env.GEMINI_KEY='test-only-gemini';
+  for(const lessonActive of [true,false]){
+    const fixture=await wire({setupComplete:{}});t.after(()=>fixture.close());
+    const adapter=createProvider({provider:'gemini',model:'gemini-3.8-live'},recorder().callbacks,{...fixture.options,lessonActive});
+    await adapter.connect();
+    const tool=fixture.messages[0].setup.tools[0].functionDeclarations.find((tool:{name:string})=>tool.name==='lesson_action');
+    assert.deepEqual(tool.parameters.properties.action.enum,lessonActive?['next','back','repeat','pause','resume','end_session']:['start','end_session']);
+    const names=fixture.messages[0].setup.tools[0].functionDeclarations.map((tool:{name:string})=>tool.name);
+    assert.deepEqual(names,lessonActive?['play_training_video','lesson_action','inspect_frame','lookup_training_reference']:['play_training_video','lesson_action','set_hud','clear_hud','inspect_frame','lookup_training_reference']);
+    await adapter.close();
+  }
 });

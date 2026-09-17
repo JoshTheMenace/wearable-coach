@@ -2,10 +2,10 @@ import WebSocket from 'ws';
 import { COACH_PROMPT, SocketProvider, boundedText, imageCheck, numericUsage, type Wire } from './shared.ts';
 
 export const hudTools = [
-  { name: 'play_training_video', description: 'Play a prepared lesson video on the display. Use hand-placement for a short reminder such as can I see hand placement again. Never invent a URL. Playback is temporary; practice resumes afterward.',
+  { name: 'play_training_video', description: 'Show a requested reference video: hand-placement for a short reminder, overview to revisit the demonstration. It returns to the current course step afterward. Use lesson_action next for normal course progression, including the first demonstration. Starting is not confirmed playback; wait for device reports.',
     parameters: { type: 'OBJECT', properties: { clipId: { type: 'STRING', enum: ['overview', 'hand-placement'] } }, required: ['clipId'] } },
-  { name: 'lesson_action', description: 'Update the CPR lesson after an explicit learner request. Continue moves from reading to demo or explicitly skips the demo. Finish practice only when the learner says they are done. Visual placement completion is handled by the observer, never this tool.',
-    parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: ['continue', 'pause', 'resume', 'finish_practice'] } }, required: ['action'] } },
+  { name: 'lesson_action', description: 'Navigate on fresh learner requests or readiness confirmations; call before announcing the action. next advances one page: teaching → video → placement setup → placement check; during practice it opens the recap without claiming verification. Use next for show the demo, skip this video, ready, or finished practice as appropriate to the current page. One request advances once. back returns a page, repeat explains it again, pause/resume hold/continue, end_session ends coaching. The application supplies narration.',
+    parameters: { type: 'OBJECT', properties: { action: { type: 'STRING', enum: ['next','back','repeat','pause','resume','end_session'] } }, required: ['action'] } },
   { name: 'set_hud', description: 'Replace the entire HUD. Ask for short text, a checklist, or a timer. Acceptance is not display confirmation.',
     parameters: { type: 'OBJECT', properties: {
       card: { type: 'OBJECT', properties: { title: { type: 'STRING' }, body: { type: 'STRING' } }, required: ['body'] },
@@ -38,7 +38,9 @@ export class GeminiProvider extends SocketProvider {
         ...(extended ? { thinkingConfig: { thinkingLevel: 'LOW' } } : {}),
       },
       systemInstruction: { parts: [{ text: this.options.instructions ?? COACH_PROMPT }] },
-      tools: [{ functionDeclarations: hudTools.map(tool => ({ ...tool, behavior: ['inspect_frame', 'lookup_training_reference'].includes(tool.name) ? 'BLOCKING' : 'NON_BLOCKING' })) }],
+      tools: [{ functionDeclarations: hudTools.filter(tool => !this.options.lessonActive || !['set_hud','clear_hud'].includes(tool.name)).map(tool => ({ ...tool,
+        ...(tool.name==='lesson_action'&&!this.options.lessonActive?{description:'Start the prepared CPR course only when the learner requests CPR training. Factual questions alone do not start a course. End coaching only on explicit request.',parameters:{...tool.parameters,properties:{action:{type:'STRING',enum:['start','end_session']}}}}:{}),
+        behavior: ['inspect_frame', 'lookup_training_reference'].includes(tool.name) ? 'BLOCKING' : 'NON_BLOCKING' })) }],
       inputAudioTranscription: {}, outputAudioTranscription: {},
       sessionResumption: this.options.resumeHandle ? { handle: this.options.resumeHandle } : {},
       contextWindowCompression: { slidingWindow: {} },
@@ -118,7 +120,7 @@ export class GeminiProvider extends SocketProvider {
     const name = this.calls.get(id);
     if (!name) throw new Error('Unknown provider tool call');
     const response = result && typeof result === 'object' && !Array.isArray(result) ? result : { result };
-    this.send({ toolResponse: { functionResponses: [{ id, name, response }] } });
+    this.send({ toolResponse: { functionResponses: [{ id, name, response, ...(name==='lesson_action'&&'silent' in response&&response.silent===true?{scheduling:'SILENT'}:{}) }] } });
     this.calls.delete(id);
   }
   activity(active: boolean) {

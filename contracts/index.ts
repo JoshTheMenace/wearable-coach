@@ -5,7 +5,8 @@ export const idSchema = z.string().uuid();
 export const configSchema = z.object({
   provider: z.enum(['mock', 'gemini', 'openai']), model: z.string().min(1).max(100),
   device: z.enum(['mock', 'phone', 'meta_display']).default('mock'), voice: z.string().max(40).optional(),
-  lessonId: z.literal('adult-cpr-demo-v1').optional(),
+  lessonId: z.literal('adult-cpr-demo-v1').optional(), tutorMode: z.literal('marine').optional(),
+  practiceMode: z.enum(['live','scripted_demo']).default('live'),
   manualActivity: z.boolean().default(false), recordFrames: z.boolean().default(false),
   observerModel: z.string().max(100).optional(), maxFrameAgeMs: z.number().int().min(1000).max(60000).default(15000),
   maxSessionMinutes: z.number().int().min(1).max(120).default(30),
@@ -14,11 +15,20 @@ export const configSchema = z.object({
   if (!models[c.provider].includes(c.model)) ctx.addIssue({ code: 'custom', message: 'Model does not match selected provider' });
 });
 export type SessionConfig = z.infer<typeof configSchema>;
+export const lessonPageSchema=z.object({
+  id:z.string().min(1).max(80),template:z.enum(['teach','show','practice','recap']),chapter:z.string().min(1).max(60),
+  title:z.string().min(1).max(60),body:z.string().min(1).max(240),
+  support:z.object({title:z.string().min(1).max(60).optional(),body:z.string().min(1).max(180)}).strict().optional(),
+  hint:z.string().min(1).max(80),
+}).strict();
+export type LessonPage=z.infer<typeof lessonPageSchema>;
 export const hudSchema = z.object({
+  brand: z.literal('marines').optional(),
   card: z.object({ title: z.string().max(60).optional(), body: z.string().min(1).max(240) }).strict().optional(),
   checklist: z.array(z.object({ id: z.string().max(60), text: z.string().max(60), checked: z.boolean() }).strict()).max(5).optional(),
   timer: z.object({ id: z.string().max(100).optional(), startedAt: z.number().optional(), durationMs: z.number().int().min(1000).max(3600000) }).strict().optional(),
   imageAssetId: idSchema.optional(), expiresAt: z.number().int().positive().optional(),
+  lessonPage:lessonPageSchema.optional(),
 }).strict();
 export type Hud = z.infer<typeof hudSchema>;
 export const commandSchema = z.object({
@@ -31,19 +41,26 @@ export type Command = z.infer<typeof commandSchema>;
 export type Transcript = { speaker: string; text: string; startMs?: number; endMs?: number; seq?: number };
 export type Work = { id: string; generation: number; kind: string; status: string; createdAt: number; deadlineAt: number; expectedHudRevision: number; input: Record<string, unknown>; result?: unknown; nativeKey?: string; frameId?: string };
 export type Frame = { frameId: string; receivedAt: number; capturedAt?: number; clockUncertaintyMs?: number; cameraSource: string; freshness: 'fresh'|'stale'|'unknown'; captureTimeBasis: string; workId?: string; width?: number; height?: number; sourcePositionMs?: number };
-export const SIMULATOR_DISPLAY_LIMITS = { maxWidth: 400, maxHeight: 400, maxPixels: 70000, maxDurationMs: 300000 } as const;
+export const SIMULATOR_DISPLAY_LIMITS = { maxWidth: 400, maxHeight: 400, maxPixels: 70000, maxDurationMs: 600000 } as const;
 export const displayCapabilitiesSchema=z.object({video:z.boolean(),source:z.literal('device-local'),maxWidth:z.number().int().positive(),maxHeight:z.number().int().positive(),maxPixels:z.number().int().positive()}).strict();
 export const demoAssetsSchema=z.array(z.object({id:idSchema,width:z.number().int().positive(),height:z.number().int().positive(),durationMs:z.number().int().min(100).max(SIMULATOR_DISPLAY_LIMITS.maxDurationMs),mime:z.literal('video/mp4'),lessonKey:z.enum(['overview','hand-placement']).optional()}).strict()).max(20).refine(assets=>new Set(assets.map(asset=>asset.id)).size===assets.length,'Duplicate demonstration asset');
 export type DemoAsset = z.infer<typeof demoAssetsSchema>[number];
 export type DisplayCapabilities = z.infer<typeof displayCapabilitiesSchema>;
-export type Demonstration = { requestId: string; assetId: string; status: 'starting'|'playing'; startedAt: number; deadlineAt: number; lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean };
-export type LessonAction = 'start'|'continue'|'pause'|'resume'|'finish_practice'|'restart';
-export type LessonObservation = { placement:'too_low'|'correct'|'unknown';confidence:number;reason:string;landmarksVisible:boolean;manikinVisible:boolean;at:number;cameraSource:string };
+export type Demonstration = { requestId: string; assetId: string; status: 'cueing'|'starting'|'playing'; startedAt: number; deadlineAt: number; durationMs?:number;lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean; restart?: boolean };
+export type LessonAction = 'start'|'continue'|'next'|'back'|'repeat'|'ready'|'skip_demo'|'skip_placement'|'pause'|'resume'|'finish_practice'|'restart';
+export type LessonObservation = { placement:'too_low'|'off_target'|'correct'|'unknown';confidence:number;reason:string;landmarksVisible:boolean;manikinVisible:boolean;at:number;cameraSource:string };
+export type TeachingPageId='opening'|'hand-placement'|'compression-pattern';
 export type LessonState = {
   id:string;lessonId:'adult-cpr-demo-v1';revision:number;phase:'intro'|'demonstration'|'placement'|'practice'|'complete';status:'active'|'paused';attemptId:string;
-  completed:Array<{step:'intro'|'demonstration'|'placement'|'practice';evidence:'learner_confirmed'|'video_ended'|'visual_observation'|'simulated_observation';at:number}>;
+  completed:Array<{step:'intro'|'demonstration'|'placement'|'practice';evidence:'learner_confirmed'|'video_ended'|'visual_observation'|'simulated_observation'|'scripted_demo';at:number}>;
+  scriptedStage?:'awaiting_ready'|'correction'|'practice';
   observationSeq:number;correctStreak:number;lastCorrectionAt?:number;lastObservation?:LessonObservation;feedback?:string;
   observerStatus?:'idle'|'observing'|'waiting_for_camera'|'unavailable';observerError?:string;
+  teachingPage?:TeachingPageId;visitedTeachingPages?:TeachingPageId[];skippedTeachingPages?:TeachingPageId[];ready?:boolean;needsPlacementCheck?:boolean;recapPage?:0|1;
+  activeClip?:'overview'|'hand-placement';lastClip?:'overview'|'hand-placement';pausedClip?:'overview'|'hand-placement';observationAfter?:number;narratedPages?:string[];
+  placementEvidence?:{at:number;cameraSource:string;evidence:'visual_observation'|'simulated_observation'};
+  pendingCorrection?:{at:number;cameraSource:string;kind?:'too_low'|'off_target'};
+  placementAdjustments?:Array<{detectedAt:number;correctedAt:number;cameraSource:string;evidence:'visual_observation'|'simulated_observation'}>;
 };
 export type Snapshot = {
   id: string; config: SessionConfig; status: string; generation: number; speechEpoch: number; throughSeq: number;
@@ -52,6 +69,7 @@ export type Snapshot = {
   device?: Record<string, unknown>; latestFrame?: Frame; muted: boolean; finalization: string;
   demonstration?: Demonstration;
   lesson?: LessonState;
+  tutorWelcomeRequestedAt?: number;
   liveVideo: boolean; liveVideoEpoch: number; liveVideoStats?: {submitted:number; dropped:number; lastFrameReceivedAt?:number; cameraSource?:string; sourcePositionMs?:number};
 };
 export type SessionEvent = { schemaVersion: 1; sessionId: string; generation: number; eventId: string; seq: number; type: string; source: string; receivedAt: number; payload: Record<string, unknown> };
