@@ -10,6 +10,33 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CameraStartupTest {
+    @Test fun criticalFailureOnFirstStartRecoversWithoutAnotherStartButtonPress() = runBlocking {
+        val reused = mutableListOf<Boolean>()
+        startCameraWithRecovery(start = {
+            awaitCameraStartup(MutableStateFlow(StreamState.CLOSED), MutableSharedFlow()) { awaitCancellation() }
+        }) { failure ->
+            assertEquals("VideoStreamFailed", failure.cameraError)
+            val result = recoverCameraConnection(attempt = { reuse, _ ->
+                reused.add(reuse)
+                if (reuse) throw CameraCaptureFailure("VideoStreamFailed")
+                VideoRecovery.RECOVERED
+            }, onFailure = { _, _ -> }, pause = {})
+            assertEquals(VideoRecovery.RECOVERED, result)
+        }
+        assertEquals(listOf(true, false), reused)
+    }
+
+    @Test fun permissionAndRegistrationFailuresDoNotRetryAndCancellationStillStopsStartup() = runBlocking {
+        for (code in listOf("MetaPermissionRequired", "MetaRegistrationRequired", "UnsupportedVideoLayout")) {
+            val error = runCatching { startCameraWithRecovery(start = { throw CameraCaptureFailure(code) }) { fail("Must not retry $code") } }.exceptionOrNull()
+            assertEquals(code, (error as CameraCaptureFailure).cameraError)
+        }
+        val pending = launch(start = CoroutineStart.UNDISPATCHED) {
+            startCameraWithRecovery(start = { awaitCancellation() }) { fail("Cancellation must not retry") }
+        }
+        pending.cancelAndJoin();assertTrue(pending.isCancelled)
+    }
+
     @Test fun frameAfterTransportHandshakeDoesNotTriggerAPrematureRebuild() = runBlocking {
         val frames = VideoFrames()
         launch { delay(9_000); frames.receive(java.nio.ByteBuffer.wrap(ByteArray(6)), 2, 2, 1, 1) }

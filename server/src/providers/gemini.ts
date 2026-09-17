@@ -15,7 +15,7 @@ export const hudTools = [
   { name: 'clear_hud', description: 'Clear the entire HUD.', parameters: { type: 'OBJECT', properties: {} } },
   { name: 'inspect_frame', description: 'Request a fresh camera frame to answer a specific question. Do not infer that an older view is current.',
     parameters: { type: 'OBJECT', properties: { question: { type: 'STRING' } }, required: ['question'] } },
-  { name: 'lookup_training_reference', description: 'Look up CPR/AED reference facts for adult lay-rescuer compression-only manikin practice. Wait for the result before factual guidance; never invent missing or out-of-scope guidance. References do not verify learner performance.',
+  { name: 'lookup_training_reference', description: 'Required before answering every learner question about CPR, AED use or refresher training, including topics already covered by seeded facts or previous answers. Search the question, wait for the result, then answer briefly from the returned facts and identify the source. Never invent missing or out-of-scope guidance. References do not verify learner performance.',
     parameters: { type: 'OBJECT', properties: { query: { type: 'STRING', minLength: 1, maxLength: 1200 },
       limit: { type: 'INTEGER', minimum: 1, maximum: 5 } }, required: ['query'] } },
 ];

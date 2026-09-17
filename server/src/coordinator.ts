@@ -20,7 +20,7 @@ const active = (s: Snapshot) => ['starting','active','reconnecting'].includes(s.
 const lessonActions = ['start','continue','next','back','repeat','ready','skip_demo','skip_placement','pause','resume','finish_practice','restart','replay_video'] as const;
 const movieActive = (s:Snapshot) => !!s.demonstration && s.demonstration.status !== 'cueing';
 const lessonNeedsCamera = (s:Snapshot) => !!s.lesson && !s.lesson.scriptedStage && s.lesson.status==='active' && (s.lesson.phase==='placement'||s.lesson.phase==='practice'&&!!s.lesson.needsPlacementCheck);
-const COACH_PROMPT_VERSION = 'coach-v11-practice-flow';
+const COACH_PROMPT_VERSION = 'coach-v12-reference-questions';
 const TUTOR_WELCOME = 'I’m your AI training coach. What would you like to work on, Marine?';
 const PLACEMENT_READY_CUE = 'Good, that’s the right spot. Begin a short practice round when ready. Let me know when you’ve finished.';
 const cprRequested = (text:string) => /\b(?:CPR|cardiopulmonary resuscitation)\b/i.test(text)&&/\b(?:pull up|bring up|start|begin|open|show|teach|learn|practi[cs]e|train|training|walk me through)\b/i.test(text)&&!/\b(?:not|never|don[’']?t|if|when|what|why|explain|define|emergency)\b/i.test(text);
@@ -226,7 +226,7 @@ No lesson is active. Wait for the learner's topic after the application-requeste
   private lessonInstructions(s:Snapshot) {
     const facts=this.knowledge.lessonSeed()?.facts.filter(fact=>['hands_only','hand_location','position','depth','rate','recoil','feedback'].includes(fact.id)).map(({id,text})=>({id,text}))??[];
     return `${COACH_PROMPT}
-Active course: adult compression-only CPR practice on a manikin. Follow the authoritative page and its exact scheduled narration; keep questions on that page. The supplied facts ground routine instruction without a spoken citation. Look up additional facts or attribution when needed.
+Active course: adult compression-only CPR practice on a manikin. Follow the authoritative page and its exact scheduled narration; questions keep the current page. Seeded facts ground scheduled narration; learner questions require a fresh reference lookup.
 Use lesson_action next for normal progression, showing the demonstration, skipping its remainder, readiness to practise, or finishing practice. During compression practice, “I’m finished for now” means next to the recap; do not ask to end the session. It advances once according to the current page and never verifies a skill. play_training_video is only a requested reference replay, which returns to the current step. ${s.lesson?.scriptedStage?'This is an explicitly selected scripted demonstration. No camera assessment runs. First readiness starts the planned correction; a new readiness confirmation advances to practice. Follow the authored simulated pages; never claim to see or verify learner technique.':'Only confirmed application placement findings authorize spoken corrections and verified progression; never judge placement from the conversation. Uncertain checks retry silently; never ask the learner to adjust their head or camera.'} End coaching only on an explicit request or a fresh yes to your immediately preceding end-session question.
 Quoted CPR facts: ${JSON.stringify(facts)}
 Current presentation: ${JSON.stringify(s.lesson?lessonPresentation(s.lesson):null)}

@@ -196,11 +196,11 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             diagnostic("session.created", "session")
             activeStage = "camera"
             // Establish the camera transport before Bluetooth voice starts using the link.
-            try { device.start(config.device, withCamera = !config.cprLesson || continuousCamera) }
-            catch (error: CameraCaptureFailure) {
-                if (config.device != "meta_display" || error.cameraError != "VideoStartTimeout") throw error
+            startCameraWithRecovery(start = { device.start(config.device, withCamera = !config.cprLesson || continuousCamera) }) { error ->
+                if (config.device != "meta_display") throw error
                 val recovered = device.recoverVideo { attempt ->
                     diagnostic("reconnect.attempt", "camera", "warning", "retrying", json("attempt" to attempt, "cameraError" to error.cameraError))
+                    _state.update { it.copy(liveMessage = "Reconnecting the glasses camera… attempt $attempt of 3. Keep the glasses on.") }
                 }
                 if (recovered == VideoRecovery.RECOVERED) diagnostic("reconnect.recovered", "camera", recovery = "recovered")
                 else if (continuousCamera) device.start(config.device, withCamera = false)

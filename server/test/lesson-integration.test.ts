@@ -187,7 +187,7 @@ test('CPR lesson starts with seeded facts and a durable intro; stale commands an
   assert.equal(h.state().hud.lessonPage!.id,'cpr-opening');
   assert.doesNotMatch(introduction,/choose Continue|read the short reference/);
   assert.equal(h.events()[0].payload.coachPrompt,h.instances[0].options?.instructions);
-  assert.equal(h.events()[0].payload.promptVersion,'coach-v11-practice-flow');
+  assert.equal(h.events()[0].payload.promptVersion,'coach-v12-reference-questions');
   assert.equal(h.state().hud.checklist?.length, 2);
   const initial = structuredClone(h.state().lesson);
   assert.throws(() => h.action('continue', 0), /changed|revision|stale/i);

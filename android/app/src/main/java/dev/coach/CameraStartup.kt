@@ -6,6 +6,14 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
+internal suspend fun startCameraWithRecovery(start: suspend () -> Unit, recover: suspend (CameraCaptureFailure) -> Unit) {
+    try { start() }
+    catch (error: CameraCaptureFailure) {
+        if (error.cameraError !in setOf("VideoStartTimeout", "VideoStreamFailed", "DeviceStartTimeout", "DeviceDisconnected")) throw error
+        recover(error)
+    }
+}
+
 // Watch before start(), and keep watching until the first frame arrives.
 internal suspend fun awaitCameraStartup(states: Flow<StreamState>, errors: Flow<StreamError>,
     firstFrame: suspend (Long) -> Unit = {}, start: suspend () -> Unit) = coroutineScope {

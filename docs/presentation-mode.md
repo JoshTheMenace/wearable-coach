@@ -43,6 +43,14 @@ Uncertain placement checks retry silently on one stable card. They do not reques
 
 During compressions, “I'm finished for now” advances once to the recap and keeps coaching connected. This also applies in presentation mode. The completion guard accepts that phrasing even if the model mistakenly requests session end. Validation: 342 server/web tests and 57 Android tests passed; a real Gemini Live test with the phrase injected as text opened and narrated the recap without an end-session question.
 
+## Camera startup and reference questions
+
+Camera startup retries transient stream failures, device-start timeouts and disconnects within the same coaching session. Previously only `VideoStartTimeout` entered recovery; `VideoStreamFailed` ended startup and required another Start tap. Recovery makes at most three attempts and rebuilds the device session immediately after a failed or timed-out stream. Permission and registration errors still require user action; ending cancels pending recovery.
+
+The final S21/glasses build reached the laptop camera preview in 5.3, 4.7 and 4.5 seconds across three consecutive single-tap starts. An earlier recovery check reproduced a stale camera service and recovered automatically; it motivated rebuilding directly after timeout rather than spending another attempt on that service. These checks do not establish that every future startup will meet that timing. All 342 server/web tests and 59 Android tests passed.
+
+Every learner CPR/AED or refresher-training question requests a fresh `lookup_training_reference`, even for seeded facts. Scheduled lesson narration uses its prepared content. Answers name the source and omit generic professional-status or medical-advice disclaimers; specific reference gaps and real-emergency handling remain. A Gemini Live check of AED no-shock guidance, rescuer changes, refresher practice and hand placement used four fresh lookups without explicit lookup requests or changing the practice page.
+
 ## Implementation
 
 - `Presentation.tsx` discovers the active native session, follows its events, caches checked lesson assets, and provides sound/full-screen controls. No session IDs or tokens need to be entered.

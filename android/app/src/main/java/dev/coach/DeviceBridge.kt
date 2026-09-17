@@ -182,7 +182,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     suspend fun recoverVideo(withCamera: Boolean = true, restoreCameraDisplay: Boolean = true, onAttempt: (Int) -> Unit): VideoRecovery {
         if (mode != "meta_display") return VideoRecovery.FAILED
         videoFrames.reset()
-        val reuseExistingSession = !withCamera || !sessionUsedForVideo
+        val reuseExistingSession = (!withCamera || !sessionUsedForVideo) && videoError !in setOf("VideoStreamFailed", "VideoStartTimeout")
         var rebuilt = false
         try {
             val result = recoverCameraConnection(reuseExistingSession = reuseExistingSession, attempt = { reuseSession, attempt ->

@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                                 null -> "Coach connected · checking glasses display…"
                             }
                             ready -> "Coach connected · ${state.device}"
-                            active -> "Connecting your coach and glasses…"
+                            active -> if (state.status == "starting" && state.liveMessage.isNotBlank()) state.liveMessage else "Connecting your coach and glasses…"
                             else -> "Start here, then learn and practice in your glasses."
                         }, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
                         if (banner.isNotBlank()) Text(banner, color = MaterialTheme.colorScheme.tertiary)
