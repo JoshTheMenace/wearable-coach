@@ -187,7 +187,7 @@ test('CPR lesson starts with seeded facts and a durable intro; stale commands an
   assert.equal(h.state().hud.lessonPage!.id,'cpr-opening');
   assert.doesNotMatch(introduction,/choose Continue|read the short reference/);
   assert.equal(h.events()[0].payload.coachPrompt,h.instances[0].options?.instructions);
-  assert.equal(h.events()[0].payload.promptVersion,'coach-v10-course-navigation');
+  assert.equal(h.events()[0].payload.promptVersion,'coach-v11-practice-flow');
   assert.equal(h.state().hud.checklist?.length, 2);
   const initial = structuredClone(h.state().lesson);
   assert.throws(() => h.action('continue', 0), /changed|revision|stale/i);
@@ -1141,7 +1141,7 @@ test('a recheck does not leak a single provisional negative direction to the spe
 });
 
 
-for(const action of ['next','end_session'])for(const text of ["I've finished the practice.","I'm done with the practice.",'I finished this round.','We have finished compressions.'])
+for(const action of ['next','end_session'])for(const text of ["I've finished the practice.","I'm done with the practice.",'I finished this round.','We have finished compressions.',"Okay, I'm finished for now.","I'm finished for now with the compressions.","I'm done with chest compressions for now."])
   test(`${action} maps fresh completion “${text}” to the scripted recap without ending coaching`,async t=>{
     const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement();h.action('ready');
     const instance=h.instances[0];
@@ -1151,6 +1151,24 @@ for(const action of ['next','end_session'])for(const text of ["I've finished the
     assert.equal(h.state().lesson!.completed.at(-1)!.evidence,'scripted_demo');
     assert.ok(!h.events().some(event=>event.type==='session.ending'));
   });
+
+test('changing visibility retries silently without interrupting, changing cards, or approving placement',async t=>{
+  const h=await setup(t);h.enterPlacement();
+  const instance=h.instances[0],spoken=instance.contexts.filter(context=>context.spoken).length;
+  let hud:number|undefined;
+  for(const visibility of [{manikinVisible:false},{landmarksVisible:false},{},{manikinVisible:false}]){
+    await h.frame();h.requests.at(-1)!.resolve({...correct,placement:'unknown',...visibility});await settle();
+    assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().lesson!.correctStreak,0);
+    assert.equal(h.state().hud.lessonPage!.id,'cpr-placement-check');
+    hud??=h.state().hudRevision;assert.equal(h.state().hudRevision,hud);
+    assert.equal(instance.contexts.filter(context=>context.spoken).length,spoken);
+    assert.equal(h.events().filter(event=>event.type==='lesson.cue').length,0);
+    h.advance();
+  }
+  for(let i=0;i<2;i++){await h.frame();h.requests.at(-1)!.resolve(correct);await settle();h.advance();}
+  assert.equal(h.state().lesson!.phase,'practice');
+  assert.equal(h.events().filter(event=>event.type==='lesson.cue').length,1);
+});
 
 test('practice completion objects still reject negation, questions, other activities, other people and past or stale completion',async t=>{
   const h=await setup(t,{practiceMode:'scripted_demo'});h.enterPlacement();h.action('ready');
@@ -1174,13 +1192,13 @@ test('scripted presentation uses the ordinary learner welcome while retaining it
   assert.equal((h.events().find(event=>event.type==='session.created')!.payload.config as SessionConfig).practiceMode,'scripted_demo');
 });
 
-for(const action of ['next','end_session'])test(`fresh spoken “finish” opens the practice recap once through ${action}`,async t=>{
+for(const action of ['next','end_session'])for(const text of ['finish',"Okay, I'm finished for now.","I'm finished for now with the compressions."])test(`fresh spoken “${text}” opens the practice recap once through ${action}`,async t=>{
   const h=await setup(t);h.enterPlacement();
   for(let i=0;i<2;i++){await h.frame();h.requests.at(-1)!.resolve(correct);await settle();h.advance();}
   assert.equal(h.state().lesson!.phase,'practice');
   const instance=h.instances[0],call=async()=>{instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action}});await settle();return instance.results.at(-1)!.result;};
   instance.callbacks.event('provider.utterance_complete',{});
-  instance.callbacks.event('transcript.fragment',{speaker:'user',text:'finish'});
+  instance.callbacks.event('transcript.fragment',{speaker:'user',text});
   assert.equal((await call()).action,'finish_practice');
   assert.equal(h.state().lesson!.phase,'complete');assert.equal(h.state().status,'active');
   assert.equal(h.state().lesson!.completed.at(-1)!.evidence,'learner_confirmed');

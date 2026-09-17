@@ -29,10 +29,12 @@ test('narration timing measures first provider PCM once after readiness, indepen
   now+=110;providers[0].audio(Buffer.alloc(640));now+=50;providers[0].audio(Buffer.alloc(1280));
   assert.equal(timings().length,1);
   assert.deepEqual(timings()[0].payload,{narrationId:requested.payload.narrationId,pageId:'cpr-opening',elapsedMs:123,bytes:640,measurementBasis:'provider_pcm_received',heard:false});
+  const visibleRevision=state().hudRevision;
   coordinator.command(id,{schemaVersion:1,sessionId:id,generation:state().generation,messageId:randomUUID(),commandId:randomUUID(),type:'lesson_action',payload:{action:'repeat'}});
-  providers[0].audio(Buffer.alloc(640));assert.equal(timings().length,1);
-  coordinator.report(id,state().generation,randomUUID(),'hud.receipt',{hudRevision:state().hudRevision,rendererInstanceId:'timing-fixture',target:'glasses',status:'sdk_submitted'});
+  assert.equal(state().hudRevision,visibleRevision,'Repeating the same visible card reuses its display receipt');
   now+=75;providers[0].audio(Buffer.alloc(640));assert.equal(timings().length,2);assert.equal(timings()[1].payload.elapsedMs,75);
+  coordinator.report(id,state().generation,randomUUID(),'hud.receipt',{hudRevision:state().hudRevision,rendererInstanceId:'timing-fixture',target:'glasses',status:'sdk_submitted'});
+  providers[0].audio(Buffer.alloc(640));assert.equal(timings().length,2);
   assert.notEqual(timings()[1].payload.narrationId,timings()[0].payload.narrationId);
   coordinator.reconnect(id,state().generation,randomUUID());await settle();
   providers[0].audio(Buffer.alloc(640));providers[1].audio(Buffer.alloc(640));assert.equal(timings().length,2);

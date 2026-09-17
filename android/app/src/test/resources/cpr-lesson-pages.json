@@ -127,27 +127,27 @@
     "hint": "Say “Pause” or “Show placement again”"
   },
   {
-    "id": "cpr-position-check",
+    "id": "cpr-placement-check",
     "template": "practice",
     "chapter": "PRACTISE · PLACEMENT CHECK",
-    "title": "Checking your position",
-    "body": "Hold your hands still for another check.",
+    "title": "Hold your starting position",
+    "body": "I’m checking the hand contact point before practice.",
     "hint": "Say “Pause” or “Show placement again”"
   },
   {
-    "id": "cpr-camera-check",
+    "id": "cpr-placement-check",
     "template": "practice",
     "chapter": "PRACTISE · PLACEMENT CHECK",
-    "title": "Show the hand contact point",
-    "body": "Tilt your view slightly to show where your lower palm meets the chest.",
+    "title": "Hold your starting position",
+    "body": "I’m checking the hand contact point before practice.",
     "hint": "Say “Pause” or “Show placement again”"
   },
   {
-    "id": "cpr-camera-check",
+    "id": "cpr-placement-check",
     "template": "practice",
     "chapter": "PRACTISE · PLACEMENT CHECK",
-    "title": "Show the hand contact point",
-    "body": "Look down so the manikin’s chest is in view.",
+    "title": "Hold your starting position",
+    "body": "I’m checking the hand contact point before practice.",
     "hint": "Say “Pause” or “Show placement again”"
   },
   {

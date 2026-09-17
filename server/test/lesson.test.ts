@@ -152,31 +152,31 @@ test('stale, future and duplicate observations are ignored and large gaps restar
   const afterGap=applyLessonObservation(lesson,observation(10000),10000);assert.equal(afterGap.advanced,false);assert.equal(afterGap.lesson.correctStreak,1);
 });
 
-test('occluded views replace directional advice once while preserving unresolved correction evidence',()=>{
+test('occluded views clear stale advice silently while preserving unresolved correction evidence',()=>{
   const first=applyLessonObservation(placement(),observation(4000,{placement:'unknown',landmarksVisible:false}),4000);
-  assert.match(first.feedback!,/Tilt your view/);
+  assert.equal(first.feedback,undefined);
   assert.equal(applyLessonObservation(first.lesson,observation(5000,{placement:'unknown',landmarksVisible:false}),5000).feedback,undefined);
   const low=confirmedNegative(first.lesson,6000);
   const obscured=applyLessonObservation(low.lesson,observation(7000,{placement:'unknown',landmarksVisible:false}),7000);
-  assert.match(obscured.feedback!,/Tilt your view/);assert.doesNotMatch(obscured.lesson.feedback!,/Move.*up/);
+  assert.equal(obscured.feedback,undefined);assert.equal(obscured.lesson.feedback,undefined);
   assert.deepEqual(obscured.lesson.pendingCorrection,low.lesson.pendingCorrection);
-  assert.equal(lessonHud(obscured.lesson).lessonPage!.id,'cpr-camera-check');
+  assert.equal(lessonHud(obscured.lesson).lessonPage!.id,'cpr-placement-check');
   assert.doesNotMatch(lessonHud(obscured.lesson).card!.body,/Move.*up/);
   assert.equal(applyLessonObservation(obscured.lesson,observation(8000,{placement:'unknown',landmarksVisible:false}),8000).feedback,undefined);
 });
 
-test('unknown with visible landmarks asks for another check without falsely claiming the scene is hidden',()=>{
+test('changing visibility stays silent and never substitutes for placement evidence',()=>{
   const initial=applyLessonObservation(placement(),observation(4000,{placement:'unknown'}),4000);
-  assert.equal(initial.feedback,'Let me check that position.');
-  assert.equal(lessonHud(initial.lesson).lessonPage!.id,'cpr-position-check');
+  assert.equal(initial.feedback,undefined);
+  assert.equal(lessonHud(initial.lesson).lessonPage!.id,'cpr-placement-check');
   assert.doesNotMatch(lessonPresentation(initial.lesson).spoken,/view|see|look|tilt/i);
   assert.equal(applyLessonObservation(initial.lesson,observation(5000,{placement:'unknown'}),5000).feedback,undefined);
   const noManikin=applyLessonObservation(initial.lesson,observation(5000,{placement:'unknown',manikinVisible:false}),5000);
-  assert.match(noManikin.feedback!,/Look down/);
+  assert.equal(noManikin.feedback,undefined);
   const occluded=applyLessonObservation(noManikin.lesson,observation(6000,{placement:'unknown',landmarksVisible:false}),6000);
-  assert.match(occluded.feedback!,/Tilt your view/);
+  assert.equal(occluded.feedback,undefined);
   const visible=applyLessonObservation(occluded.lesson,observation(7000,{placement:'correct',confidence:0.8}),7000);
-  assert.equal(visible.lesson.lastObservation!.placement,'unknown');assert.equal(visible.feedback,'Let me check that position.');
+  assert.equal(visible.lesson.lastObservation!.placement,'unknown');assert.equal(visible.feedback,undefined);
   assert.equal(visible.lesson.correctStreak,0);assert.equal(visible.advanced,false);
 });
 
@@ -216,7 +216,7 @@ test('directional advice follows the latest evidence while its correction histor
   for(const [at,placement] of [[7000,'unknown'],[20000,'too_low'],[40000,'too_low']] as const){
     const next=applyLessonObservation(lesson,observation(at,{placement}),at);
     if(placement==='unknown'){
-      assert.equal(next.feedback,'Let me check that position.');assert.equal(lessonHud(next.lesson).lessonPage!.id,'cpr-position-check');
+      assert.equal(next.feedback,undefined);assert.equal(lessonHud(next.lesson).lessonPage!.id,'cpr-placement-check');
     }else{
       assert.equal(next.feedback,undefined);assert.equal(next.lesson.feedback,undefined);assert.equal(lessonHud(next.lesson).lessonPage!.id,'cpr-placement-check');
     }

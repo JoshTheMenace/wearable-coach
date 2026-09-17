@@ -37,6 +37,12 @@ Both the overview and hand-placement video mute the microphone, including their 
 
 Keep one enabled presentation window open. Closing it during a video cancels that video and restores the lesson. Reloading requires another Enable click. If clips cannot load, the page offers Reload video; the server refuses playback until the presentation is ready.
 
+## Practice flow
+
+Uncertain placement checks retry silently on one stable card. They do not request head or camera adjustments, approve placement, or discard unresolved correction evidence. Two supported checks are still required before progressing. Identical cards reuse their display receipt instead of being resubmitted on every observation.
+
+During compressions, “I'm finished for now” advances once to the recap and keeps coaching connected. This also applies in presentation mode. The completion guard accepts that phrasing even if the model mistakenly requests session end. Validation: 342 server/web tests and 57 Android tests passed; a real Gemini Live test with the phrase injected as text opened and narrated the recap without an end-session question.
+
 ## Implementation
 
 - `Presentation.tsx` discovers the active native session, follows its events, caches checked lesson assets, and provides sound/full-screen controls. No session IDs or tokens need to be entered.

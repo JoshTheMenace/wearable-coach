@@ -1,4 +1,4 @@
-import type { LessonObservation, LessonPage, LessonState } from '../../contracts/index.ts';
+import type { LessonPage, LessonState } from '../../contracts/index.ts';
 
 export type LessonPresentation = { page:LessonPage; spoken:string; sourceFactIds:string[] };
 export const teachingPageOrder = ['opening','hand-placement','compression-pattern'] as const;
@@ -24,9 +24,6 @@ export const lessonTeachingPages:Record<typeof teachingPageOrder[number],LessonP
 };
 export const placementCorrection='Pause your practice. Your hands appear too low. Move the heel of your lower hand up onto the lower half of the breastbone.';
 export const offTargetCorrection='Pause for a moment. Set the firm base of your lower palm on the lower half of the breastbone, in the centre of the chest.';
-export function placementUncertainty(observation:LessonObservation):string {
-  return !observation.manikinVisible?'Look down so the manikin’s chest is in view.':!observation.landmarksVisible?'Tilt your view slightly so I can see where your lower palm meets the chest.':'Let me check that position.';
-}
 
 function presentation(page:LessonPage,spoken:string,sourceFactIds:string[]=[]):LessonPresentation {return {page,spoken,sourceFactIds};}
 export function lessonPresentation(lesson:LessonState):LessonPresentation {
@@ -66,10 +63,6 @@ export function lessonPresentation(lesson:LessonState):LessonPresentation {
   if(lesson.needsPlacementCheck&&lesson.lastClip==='hand-placement'&&!lesson.lastObservation)return presentation({id:'cpr-recheck',template:'practice',chapter:'PRACTISE · RECHECK',title:'Set your hands again',body:'Hold your starting position while I check a fresh view.',hint:practiceHint},'Now set your hands on the manikin again. I’ll check the position before you continue.',['hand_location']);
   if(lesson.feedback&&lesson.pendingCorrection&&lesson.lastObservation?.placement==='too_low')return presentation({id:'cpr-correction',template:'practice',chapter:'PRACTISE · HAND POSITION',title:'Move your hands up',body:'Move the lower hand’s heel onto the lower half of the breastbone.',support:{body:'Hold there for a clear placement check.'},hint:practiceHint},placementCorrection,['hand_location']);
   if(lesson.feedback&&lesson.pendingCorrection&&lesson.lastObservation?.placement==='off_target')return presentation({id:'cpr-off-target',template:'practice',chapter:'PRACTISE · HAND POSITION',title:'Find the hand position',body:'Set the base of your lower palm on the lower half of the breastbone.',support:{body:'Hold there while I check again.'},hint:practiceHint},offTargetCorrection,['hand_location']);
-  if(checking&&lesson.lastObservation?.placement==='unknown'){
-    const observation=lesson.lastObservation,visible=observation.manikinVisible&&observation.landmarksVisible;
-    return presentation({id:visible?'cpr-position-check':'cpr-camera-check',template:'practice',chapter:'PRACTISE · PLACEMENT CHECK',title:visible?'Checking your position':'Show the hand contact point',body:visible?'Hold your hands still for another check.':observation.manikinVisible?'Tilt your view slightly to show where your lower palm meets the chest.':'Look down so the manikin’s chest is in view.',hint:practiceHint},placementUncertainty(observation));
-  }
   if(checking)return presentation({id:'cpr-placement-check',template:'practice',chapter:'PRACTISE · PLACEMENT CHECK',title:'Hold your starting position',body:'I’m checking the hand contact point before practice.',hint:practiceHint},'Hold your hands in place while I check the contact point.',['hand_location']);
   return presentation({id:'cpr-practice',template:'practice',chapter:'PRACTISE · COMPRESSIONS',title:'Practise the compression pattern',body:'Aim for 100–120 compressions/min.',support:{body:lesson.completed.find(item=>item.step==='placement')?.evidence==='learner_confirmed'&&!lesson.placementEvidence?'Placement not verified.':'This is a target, not a measured rate.'},hint:practiceHint},'Practise for a short round. Let me know when you’ve finished.',['rate']);
 }

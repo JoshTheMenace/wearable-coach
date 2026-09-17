@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Hud, LessonState, LessonAction as Action } from '../../contracts/index.ts';
-import { lessonPresentation, offTargetCorrection, placementCorrection, placementUncertainty, teachingPageOrder } from './lesson-content.ts';
+import { lessonPresentation, offTargetCorrection, placementCorrection, teachingPageOrder } from './lesson-content.ts';
 
 export type LessonAction = Exclude<Action,'start'>;
 export type LessonObservation = NonNullable<LessonState['lastObservation']>;
@@ -131,13 +131,7 @@ export function applyLessonObservation(current:LessonState,observation:LessonObs
       lesson.placementAdjustments=[...(lesson.placementAdjustments??[]),{detectedAt:lesson.pendingCorrection.at,correctedAt:observation.at,cameraSource:observation.cameraSource,evidence}];
     }
     delete lesson.pendingCorrection;delete lesson.feedback;lesson.needsPlacementCheck=false;
-  }else{
-    if(placement==='unknown'){
-      lesson.feedback=placementUncertainty(observation);
-      if(current.feedback!==lesson.feedback&&(current.phase==='placement'||current.needsPlacementCheck))feedback=lesson.feedback;
-    }
-    else delete lesson.feedback;
-  }
+  }else delete lesson.feedback;
   const advanced=lesson.phase==='placement'&&lesson.correctStreak>=2;
   if(advanced){complete(lesson,'placement',lesson.placementEvidence!.evidence,observation.at);lesson.phase='practice';lesson.revision++;}
   return {lesson,accepted:true,advanced,...(feedback&&{feedback})};
