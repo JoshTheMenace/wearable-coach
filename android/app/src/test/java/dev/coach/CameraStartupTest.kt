@@ -10,6 +10,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CameraStartupTest {
+    @Test fun frameAfterTransportHandshakeDoesNotTriggerAPrematureRebuild() = runBlocking {
+        val frames = VideoFrames()
+        launch { delay(9_000); frames.receive(java.nio.ByteBuffer.wrap(ByteArray(6)), 2, 2, 1, 1) }
+        awaitCameraStartup(MutableStateFlow(StreamState.STREAMING), MutableSharedFlow(), firstFrame = { timeout ->
+            assertNotNull("The transport retry must be allowed to deliver its first frame", frames.next(0, timeout))
+        }) {}
+    }
     @Test fun initialStoppedIsAllowedAndSuccessWaitsForAFrame() = runBlocking {
         val states = MutableStateFlow(StreamState.STOPPED)
         val errors = MutableSharedFlow<StreamError>()

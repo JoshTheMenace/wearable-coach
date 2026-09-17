@@ -40,6 +40,20 @@ test('GPT Live rejects video mode without mutating state',async t=>{
   assert.equal(h.snapshot().liveVideo,false);
 });
 
+test('spectator preview stays ephemeral and never reaches the live model',async t=>{
+  const h=await setup(t);
+  const preview=(meta:Record<string,unknown>={},bytes=pixels)=>h.frame({preview:true,liveVideo:false,cameraSource:'meta_display',...meta},bytes);
+  assert.equal((await preview()).status,'previewed');
+  assert.deepEqual(h.coordinator.cameraPreview(h.id)?.bytes,pixels);
+  h.advance(250);await preview({liveVideo:true}); // A preview must not enable general Gemini vision.
+  assert.equal(h.videos.length,0);assert.equal(h.store.assets(h.id).length,0);
+  assert.equal(h.snapshot().latestFrame,undefined);
+  await assert.rejects(preview({generation:0}),/Stale connection/);
+  await assert.rejects(preview({},Buffer.concat([pixels,Buffer.alloc(256*1024)])),/size/);
+  h.advance(2001);assert.equal(h.coordinator.cameraPreview(h.id),undefined);
+  await preview();await h.coordinator.end(h.id);assert.equal(h.coordinator.cameraPreview(h.id),undefined);
+});
+
 test('sampled video is ephemeral, capped at one FPS, and telemetered without per-frame assets',async t=>{
   const h=await setup(t);h.command('set_live_video',{enabled:true});
   const first=await h.frame();assert.equal(first.status,'submitted');

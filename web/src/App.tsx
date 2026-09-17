@@ -4,6 +4,7 @@ import { GlassesSimulator } from './GlassesSimulator.tsx';
 import { KnowledgePanel } from './KnowledgePanel.tsx';
 import { CprLesson, LessonPageView } from './CprLesson.tsx';
 import { useLessonMedia } from './lesson-media.ts';
+import { LiveCameraPreview } from './LiveCameraPreview.tsx';
 
 type Json = Record<string, any>;
 type Provider = { id: string; model: string; available: boolean; reason?: string; inputRate: number; outputRate: number };
@@ -515,6 +516,7 @@ export function App() {
         send={send} report={reportDevice} uploadFrame={uploadFrame} onCaptureReady={captureReady} flushAudio={flushAudio}
         lessonClips={media.clips} loadingLessonMedia={media.loading} retryLessonMedia={media.retry}
       />}
+      {tutorMode && snapshot?.config.device==='meta_display' && <LiveCameraPreview sessionId={session.sessionId} token={session.token} active={!terminal(snapshot.status)} assessing={!!snapshot.liveVideo&&!!snapshot.lesson?.ready&&!snapshot.demonstration} playingVideo={!!snapshot.demonstration&&snapshot.demonstration.status!=='cueing'} />}
       {tutorMode && <div className="lesson-conversation">{conversation}</div>}
       <details className="lesson-lab-details" open={tutorMode ? undefined : true}><summary hidden={!tutorMode}>References, activity, and device details</summary><div>
       {!session.readOnly && <KnowledgePanel key={`knowledge-${session.sessionId}`} sessionId={session.sessionId} token={session.token} active={snapshot?.status === 'active' && !snapshot?.demonstration} events={events} />}

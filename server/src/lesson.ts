@@ -109,7 +109,7 @@ export function applyLessonObservation(current:LessonState,observation:LessonObs
   }else if(lesson.correctStreak>=2){
     const evidence=/recorded|simulat|mock/.test(observation.cameraSource)?'simulated_observation':'visual_observation';
     lesson.placementEvidence={at:observation.at,cameraSource:observation.cameraSource,evidence};
-    if(current.phase==='practice'&&(current.needsPlacementCheck||current.pendingCorrection))feedback=current.pendingCorrection?'Your hands now appear on the target area. Try another short practice round.':'Your hands appear on the target area. Continue your practice when ready.';
+    if(current.phase==='practice'&&(current.needsPlacementCheck||current.pendingCorrection))feedback=current.pendingCorrection?'Good, that’s the right spot. Try another short practice round.':'Good, that’s the right spot. Continue your practice when ready.';
     if(lesson.pendingCorrection?.cameraSource===observation.cameraSource){
       lesson.placementAdjustments=[...(lesson.placementAdjustments??[]),{detectedAt:lesson.pendingCorrection.at,correctedAt:observation.at,cameraSource:observation.cameraSource,evidence}];
     }

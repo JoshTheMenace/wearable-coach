@@ -21,7 +21,7 @@ const movieActive = (s:Snapshot) => !!s.demonstration && s.demonstration.status 
 const lessonNeedsCamera = (s:Snapshot) => !!s.lesson && !s.lesson.scriptedStage && s.lesson.status==='active' && (s.lesson.phase==='placement'||s.lesson.phase==='practice'&&!!s.lesson.needsPlacementCheck);
 const COACH_PROMPT_VERSION = 'coach-v10-course-navigation';
 const TUTOR_WELCOME = 'I’m your AI training coach. What would you like to work on, Marine?';
-const PLACEMENT_READY_CUE = 'Your hands appear on the target area. Begin a short practice round when ready. Let me know when you’ve finished.';
+const PLACEMENT_READY_CUE = 'Good, that’s the right spot. Begin a short practice round when ready. Let me know when you’ve finished.';
 const cprRequested = (text:string) => /\b(?:CPR|cardiopulmonary resuscitation)\b/i.test(text)&&/\b(?:pull up|bring up|start|begin|open|show|teach|learn|practi[cs]e|train|training|walk me through)\b/i.test(text)&&!/\b(?:not|never|don[’']?t|if|when|what|why|explain|define|emergency)\b/i.test(text);
 const videoControls = ['pause','skip_demo','next','continue','replay_video','end_session'];
 const practiceFinished = (text:string) => /^finish[.!\s]*$/i.test(text)||!(/[?]|\b(not|never|yet|should|can|could|would|might|what|when|if|don[’']?t|isn[’']?t|aren[’']?t|haven[’']?t)\b/i.test(text))&&/(?:^|[.!]\s*)(?:(?:ok(?:ay)?|yes)[,.]?\s*)?(?:(?:i(?:[’']m| am| have|[’']ve)?|we(?:[’']re| are| have|[’']ve)?)\s+)?(?:(?:all|about)\s+)?(?:done|finished|complete(?:d)?|all set)(?:\s+(?:with\s+)?(?:(?:the|this|my)\s+)?(?:practi[cs]e|round|compressions))?[.!\s]*$/i.test(text);
@@ -46,6 +46,7 @@ export class Coordinator extends EventEmitter {
   private readonly tasks=new Set<Promise<unknown>>();
   private readonly displayNotices=new Map<string,{lastLossAt:number;lossSpoken:boolean}>();
   readonly transient = new Map<string,{bytes:Buffer; mime:string; at:number}>();
+  private readonly previews = new Map<string,{bytes:Buffer;mime:string;at:number;frameId:string;cameraSource:string;count:number;reportedAt:number;maxGapMs:number}>();
   private sweepTimer: NodeJS.Timeout;
   readonly knowledge: ReturnType<typeof createKnowledgeBase>;
   private readonly placementReferences: ReturnType<typeof loadPlacementReferences>;
@@ -610,7 +611,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   private displayNotice(s:Snapshot,available:boolean) {
     const rt=this.runtime.get(s.id);if(s.status!=='active'||!rt)return;
     const notice=this.displayNotices.get(s.id)??{lastLossAt:0,lossSpoken:false};
-    const restartingCamera=s.liveVideo&&s.lesson?.observerStatus==='waiting_for_camera';
+    const restartingCamera=s.device?.cameraRecovering===true||s.liveVideo&&s.lesson?.observerStatus==='waiting_for_camera';
     const spoken=!!rt.ready&&!!rt.lessonWelcomed&&!s.demonstration&&(available?notice.lossSpoken:!restartingCamera&&Date.now()-notice.lastLossAt>=60000);
     if(!available&&spoken)notice.lastLossAt=Date.now();
     notice.lossSpoken=!available&&spoken;this.displayNotices.set(s.id,notice);
@@ -650,7 +651,6 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   }
   async frame(id:string,frameId:string,bytes:Buffer,mime:string,meta:Record<string,unknown>) {
     const s=this.get(id);this.checkGeneration(s,z.number().int().parse(meta.generation));
-    if(s.demonstration||s.lesson?.status==='paused')throw new HttpError(409,'Camera input is suspended during demonstration playback or a paused lesson');
     if(bytes.length>2*1024*1024||bytes.length<8)throw new HttpError(413,'Frame outside size limits');
     if(mime!=='image/jpeg'&&mime!=='image/png')throw new HttpError(415,'Only JPEG/PNG frames supported');
     if(mime==='image/jpeg'&&(bytes[0]!==255||bytes[1]!==216)||mime==='image/png'&&bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')throw new HttpError(400,'Invalid image signature');
@@ -659,6 +659,19 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     const sourcePositionMs=meta.sourcePositionMs===undefined?undefined:z.number().finite().min(0).parse(meta.sourcePositionMs);
     if(cameraSource==='recorded_video'&&(meta.captureTimeBasis!=='recorded_media'||meta.capturedAt!==undefined||meta.clockUncertaintyMs!==undefined))throw new HttpError(400,'Recorded media must not claim real-world capture timing');
     meta={...meta,cameraSource,sourcePositionMs};
+    if(meta.preview===true){
+      if(bytes.length>256*1024)throw new HttpError(413,'Preview exceeds size limit');
+      if(meta.workId)throw new HttpError(400,'A preview cannot fulfill an inspection');
+      const now=Date.now(),age=z.number().finite().min(0).parse(meta.frameAgeMs),previous=this.previews.get(id);
+      if(age>2000||now-(previous?.at??0)<200)return{frameId,status:'dropped',reason:age>2000?'stale_frame':'frame_rate'};
+      if(!this.previews.has(id)&&this.previews.size>=64)this.previews.delete(this.previews.keys().next().value!);
+      const preview={bytes,mime,at:now,frameId,cameraSource,count:(previous?.count??0)+1,reportedAt:previous?.reportedAt??0,maxGapMs:Math.max(previous?.maxGapMs??0,previous?now-previous.at:0)};
+      this.previews.set(id,preview);
+      const assess=meta.liveVideo===true&&s.status==='active'&&s.liveVideo&&meta.liveVideoEpoch===s.liveVideoEpoch&&lessonNeedsCamera(s)&&s.lesson?.ready&&!s.demonstration;
+      if(now-preview.reportedAt>=10000){preview.reportedAt=now;this.mutate(id,(_,emit)=>emit('camera.preview.summary',{framesReceived:preview.count,lastFrameReceivedAt:now,maxGapMs:preview.maxGapMs,cameraSource,assessmentEnabled:!!assess,storage:'latest_frame_memory_only'}));}
+      return{frameId,status:'previewed',assessment:assess?this.videoFrame(s,frameId,bytes,mime,meta).status:'off'};
+    }
+    if(s.demonstration||s.lesson?.status==='paused')throw new HttpError(409,'Camera input is suspended during demonstration playback or a paused lesson');
     if(meta.liveVideo===true)return this.videoFrame(s,frameId,bytes,mime,meta);
     const digest=hash(bytes.toString('base64'));const previous=this.store.asset(id,frameId);
     if(previous){if(previous.hash!==digest)throw new HttpError(409,'Frame ID reused');return previous.frame;}
@@ -683,6 +696,10 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
       state.latestFrame=frame;emit('frame.captured',{...frame});if(current){current.frameId=frameId;current.status='running';this.store.work(id,current);emit('work.running',{workId:current.id});}
     });
     if(w)this.background(this.inspect(id,w.id,frame,bytes,mime));return frame;
+  }
+  cameraPreview(id:string){
+    const s=this.get(id),preview=this.previews.get(id);
+    return active(s)&&preview&&Date.now()-preview.at<=2000?preview:undefined;
   }
   private videoFrame(s:Snapshot,frameId:string,bytes:Buffer,mime:string,meta:Record<string,unknown>) {
     const rt=this.runtime.get(s.id),now=Date.now();
@@ -800,6 +817,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   }
   async end(id:string) {
     const s=this.get(id);if(!active(s))return;
+    this.previews.delete(id);
     this.displayNotices.delete(id);
     const rt=this.runtime.get(id);for(const abort of rt?.observers.values()??[])abort.abort();if(rt)for(const a of rt.aborts.values())a.abort();
     this.mutate(id,(state,emit)=>{if(state.liveVideoStats)emit('video.summary',{...state.liveVideoStats,liveVideoEpoch:state.liveVideoEpoch,reason:'session_ended'});if(state.demonstration){emit('demo.finished',{requestId:state.demonstration.requestId,reason:'session_ended',cameraResumeRequired:false});delete state.demonstration;}state.status='ending';if(state.lesson)state.lesson.observerStatus='idle';state.liveVideo=false;state.liveVideoEpoch=(state.liveVideoEpoch??0)+1;state.speechEpoch++;this.setHud(state,{},emit,undefined,true);for(const w of state.work.filter(pending))this.finishIn(state,w,'cancelled',{reason:'session_ended',applicationEffect:'not_applied',providerOutcomeKnown:false},emit);emit('session.ending',{});});

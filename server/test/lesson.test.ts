@@ -228,7 +228,7 @@ test('directional advice follows the latest evidence while its correction histor
   assert.equal(lessonHud(one.lesson).lessonPage!.id,'cpr-placement-check');assert.doesNotMatch(lessonPresentation(one.lesson).spoken,/Move.*up/);
   const two=applyLessonObservation(one.lesson,observation(42000),42000);
   assert.equal(two.lesson.feedback,undefined);assert.equal(two.lesson.pendingCorrection,undefined);
-  assert.match(two.feedback!,/now appear on the target/);
+  assert.match(two.feedback!,/Good, that’s the right spot/);
   assert.equal(applyLessonObservation(two.lesson,observation(42500),42500).feedback,undefined);
   assert.deepEqual(two.lesson.placementAdjustments,[{detectedAt:6000,correctedAt:42000,cameraSource:'meta_glasses',evidence:'visual_observation'}]);
   assert.ok(confirmedNegative(two.lesson,44000).feedback);
@@ -247,7 +247,7 @@ test('micro-replay preserves practice and its correction history but requires ne
   assert.equal(one.lesson.needsPlacementCheck,true);assert.equal(one.feedback,undefined);
   const two=applyLessonObservation(one.lesson,observation(14000),14000);
   assert.equal(two.lesson.needsPlacementCheck,false);assert.equal(two.lesson.placementAdjustments!.length,1);
-  assert.match(two.feedback!,/now appear on the target/);
+  assert.match(two.feedback!,/Good, that’s the right spot/);
   assert.equal(two.lesson.completed.length,corrected.completed.length);
   const bypass=lessonAction(ended,'skip_placement',13000);
   assert.match(lessonHud(lessonAction(bypass,'finish_practice',14000)).lessonPage!.body,/Placement not verified/);

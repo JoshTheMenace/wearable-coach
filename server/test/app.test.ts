@@ -36,6 +36,18 @@ test('native local setup needs no credential but cannot bypass session auth or a
   assert.equal((await fetch(lan.base+'/api/providers',{headers})).status,401);
 });
 
+test('fresh preview is readable by the session spectator and disappears when the session ends',async t=>{
+  const {app,request,create}=await setup(t),s=await create(),other=await create();
+  const path=`/sessions/${s.sessionId}/camera-preview`,bytes=Buffer.from('89504e470d0a1a0a00000000','hex');
+  assert.equal((await request(path,undefined,s.spectatorToken)).status,204);
+  await app.coordinator.frame(s.sessionId,randomUUID(),bytes,'image/png',{generation:1,preview:true,frameAgeMs:0,cameraSource:'mock'});
+  const response=await request(path,undefined,s.spectatorToken);assert.equal(response.status,200);
+  assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('x-camera-source'),'mock');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),bytes);
+  assert.equal((await request(path,undefined,other.spectatorToken)).status,401);
+  await app.coordinator.end(s.sessionId);assert.equal((await request(path,undefined,s.spectatorToken)).status,204);
+});
+
 test('local browser connects automatically while remote sites and LAN listeners cannot obtain access',async t=>{
   const {app,base,request}=await setup(t),headers={'x-coach-local':'1'};
   for(const origin of [undefined,base]){

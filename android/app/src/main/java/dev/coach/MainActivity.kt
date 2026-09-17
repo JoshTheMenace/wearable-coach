@@ -277,7 +277,8 @@ class MainActivity : ComponentActivity() {
                                         if (inspection.canRetry) OutlinedButton({ session?.command("inspect_frame", json("question" to inspection.question)) }, enabled = ready) { Text("Retry inspection") }
                                     }
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically) { Switch(state.preview, { session?.setPreview(it) }, enabled = ready && !state.liveVideo && state.demonstration.isEmpty()); Text("Sample preview ≤1 fps", Modifier.padding(start = 12.dp)) }
+                                if (cprLesson && device == "meta_display") Text("Camera preview streams to the laptop between lesson videos.")
+                                else Row(verticalAlignment = Alignment.CenterVertically) { Switch(state.preview, { session?.setPreview(it) }, enabled = ready && !state.liveVideo && state.demonstration.isEmpty()); Text("Sample preview ≤1 fps", Modifier.padding(start = 12.dp)) }
                                 state.frame?.let { bytes ->
                                     val bitmap = remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
                                     bitmap?.let { Image(it.asImageBitmap(), "Latest captured frame", Modifier.fillMaxWidth().heightIn(max = 250.dp)) }

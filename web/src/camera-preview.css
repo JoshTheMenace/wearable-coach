@@ -1,0 +1,7 @@
+.live-camera-preview{margin:20px 0;border:1px solid #354138;border-radius:18px;overflow:hidden;background:#101712;color:#f4f7ef}
+.live-camera-preview header,.live-camera-preview footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 20px}
+.live-camera-preview header div{display:grid;gap:4px}.live-camera-preview header span,.live-camera-preview footer{font-size:13px;color:#bec9bb}
+.live-camera-picture{display:flex;align-items:center;justify-content:center;height:min(52vh,540px);background:#050805}
+.live-camera-picture img{width:100%;height:100%;object-fit:contain}.live-camera-picture p{color:#bec9bb;padding:24px;text-align:center}
+.live-camera-preview:fullscreen{display:flex;flex-direction:column;border:0;border-radius:0;margin:0}.live-camera-preview:fullscreen .live-camera-picture{flex:1;height:auto;min-height:0}
+@media(max-width:600px){.live-camera-preview footer{align-items:flex-start;flex-direction:column;gap:6px}}

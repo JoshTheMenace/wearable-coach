@@ -138,10 +138,14 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
       if(route[3]==='frames'&&req.method==='POST'){
         const frameId=idSchema.parse(route[4]);const header=req.headers['x-frame-meta'];if(typeof header!=='string')throw new HttpError(400,'Missing frame metadata');
         const meta=JSON.parse(header),uploadStartedAt=Date.now();const bytes=await read(req,2*1024*1024);
-        if(meta.liveVideo===true&&typeof meta.frameAgeMs==='number')meta.frameAgeMs+=Date.now()-uploadStartedAt;
+        if((meta.liveVideo===true||meta.preview===true)&&typeof meta.frameAgeMs==='number')meta.frameAgeMs+=Date.now()-uploadStartedAt;
         const result=await coordinator.frame(id,frameId,bytes,String(req.headers['content-type']??''),meta);json(res,201,result);return;
       }
       if(route[3]==='assets'&&req.method==='GET'){const data=coordinator.assetBytes(id,idSchema.parse(route[4]));res.writeHead(200,{'content-type':data.mime,'cache-control':'no-store','x-content-type-options':'nosniff'});res.end(data.bytes);return;}
+      if(route[3]==='camera-preview'&&req.method==='GET'){
+        const frame=coordinator.cameraPreview(id);
+        res.writeHead(frame?200:204,{'cache-control':'no-store','x-content-type-options':'nosniff',...(frame?{'content-type':frame.mime,'x-frame-received-at':String(frame.at),'x-camera-source':frame.cameraSource}:{})});res.end(frame?.bytes);return;
+      }
       if(route[3]==='diagnostics'&&req.method==='GET'){coordinator.get(id);json(res,200,{reports:diagnostics.list({sessionId:id,limit:1000}),counts:diagnostics.counts({sessionId:id})});return;}
       if(route[3]==='export'&&req.method==='GET'){res.setHeader('content-disposition',`attachment; filename="coach-${id}.json"`);json(res,200,{...coordinator.export(id),diagnostics:diagnostics.list({sessionId:id,limit:1000}),diagnosticCounts:diagnostics.counts({sessionId:id}),diagnosticLimit:1000});return;}
       throw new HttpError(404,'Unknown endpoint');

@@ -330,10 +330,10 @@ test('verification during a recheck retains its correction-specific cue until th
   await h.frame();h.instances.at(-1)!.callbacks.event('transcript.fragment',{speaker:'user',text:'Is that better?'});
   h.requests.at(-1)!.resolve(correct);await settle();
   const held=h.events().filter(e=>e.type==='lesson.cue'&&e.payload.delivery==='hud_only').at(-1)!.payload.cue;
-  assert.match(String(held),/now appear.*Try another/);assert.equal(h.state().liveVideo,false);
+  assert.match(String(held),/Good, that’s the right spot.*Try another/);assert.equal(h.state().liveVideo,false);
   h.advance(2001);(h.coordinator as any).sweep();
   const delivered=h.events().filter(e=>e.type==='lesson.cue'&&e.payload.delivery==='requested').at(-1)!.payload.cue;
-  assert.equal(delivered,held);assert.match(h.instances.at(-1)!.contexts.at(-1)!.text,/now appear.*Try another/);
+  assert.equal(delivered,held);assert.match(h.instances.at(-1)!.contexts.at(-1)!.text,/Good, that’s the right spot.*Try another/);
 });
 
 test('verified practice stays camera-free through pause, resume and reconnect; a replay starts a fresh check',async t=>{
@@ -471,6 +471,17 @@ test('starting the practice camera keeps temporary display recovery silent',asyn
   assert.ok(!contexts.some(context=>context.spoken&&/glasses display connection/.test(context.text)));
   assert.ok(contexts.some(context=>!context.spoken&&/camera is restarting/.test(context.text)));
   assert.equal(h.state().lesson!.phase,'placement');
+});
+
+test('continuous preview crosses lesson and movie states but assessment only runs during ready placement',async t=>{
+  const h=await setup(t);h.advertise();
+  const preview=()=>h.frame({preview:true,liveVideo:true});
+  await preview();assert.equal(h.requests.length,0);
+  h.command('play_training_video',{clipId:'overview'});await preview();assert.equal(h.requests.length,0);
+  h.command('stop_demo',{requestId:h.state().demonstration!.requestId});await settle();h.enterPlacement(false);h.advance();await preview();assert.equal(h.requests.length,0);
+  h.action('ready');h.advance();await preview();assert.equal(h.requests.length,1);
+  h.action('pause');h.advance();await preview();assert.equal(h.requests.length,1);
+  assert.ok(h.coordinator.cameraPreview(h.id));
 });
 
 test('losing camera freshness replaces the old correction card with a waiting cue', async t => {

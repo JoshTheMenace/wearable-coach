@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
 // Watch before start(), and keep watching until the first frame arrives.
-internal suspend fun awaitCameraStartup(states: Flow<StreamState>, errors: Flow<StreamError>, startAndAwaitFrame: suspend () -> Unit) = coroutineScope {
+internal suspend fun awaitCameraStartup(states: Flow<StreamState>, errors: Flow<StreamError>,
+    firstFrame: suspend (Long) -> Unit = {}, start: suspend () -> Unit) = coroutineScope {
     val stateMonitor = launch(start = CoroutineStart.UNDISPATCHED) {
         var progressed = false
         states.collect { state ->
@@ -20,7 +21,8 @@ internal suspend fun awaitCameraStartup(states: Flow<StreamState>, errors: Flow<
         errors.first { it == StreamError.CRITICAL_STREAM_ERROR }
         throw CameraCaptureFailure("VideoStreamFailed")
     }
-    try { startAndAwaitFrame() }
+    // DAT can acknowledge STREAMING before its transport handshake and ~10s retry finish.
+    try { start(); firstFrame(20_000) }
     finally { stateMonitor.cancel(); errorMonitor.cancel() }
 }
 

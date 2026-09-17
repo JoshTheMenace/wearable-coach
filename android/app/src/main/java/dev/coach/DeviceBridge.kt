@@ -110,7 +110,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                     }.onFailure { error, _ -> report("Glasses display unavailable: ${error.description}; phone preview only") }
                 } finally { setDamBootstrap(false) }
                 if (!withCamera) {
-                    report("Meta display initialized; glasses display=$displayAvailable; camera deferred until practice")
+                    report("Meta display initialized; glasses display=$displayAvailable; camera deferred")
                     return
                 }
                 startMetaCamera(created, restoreCameraDisplay)
@@ -124,7 +124,8 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         videoMonitor?.cancel(); videoMonitor = null
         stream?.stop(); stream = null
         videoFrames = VideoFrames(); videoError = null
-        val added = active.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 24, compressVideo = false))
+        // The laptop samples a few frames per second; placement inference uses at most one.
+        val added = active.addStream(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 7, compressVideo = false))
             .fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
         stream = added
         val frames = videoFrames
@@ -158,16 +159,18 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             }
         }
         try {
-            awaitCameraStartup(added.state, added.errorStream) {
+            awaitCameraStartup(added.state, added.errorStream, firstFrame = { timeout ->
+                frames.next(SystemClock.elapsedRealtime(), timeout) ?: throw CameraCaptureFailure("VideoStartTimeout")
+            }) {
                 added.start().fold(onSuccess = { it }, onFailure = { error, _ -> error(error.description) })
                 withTimeoutOrNull(20_000) { added.state.first { it == StreamState.STREAMING } }
                     ?: throw CameraCaptureFailure("VideoStartTimeout")
-                frames.next(SystemClock.elapsedRealtime(), 8_000) ?: throw CameraCaptureFailure("VideoStartTimeout")
             }
             if (restoreCameraDisplay) restoreDisplay()
             report("Meta camera ready; glasses display=$displayAvailable; using new video frames, sensor clock unknown")
         } catch (error: Throwable) {
             if (stream === added) {
+                videoError = (error as? CameraCaptureFailure)?.cameraError ?: error.javaClass.simpleName
                 videoMonitor?.cancel(); videoMonitor = null; stream = null; frames.reset()
                 runCatching { added.stop() }
             }
@@ -276,15 +279,15 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         stopLessonVideo()
         check(canPlayLessonVideo) { "Glasses video display is unavailable" }
         stream?.let { camera ->
-            // DAT 0.8 stop closes this capability; recovery must create a fresh stream.
+            // Simultaneous capture/movie playback timed out in DAT 0.8 hardware tests.
             camera.stop()
             withTimeout(5_000) { camera.state.first { it == StreamState.CLOSED } }
             videoMonitor?.cancel(); videoMonitor = null; stream = null; videoFrames.reset()
-            report("Meta camera closed for lesson video; restoring display foreground")
+            report("Meta camera paused for lesson video; restoring display foreground")
             restoreDisplay()
         }
         if (!canPlayLessonVideo) {
-            report("Meta camera stop closed the display; reconnecting the display before video")
+            report("Meta display restore failed; reconnecting the display before video")
             check(recoverVideo(withCamera = false) { report("Meta video display recovery attempt $it") } == VideoRecovery.RECOVERED && canPlayLessonVideo) {
                 "Glasses display could not reconnect for video"
             }
@@ -305,7 +308,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             } }
         }
         try {
-            sessionUsedForVideo = true // Movie playback can retire the camera transport even before its first stream.
+            sessionUsedForVideo = true // Movie playback can retire the camera transport.
             target.sendContent { video(player = player) }.fold(onSuccess = {}, onFailure = { error, _ -> error(error.description) })
             if (demoPlayer === player) player.play()
         } catch (error: Throwable) {
@@ -362,6 +365,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     }
 
     fun cameraStats(): JSONObject = JSONObject().put("streamState", stream?.state?.value?.name ?: "unavailable")
+        .put("sessionState", session?.state?.value?.name ?: "unavailable")
         .put("framesReceived", videoFrames.receivedCount)
         .put("lastFrameAgeMs", videoFrames.current?.let { SystemClock.elapsedRealtime() - it.receivedAtMono } ?: JSONObject.NULL)
         .put("streamError", videoError ?: JSONObject.NULL)
