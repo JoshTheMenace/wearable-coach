@@ -187,7 +187,7 @@ test('CPR lesson starts with seeded facts and a durable intro; stale commands an
   assert.equal(h.state().hud.lessonPage!.id,'cpr-opening');
   assert.doesNotMatch(introduction,/choose Continue|read the short reference/);
   assert.equal(h.events()[0].payload.coachPrompt,h.instances[0].options?.instructions);
-  assert.equal(h.events()[0].payload.promptVersion,'coach-v14-spoken-intents');
+  assert.equal(h.events()[0].payload.promptVersion,'coach-v15-contextual-demo-readiness');
   assert.equal(h.state().hud.checklist?.length, 2);
   const initial = structuredClone(h.state().lesson);
   assert.throws(() => h.action('continue', 0), /changed|revision|stale/i);
@@ -1059,6 +1059,7 @@ test('scripted reference replay and reconnect preserve the correction without re
   h.command('play_training_video',{clipId:'hand-placement'});h.cue();
   h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();
   assert.equal(h.state().lesson!.scriptedStage,'correction');assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().liveVideo,false);
+  assert.ok(h.instances.at(-1)!.contexts.some(context=>!context.spoken&&/replay is finished.*call lesson_action next/.test(context.text)));
   assert.equal(narrationCount(),1);
   const generation=h.state().generation;h.coordinator.reconnect(h.id,generation,randomUUID());await settle();
   assert.equal(h.state().lesson!.scriptedStage,'correction');assert.equal(narrationCount(),1);
@@ -1068,7 +1069,7 @@ test('scripted reference replay and reconnect preserve the correction without re
   assert.equal(h.state().lesson!.phase,'practice');
 });
 
-for(const text of ['Okay, how about this?','How about now?','Is this correct?','Does this look right?','Okay. Is Is this right?','Is this Is this right?'])
+for(const text of ['Okay, how about this?','How about now?','Is this correct?','Does this look right?','Okay. Is Is this right?','Is this Is this right?',"Okay. Okay. How's this now?",'Okay, like, how about this?'])
   for(const name of ['lesson_action','play_training_video'])
     test(`demo placement recheck “${text}” continues once even when Gemini selects ${name}`,async t=>{
       const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
@@ -1085,6 +1086,18 @@ for(const text of ['Okay, how about this?','How about now?','Is this correct?','
       assert.ok(instance.contexts.some(context=>context.spoken&&context.text.includes('Good. Now practise')));
       assert.equal((await call()).status,'rejected');assert.equal(h.state().lesson!.phase,'practice');
     });
+
+for(const text of ['There we go.',"I've moved my hands up.",'Can you check my position now?','Does that look better to you?'])
+  test(`Gemini can confirm demo readiness naturally with “${text}”`,async t=>{
+    const h=await setup(t,{practiceMode:'scripted_demo'});h.advertise();h.enterPlacement();
+    h.command('play_training_video',{clipId:'hand-placement'});h.cue();
+    h.report('demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'});await settle();
+    const instance=h.instances.at(-1)!;
+    h.command('send_text',{text});instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+    assert.equal(instance.results.at(-1)!.result.action,'ready');assert.equal(h.state().lesson!.phase,'practice');
+    instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+    assert.equal(instance.results.at(-1)!.result.status,'rejected');assert.equal(h.state().lesson!.phase,'practice');
+  });
 
 for(const text of ['What is the correct hand position?','This is not correct.','Is Is this not right?','How about this? Show the hand placement again.'])
   test(`demo does not treat “${text}” as placement readiness`,async t=>{

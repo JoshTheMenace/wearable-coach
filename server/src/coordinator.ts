@@ -20,7 +20,7 @@ const active = (s: Snapshot) => ['starting','active','reconnecting'].includes(s.
 const lessonActions = ['start','continue','next','back','repeat','ready','skip_demo','skip_placement','pause','resume','finish_practice','restart','replay_video'] as const;
 const movieActive = (s:Snapshot) => !!s.demonstration && s.demonstration.status !== 'cueing';
 const lessonNeedsCamera = (s:Snapshot) => !!s.lesson && !s.lesson.scriptedStage && s.lesson.status==='active' && (s.lesson.phase==='placement'||s.lesson.phase==='practice'&&!!s.lesson.needsPlacementCheck);
-const COACH_PROMPT_VERSION = 'coach-v14-spoken-intents';
+const COACH_PROMPT_VERSION = 'coach-v15-contextual-demo-readiness';
 const TUTOR_WELCOME = 'I’m your AI training coach. What would you like to work on, Marine?';
 const PLACEMENT_READY_CUE = 'Good, that’s the right spot. Begin a short practice round when ready. Let me know when you’ve finished.';
 const cprRequested = (text:string) => /\b(?:CPR|cardiopulmonary resuscitation)\b/i.test(text)&&/\b(?:pull up|bring up|start|begin|open|show|teach|learn|practi[cs]e|train|training|walk me through)\b/i.test(text)&&!/\b(?:not|never|don[’']?t|if|when|what|why|explain|define|emergency)\b/i.test(text);
@@ -31,8 +31,12 @@ const practiceFinished = (text:string) => {
   text=spokenIntent(text);
   return /^finish[.!\s]*$/i.test(text)||!(/[?]|\b(not|never|yet|should|can|could|would|might|what|when|if|don[’']?t|isn[’']?t|aren[’']?t|haven[’']?t)\b/i.test(text))&&/(?:^|[.!]\s*)(?:(?:ok(?:ay)?|yes)[,.]?\s*)?(?:I think\s+)?(?:(?:i(?:[’']m| am| have|[’']ve)?|we(?:[’']re| are| have|[’']ve)?)\s+)?(?:(?:all|about)\s+)?(?:done|finished|complete(?:d)?|all set)(?:\s+for now)?(?:\s+(?:with\s+)?(?:(?:the|this|my)\s+)?(?:practi[cs]e|round|(?:chest )?compressions|this|that))?(?:\s+for now)?[.!\s]*$/i.test(text);
 };
-const placementRecheck = (text:string) => /^(?:(?:ok(?:ay)?|and|now)[,.\s]+)*(?:how about (?:this|now)|(?:is this|does this look) (?:right|correct|better)|are my hands in the right (?:spot|position))[?.!\s]*$/i.test(spokenIntent(text));
-const demoPlacementRecheck = (s:Snapshot,text:string) => !s.demonstration&&s.lesson?.status==='active'&&s.lesson.phase==='placement'&&s.lesson.scriptedStage==='correction'&&s.lesson.lastClip==='hand-placement'&&placementRecheck(text);
+const referenceVideoRequested = (text:string) => /\b(replay|rewatch)\b|\b(show|play|watch|see|restart)\b[^.!?]*\b(video|clip|demo(?:nstration)?|hand[- ]placement|again)\b/i.test(text);
+const placementRecheck = (text:string) => !referenceVideoRequested(text)&&/\b(?:(?:how|what) (?:about|is) (?:this|that|now)|how[’']s (?:this|that)|is (?:this|that) (?:right|correct|better)|does (?:this|that) look (?:right|correct|better)|are my hands in the right (?:spot|position))\b/i.test(spokenIntent(text));
+// Gemini selects Next semantically; the demo guard checks context and conflicting intent, not a required phrase.
+const awaitingDemoPlacement = (s:Snapshot) => !s.demonstration&&s.lesson?.status==='active'&&s.lesson.phase==='placement'&&s.lesson.scriptedStage==='correction'&&s.lesson.lastClip==='hand-placement';
+const demoPlacementRecheck = (s:Snapshot,text:string) => awaitingDemoPlacement(s)&&!!text&&!referenceVideoRequested(text)&&
+  !/\b(not|never|if|don[’']?t|can[’']?t)\b/i.test(text)&&(placementRecheck(text)||!/\b(what|why|where|when|how (?:do|does|can|should))\b/i.test(text));
 // Gemini chooses the action; these guards check contradictory intent and scope,
 // not the learner's greeting, reason, or exact sentence structure.
 const videoControlRequested = (text:string) =>
@@ -234,7 +238,7 @@ No lesson is active. Wait for the learner's topic after the application-requeste
     const facts=this.knowledge.lessonSeed()?.facts.filter(fact=>['hands_only','hand_location','position','depth','rate','recoil','feedback'].includes(fact.id)).map(({id,text})=>({id,text}))??[];
     return `${COACH_PROMPT}
 Active course: adult compression-only CPR practice on a manikin. Follow the authoritative page and its exact scheduled narration; questions keep the current page. Seeded facts ground scheduled narration; learner questions require a fresh reference lookup.
-Use lesson_action next for normal progression, showing the demonstration, skipping its remainder, readiness to practise, or finishing practice. During compression practice, “I’m finished for now” means next to the recap; do not ask to end the session. It advances once according to the current page and never verifies a skill. play_training_video is only a requested reference replay, which returns to the current step. ${s.lesson?.scriptedStage?'This is an explicitly selected scripted demonstration. No camera assessment runs. First readiness starts the planned correction; a new readiness confirmation advances to practice. After the hand-placement replay, a request to check the adjusted position (such as “How about this?”) counts as readiness: use lesson_action next. Follow the authored simulated pages; never claim to see or verify learner technique.':'Only confirmed application placement findings authorize spoken corrections and verified progression; never judge placement from the conversation. Uncertain checks retry silently; never ask the learner to adjust their head or camera.'} After the recap, answer follow-up questions without offering to end coaching. End coaching only on an explicit request or a fresh yes to your immediately preceding end-session question.
+Use lesson_action next for normal progression, showing the demonstration, skipping its remainder, readiness to practise, or finishing practice. During compression practice, “I’m finished for now” means next to the recap; do not ask to end the session. It advances once according to the current page and never verifies a skill. play_training_video is only a requested reference replay, which returns to the current step. ${s.lesson?.scriptedStage?'This is an explicitly selected scripted demonstration. No camera assessment runs. First readiness starts the planned correction; a new readiness confirmation advances to practice. After a hand-placement replay, checking or confirming the adjusted position means lesson_action next; no specific wording is required. Follow the authored simulated pages; never claim to see or verify learner technique.':'Only confirmed application placement findings authorize spoken corrections and verified progression; never judge placement from the conversation. Uncertain checks retry silently; never ask the learner to adjust their head or camera.'} After the recap, answer follow-up questions without offering to end coaching. End coaching only on an explicit request or a fresh yes to your immediately preceding end-session question.
 Quoted CPR facts: ${JSON.stringify(facts)}
 Current presentation: ${JSON.stringify(s.lesson?lessonPresentation(s.lesson):null)}
 Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
@@ -254,7 +258,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     const id=s.demonstration?.status==='cueing'?`video:${s.demonstration.requestId}`
       :`${page.id}${force?':'+s.lesson.revision:demo&&s.lesson.phase!=='intro'&&!s.lesson.scriptedStage?':'+demo.payload.requestId:''}`;
     if(s.lesson.narratedPages?.includes(id)&&!force){
-      rt.provider.appendContext(`Restore the same page silently. Its explanation was previously requested, not necessarily fully heard. Do not repeat it on reconnect. If asked, repeat or explain this page: ${JSON.stringify(page)}.`,null,false);return;
+      rt.provider.appendContext(`Restore the same page silently. Its explanation was previously requested, not necessarily fully heard. Do not repeat it on reconnect. ${awaitingDemoPlacement(s)?'The replay is finished. A confirmation or question about the adjusted hands is a request to continue this demo: call lesson_action next and wait for the authored response. This is navigation, not visual verification.':'If asked, repeat or explain this page.'} Page: ${JSON.stringify(page)}.`,null,false);return;
     }
     rt.narration={id,pageId:page.id,revision:s.lesson.revision,hudRevision:s.hudRevision,text:this.lessonNotice(s),audioBytes:0};
     this.mutate(s.id,(_,emit)=>emit('lesson.narration.queued',{narrationId:id,pageId:page.id,hudRevision:s.hudRevision,attemptId:s.lesson!.attemptId}));
