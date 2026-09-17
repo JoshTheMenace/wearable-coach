@@ -1,6 +1,5 @@
 import type { BrowserContext } from 'playwright';
 import { z } from 'zod';
-
 import { mceleConfig, mceleUrl } from './mcele-config.ts';
 
 function referenceLinks(links: { title: string; url: string }[], sourceUrl: string) {
@@ -31,7 +30,9 @@ export async function inspectCourse(context: BrowserContext, courseId: string) {
   try {
     const response = await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     const actual = new URL(page.url());
-    if (!response?.ok() || ![sourceUrl, ...(platform === 'moodle' ? [enrollmentUrl] : [])].includes(actual.href)) throw new Error('MCeLE course access requires a current signed-in session.');
+    if (!response?.ok() || (platform === 'moodle' ? actual.origin !== mceleConfig().origins.learning ||
+        ![sourceUrl, enrollmentUrl].some(url => new URL(url).pathname === actual.pathname) || actual.searchParams.get('id') !== courseId :
+        actual.href !== sourceUrl)) throw new Error('MCeLE course access requires a current signed-in session.');
     await page.locator(platform === 'moodle' ? '.page-header-headings h1' : '.mn-course-titlecode').waitFor({ timeout: 15_000 });
     const details = await page.evaluate(platform => {
       const sections = Object.fromEntries([...document.querySelectorAll('.course-details h5')]
@@ -47,7 +48,7 @@ export async function inspectCourse(context: BrowserContext, courseId: string) {
           .map(anchor => ({ title: anchor.textContent?.trim() ?? '', url: anchor.getAttribute('href') ?? '' })),
       };
     }, platform);
-    let enrollmentRequired: boolean | null = platform === 'moodle' ? actual.href === enrollmentUrl : null;
+    let enrollmentRequired: boolean | null = platform === 'moodle' ? actual.pathname === new URL(enrollmentUrl).pathname : null;
     let launchAvailable: boolean | null = null;
     let content: { title: string | null; status: string | null; availability: string | null }[] = [];
     if (platform === 'marinenet') {

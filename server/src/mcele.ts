@@ -1,7 +1,7 @@
 import type { APIRequestContext, APIResponse, BrowserContext } from 'playwright';
 import { z } from 'zod';
-
 import { mceleConfig, mceleUrl } from './mcele-config.ts';
+
 const shortIdSchema = z.string().regex(/^[A-F\d]{12}$/i);
 const uuidSchema = z.string().uuid();
 const pageSchema = z.number().int().min(1).max(1000);

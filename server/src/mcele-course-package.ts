@@ -3,8 +3,8 @@ import { mkdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
-
 import { mceleConfig, mceleUrl } from './mcele-config.ts';
+
 const quotedString = /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g;
 const moduleSchema = z.object({ title: z.string().max(1000), launchUrl: z.string(), modelUrl: z.string(),
   modelAvailable: z.boolean(), unavailableVideoCount: z.number().int().nonnegative(), videos: z.array(z.string()).max(16) });

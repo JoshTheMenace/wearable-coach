@@ -8,7 +8,7 @@ const origin = z.string().url().refine(value => {
     return url.protocol === 'https:' && url.origin === value && !url.hostname.endsWith('.invalid');
   } catch { return false; }
 });
-const path = z.string().startsWith('/').refine(value => !/^\/\/|[\\#]|%2[ef]|%5c|(?:^|\/)\.{1,2}(?:\/|\?|$)/i.test(value));
+const path = z.string().startsWith('/').refine(value => !/^\/\/|^\/REPLACE_|[\\#\s]|%2[ef]|%5c|(?:^|\/)\.{1,2}(?:\/|\?|$)/i.test(value));
 const schema = z.object({
   origins: z.object({ portal: origin, media: origin, learning: origin, content: origin }),
   paths: z.object({

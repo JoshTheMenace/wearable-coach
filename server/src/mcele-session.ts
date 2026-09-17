@@ -9,7 +9,6 @@ const exec = promisify(execFile);
 export const mceleDirectory = resolve(process.env.COACH_DATA_DIR || '.runtime', 'mcele');
 export const mceleStatePath = join(mceleDirectory, 'state.json');
 
-
 export async function loginMcele(headed = false) {
   const { origins, paths } = mceleConfig();
   await mkdir(mceleDirectory, { recursive: true, mode: 0o700 });
