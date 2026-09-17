@@ -7,8 +7,7 @@ import type { PlaybackReport } from './PresentationVideo.tsx';
 import './presentation.css';
 
 export function Presentation() {
-  const [backup, setBackup] = useState(location.pathname.replace(/\/$/, '') === '/demo');
-  const [requestedMode, setRequestedMode] = useState<'live'|'scripted_demo'|null>(backup ? 'scripted_demo' : null);
+  const [requestedMode, setRequestedMode] = useState<'live'|'scripted_demo'|null>(location.pathname.replace(/\/$/, '') === '/demo' ? 'scripted_demo' : null);
   const [token, setToken] = useState(''), [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [armed, setArmed] = useState(false), [sound, setSound] = useState(false), [connected, setConnected] = useState(false);
   const [error, setError] = useState(''), [serverError, setServerError] = useState(''), [now, setNow] = useState(Date.now()), [activity, setActivity] = useState(true);
@@ -87,7 +86,7 @@ export function Presentation() {
       socket.current.send(JSON.stringify({ type: 'presentation.practice_mode', mode: requestedMode, commandId: crypto.randomUUID() }));
   }, [armed, connected, requestedMode, snapshot?.id, snapshot?.config.practiceMode]);
   useEffect(() => {
-    const sync = () => { const demo = location.pathname.replace(/\/$/, '') === '/demo'; setBackup(demo); setRequestedMode(demo ? 'scripted_demo' : 'live'); };
+    const sync = () => setRequestedMode(location.pathname.replace(/\/$/, '') === '/demo' ? 'scripted_demo' : 'live');
     window.addEventListener('popstate', sync); return () => window.removeEventListener('popstate', sync);
   }, []);
   useEffect(() => { const timer = setInterval(() => setNow(Date.now() + offset.current), 250); return () => clearInterval(timer); }, []);
@@ -99,22 +98,22 @@ export function Presentation() {
   }, []);
   const enable = async () => {
     try { await audio.current.enable(); if (!armed) takeover.current = true; setArmed(true); setSound(true); setError(''); wakeControls(); }
-    catch { setError(`Click ${backup ? 'Enable backup' : 'Enable presentation'} again to allow sound.`); }
+    catch { setError('Click Enable presentation again to allow sound.'); }
   };
   const wakeControls = () => { setActivity(true); clearTimeout(hideControls.current); hideControls.current = setTimeout(() => setActivity(false), 3000); };
-  const switchMode = (demo: boolean) => { history.pushState(null, '', demo ? '/demo' : '/'); setBackup(demo); setRequestedMode(demo ? 'scripted_demo' : 'live'); wakeControls(); };
+  const switchMode = (demo: boolean) => { history.pushState(null, '', demo ? '/demo' : '/'); setRequestedMode(demo ? 'scripted_demo' : 'live'); wakeControls(); };
   const caption = snapshot?.demonstration?.status !== 'playing' ? snapshot?.transcripts.at(-1) : undefined;
-  const usingBackup = backup || snapshot?.config.practiceMode === 'scripted_demo';
+  const presentationMode = requestedMode === 'scripted_demo' || snapshot?.config.practiceMode === 'scripted_demo';
   const fragments = snapshot?.transcripts ?? [];
   const captionText = fragments.slice(fragments.findLastIndex(fragment => fragment.speaker !== caption?.speaker) + 1).map(fragment => fragment.text).join('').trim().slice(-220);
   return <main ref={root} className={`presentation ${activity || !snapshot || error || serverError ? 'controls-visible' : ''}`} onPointerMove={wakeControls} onKeyDown={wakeControls}>
-    <header className="presentation-bar"><span className="presentation-brand">MARINE TUTOR</span><span className="presentation-status">{error || serverError || (!snapshot ? backup ? 'Backup ready for the phone' : 'Ready for the phone' : connected ? snapshot.config.practiceMode === 'scripted_demo' ? 'BACKUP · PLACEMENT SIMULATED' : 'LIVE' : 'Reconnecting…')}</span>
-      {armed && <div><button onClick={() => switchMode(!usingBackup)}>{usingBackup ? 'Use live checks' : 'Use backup'}</button><button onClick={() => { if (sound) { audio.current.mute(); setSound(false); } else void enable(); }}>{sound ? 'Sound on' : 'Sound off'}</button><button onClick={() => void root.current?.requestFullscreen().catch(() => setError('Use the browser’s full-screen control.'))}>Full screen</button></div>}
+    <header className="presentation-bar"><span className="presentation-brand">MARINE TUTOR</span><span className="presentation-status">{error || serverError || (!snapshot ? 'Ready for the phone' : connected ? 'LIVE' : 'Reconnecting…')}</span>
+      {armed && <div><button onClick={() => switchMode(!presentationMode)}>{presentationMode ? 'Standard mode' : 'Presentation mode'}</button><button onClick={() => { if (sound) { audio.current.mute(); setSound(false); } else void enable(); }}>{sound ? 'Sound on' : 'Sound off'}</button><button onClick={() => void root.current?.requestFullscreen().catch(() => setError('Use the browser’s full-screen control.'))}>Full screen</button></div>}
     </header>
     {snapshot ? <LiveCameraPreview snapshot={snapshot} token={token} now={now} clips={media.clips} mediaLoading={media.loading} mediaError={media.error} retryMedia={media.retry} sound={sound} onPlayback={armed && connected ? report : undefined} />
       : <section className="presentation-wait"><img src="/marines-emblem.png" alt="United States Marine Corps seal" /><h1>Ready when you are.</h1><p>Tap <strong>Start coach</strong> on your phone.<br />Your glasses view will appear here automatically.</p></section>}
     {caption?.text && <div className="presentation-caption"><span>{['user', 'learner'].includes(caption.speaker) ? 'LEARNER' : 'COACH'}</span>{captionText}</div>}
-    {!armed && <div className="presentation-enable"><div><h2>{backup ? 'Backup, ready when needed.' : 'Let the room see and hear.'}</h2><p>{backup ? 'Keep the camera, tutor and videos live. Placement follows the rehearsal: Ready → adjustment → Ready → practice. Activate here to take over the current session, or start one from your phone.' : 'Enable sound once, then start the coach on your phone.'}</p><button onClick={() => void enable()}>{backup ? 'Enable backup' : 'Enable presentation'}</button><small>Audio uses the laptop’s selected output, including HDMI / TV.</small></div></div>}
+    {!armed && <div className="presentation-enable"><div><h2>Let the room see and hear.</h2><p>Enable sound once, then start the coach on your phone.</p><button onClick={() => void enable()}>Enable presentation</button><small>Audio uses the laptop’s selected output, including HDMI / TV.</small></div></div>}
     {armed && !snapshot && <footer className="presentation-setup"><button onClick={() => void audio.current.test()}>Test TV sound</button><a href="/lab">Developer controls</a></footer>}
     {media.error && <div className="presentation-error" role="alert">{media.error}<button onClick={media.retry}>Reload video</button></div>}
   </main>;
