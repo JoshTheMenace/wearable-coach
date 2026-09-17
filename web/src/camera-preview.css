@@ -1,7 +1,13 @@
 .live-camera-preview{margin:20px 0;border:1px solid #354138;border-radius:18px;overflow:hidden;background:#101712;color:#f4f7ef}
-.live-camera-preview header,.live-camera-preview footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 20px}
-.live-camera-preview header div{display:grid;gap:4px}.live-camera-preview header span,.live-camera-preview footer{font-size:13px;color:#bec9bb}
-.live-camera-picture{display:flex;align-items:center;justify-content:center;height:min(52vh,540px);background:#050805}
-.live-camera-picture img{width:100%;height:100%;object-fit:contain}.live-camera-picture p{color:#bec9bb;padding:24px;text-align:center}
+.live-camera-preview>header,.live-camera-preview>footer{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 20px;margin:0}
+.live-camera-preview>header div{display:grid;gap:4px}.live-camera-preview>header span,.live-camera-preview>footer{font-size:13px;color:#bec9bb}
+.live-camera-picture{position:relative;display:flex;align-items:center;justify-content:center;height:min(62vh,620px);background:#050805;min-height:320px}
+.mirror-camera-image{width:100%;height:100%;object-fit:contain}.mirror-camera-empty{color:#bec9bb;padding:24px;text-align:center}
+.mirror-hud{position:absolute;top:20px;right:20px;width:36%;max-width:380px;max-height:calc(100% - 40px);overflow:auto;padding:22px;border:1px solid #8ca47c;border-radius:14px;background:#101c14ed;box-shadow:0 12px 36px #0006;overflow-wrap:anywhere}
+.mirror-hud-label{display:block;color:#bacda9;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:18px}
+.mirror-hud .marine-seal{width:110px;margin-bottom:18px}.mirror-hud>.tiny{color:#d2ed98}.mirror-hud>p{font-size:21px;line-height:1.4;margin:12px 0;white-space:pre-line}
+.mirror-hud .lesson-chapter{font-size:10px;margin-bottom:10px}.mirror-hud .lesson-authored-page h3{font-size:24px;margin-bottom:12px}.mirror-hud .lesson-page-body{font-size:17px;line-height:1.45}
+.mirror-hud .lesson-page-support{margin-top:16px;padding-top:14px}.mirror-hud .lesson-page-support h4{font-size:15px}.mirror-hud .lesson-page-support p{font-size:15px}.mirror-hud .lesson-voice-hint{margin-top:16px}
+.mirror-video{position:relative;width:100%;height:100%;background:#000}.mirror-video video{width:100%;height:100%;object-fit:contain}.mirror-video-status{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:#050805;color:#bec9bb}.mirror-video-sound{position:absolute;right:16px;bottom:16px}
 .live-camera-preview:fullscreen{display:flex;flex-direction:column;border:0;border-radius:0;margin:0}.live-camera-preview:fullscreen .live-camera-picture{flex:1;height:auto;min-height:0}
-@media(max-width:600px){.live-camera-preview footer{align-items:flex-start;flex-direction:column;gap:6px}}
+@media(max-width:700px){.live-camera-preview>footer{align-items:flex-start;flex-direction:column;gap:6px}.live-camera-picture{display:block;height:auto;min-height:0}.mirror-camera-image{display:block;height:38vh;min-height:180px}.mirror-camera-empty{min-height:180px;display:grid;place-items:center;margin:0}.mirror-hud{position:relative;inset:auto;width:auto;max-width:none;max-height:none;margin:12px;padding:18px}.mirror-video{height:50vh;min-height:220px}.live-camera-preview:fullscreen .live-camera-picture{overflow:auto}.live-camera-preview:fullscreen .mirror-video{height:100%;min-height:220px}}

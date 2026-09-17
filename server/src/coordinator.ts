@@ -638,7 +638,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
         payload=z.object({requestId:z.string().uuid(),status:z.enum(['playing','ended','failed']),reason:z.string().max(300).optional()}).strict().parse(payload);
         if(!s.demonstration||s.demonstration.requestId!==payload.requestId){emit('demo.playback.stale',payload,'device',messageId);return;}
         if(s.demonstration.status==='cueing'){emit('demo.playback.stale',payload,'device',messageId);return;}
-        if(payload.status==='playing')s.demonstration.status='playing';else demoFinished=String(payload.status);
+        if(payload.status==='playing'){s.demonstration.status='playing';s.demonstration.playbackStartedAt??=Date.now();}else demoFinished=String(payload.status);
       }
       else if(type==='capture.failed'){const w=s.work.find(w=>w.id===payload.workId);if(w&&pending(w)){this.finishIn(s,w,'failed',{reason:'capture_failed',instruction:'No image arrived because camera capture failed. Explain the camera connection failure and ask the learner to retry inspection. Do not imply the object was absent, obscured, or out of view; no visual evidence was received.',applicationEffect:'not_applied',providerOutcomeKnown:true},emit);}}
       else if(!['playback.metric','media.summary','clock.sample'].includes(type))throw new HttpError(400,'Unsupported device report');

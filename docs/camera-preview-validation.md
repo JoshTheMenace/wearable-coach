@@ -20,7 +20,17 @@ Keeping capture running during public DAT movie playback failed in the hardware 
 | Medium camera, 7 fps | Overview again timed out without PLAYING. |
 | Recreate the display capability while retaining the 7 fps camera | Short clip again timed out without PLAYING. |
 
-The shipped path therefore pauses camera capture while a lesson movie plays, then resumes automatically. The laptop replaces the camera image with a pause message during playback. These results establish a conflict in the tested integration; they do not prove a universal hardware limitation.
+The shipped path therefore pauses camera capture while a lesson movie plays, then resumes automatically. These results establish a conflict in the tested integration; they do not prove a universal hardware limitation.
+
+## Laptop display mirror
+
+The camera panel also renders the current session HUD: Marine welcome, lesson pages, coaching cards, checklists, and timers. It uses the same content renderer as the diagnostic display panel. Cleared, expired, and ended-session cards are hidden. Full screen includes both camera and coaching content; narrow screens put the card below the camera.
+
+During a lesson movie, the panel replaces the camera and card with the matching cached MP4. It waits for the device's `playing` report, then follows `demonstration.playbackStartedAt`. Repeated playback reports preserve that timestamp. A late viewer seeks to the elapsed position, and drift greater than 750 ms is corrected. Stopping, skipping, failing, or finishing playback restores the current card and resumes preview polling; the camera image appears when fresh frames arrive.
+
+The browser is a spectator: it never sends playback receipts or advances the course when its own video ends. Video audio is muted by default, with an optional sound button. Media failures offer a local retry. The mirror composes the requested HUD and lesson video with the sampled camera view; it is not a recording of the optical display, and device-report/network delay limits synchronization accuracy.
+
+Browser fixture checks covered authored and generic cards, checklist updates, clear/expiry, desktop full screen, a 390-pixel viewport, both video assets, delayed playback start, joining mid-clip, return to the camera, and video-error recovery. The updated server suite passes 312 tests; the web build passes. This mirror update does not change the Android app.
 
 ## Connection diagnosis
 

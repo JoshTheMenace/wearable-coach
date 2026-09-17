@@ -788,6 +788,19 @@ for(const [status,text,action] of [
   assert.equal(h.state().lesson!.completed.find(step=>step.step==='demonstration')?.evidence,'learner_confirmed');
 });
 
+test('video mirror timing starts with device playback and survives repeated reports',async t=>{
+  const h=await setup(t);h.advertise();h.command('play_training_video',{clipId:'overview'});h.cue();
+  const requestId=h.state().demonstration!.requestId,requestedAt=h.state().demonstration!.startedAt;
+  assert.equal(h.state().demonstration!.playbackStartedAt,undefined);
+  h.advance(6000);h.report('demo.playback',{requestId,status:'playing'});
+  const startedAt=h.state().demonstration!.playbackStartedAt;
+  assert.equal(startedAt,requestedAt+6000);
+  h.advance(2000);h.report('demo.playback',{requestId,status:'playing'});
+  assert.equal(h.state().demonstration!.playbackStartedAt,startedAt);
+  h.report('demo.playback',{requestId:randomUUID(),status:'playing'});
+  assert.equal(h.state().demonstration!.playbackStartedAt,startedAt);
+});
+
 for(const text of [
   "Okay, for the sake of time, let's skip this.", "Hey, let's skip this.",
   "Could you please skip the rest of this video?", "I've seen enough, let's move on to practice.",

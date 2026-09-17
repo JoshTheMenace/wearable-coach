@@ -46,7 +46,7 @@ export const displayCapabilitiesSchema=z.object({video:z.boolean(),source:z.lite
 export const demoAssetsSchema=z.array(z.object({id:idSchema,width:z.number().int().positive(),height:z.number().int().positive(),durationMs:z.number().int().min(100).max(SIMULATOR_DISPLAY_LIMITS.maxDurationMs),mime:z.literal('video/mp4'),lessonKey:z.enum(['overview','hand-placement']).optional()}).strict()).max(20).refine(assets=>new Set(assets.map(asset=>asset.id)).size===assets.length,'Duplicate demonstration asset');
 export type DemoAsset = z.infer<typeof demoAssetsSchema>[number];
 export type DisplayCapabilities = z.infer<typeof displayCapabilitiesSchema>;
-export type Demonstration = { requestId: string; assetId: string; status: 'cueing'|'starting'|'playing'; startedAt: number; deadlineAt: number; durationMs?:number;lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean; restart?: boolean };
+export type Demonstration = { requestId: string; assetId: string; status: 'cueing'|'starting'|'playing'; startedAt: number; playbackStartedAt?: number; deadlineAt: number; durationMs?:number;lessonKey?: 'overview'|'hand-placement'; resumeLiveVideo?: boolean; restart?: boolean };
 export type LessonAction = 'start'|'continue'|'next'|'back'|'repeat'|'ready'|'skip_demo'|'skip_placement'|'pause'|'resume'|'finish_practice'|'restart';
 export type LessonObservation = { placement:'too_low'|'off_target'|'correct'|'unknown';confidence:number;reason:string;landmarksVisible:boolean;manikinVisible:boolean;at:number;cameraSource:string };
 export type TeachingPageId='opening'|'hand-placement'|'compression-pattern';

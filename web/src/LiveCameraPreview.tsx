@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Snapshot } from '../../contracts/index.ts';
+import type { CachedLessonClip } from './lesson-media.ts';
+import { HudContent } from './HudContent.tsx';
+import { MirrorVideo } from './MirrorVideo.tsx';
 import './camera-preview.css';
 
-export function LiveCameraPreview({ sessionId, token, active, assessing, playingVideo }: { sessionId:string;token:string;active:boolean;assessing:boolean;playingVideo:boolean }) {
+export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, mediaError, retryMedia }: {
+  snapshot: Snapshot; token: string; now: number; clips: CachedLessonClip[]; mediaLoading: boolean; mediaError: string; retryMedia: () => void;
+}) {
+  const { id: sessionId, hud, demonstration: demo } = snapshot;
+  const active = !['ended', 'failed', 'interrupted'].includes(snapshot.status);
+  const playingVideo = active && !!demo && demo.status !== 'cueing';
+  const assessing = snapshot.liveVideo && snapshot.lesson?.ready && !demo;
+  const clip = clips.find(clip => clip.id === demo?.assetId);
+  const showHud = active && !playingVideo && (hud.expiresAt ?? Infinity) > now && !!(hud.brand || hud.lessonPage || hud.card || hud.checklist?.length || hud.timer);
   const [image, setImage] = useState('');
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -33,9 +45,14 @@ export function LiveCameraPreview({ sessionId, token, active, assessing, playing
     return () => { abort.abort();clearTimeout(timer);if(url)URL.revokeObjectURL(url); };
   }, [sessionId,token,active,playingVideo]);
   return <section ref={panel} className="live-camera-preview" aria-label="Glasses camera preview">
-    <header><div><strong>Through your eyes</strong><span>{playingVideo?'Playing a lesson video':image?'Live from glasses':'Waiting for the glasses camera'}</span></div>
+    <header><div><strong>Glasses mirror</strong><span>{!active?'Session ended':playingVideo?'Lesson video':image?'Live camera + coach display':'Waiting for the glasses camera'}</span></div>
       <button className="plain" onClick={()=>void panel.current?.requestFullscreen().catch(()=>{})}>Full screen</button></header>
-    <div className="live-camera-picture">{playingVideo?<p>Camera preview pauses while the glasses play video. It resumes automatically afterward.</p>:image?<img src={image} alt="Current view from the glasses camera"/>:<p>{active?'The camera preview will appear here.':'Camera session ended.'}</p>}</div>
-    <footer>{assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>Sampled live view · not recorded</span></footer>
+    <div className="live-camera-picture">
+      {playingVideo ? <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError || (!mediaLoading && !clip ? 'This video is unavailable in the laptop mirror.' : '')} retryMedia={retryMedia} />
+        : <>{image ? <img className="mirror-camera-image" src={image} alt="Current view from the glasses camera" /> : <p className="mirror-camera-empty">{active ? 'The camera preview will appear here.' : 'Camera session ended.'}</p>}
+          {showHud && <aside className="mirror-hud" aria-label="Mirrored coach display"><span className="mirror-hud-label">Coach display</span><HudContent hud={hud} now={now} /></aside>}
+        </>}
+    </div>
+    <footer>{playingVideo?'Camera resumes after the video':assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>{playingVideo?'Lesson playback mirror':'Sampled camera · live coaching cards'}</span></footer>
   </section>;
 }
