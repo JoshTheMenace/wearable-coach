@@ -124,6 +124,22 @@ test('an interrupted video cue waits for the answer then restarts before playbac
   h.cue();assert.equal(h.state().demonstration!.status,'starting');
 });
 
+test('an interrupted video cue already spoken by Gemini drains once without requesting it again',async t=>{
+  const h=await setup(t,{device:'meta_display'});h.advertise();h.command('play_training_video',{clipId:'overview'});
+  h.coordinator.audio(h.id,h.state().generation,Buffer.alloc(640));h.visible();
+  const instance=h.instances[0],spoken=()=>instance.contexts.filter(context=>context.spoken).length;
+  instance.callbacks.interrupted();instance.callbacks.event('provider.utterance_complete',{});
+  instance.callbacks.event('transcript.fragment',{speaker:'assistant',text:'I’ll pull '});
+  instance.callbacks.audio(Buffer.alloc(1600));
+  instance.callbacks.event('transcript.fragment',{speaker:'assistant',text:'that up.'});
+  instance.callbacks.event('provider.utterance_complete',{});
+  assert.equal(spoken(),1);
+  assert.equal(h.state().demonstration!.status,'cueing');
+  h.report('playback.metric',{speechEpoch:h.state().speechEpoch,metrics:{pendingMs:0,writtenSamples:800}});
+  assert.equal(h.state().demonstration!.status,'starting');
+  assert.equal(h.events().filter(e=>e.type==='lesson.narration.requested').length,1);
+});
+
 test('native audio does not invent a lesson or welcome in a general session', async t => {
   const h = await setup(t, { device: 'phone', lessonId: undefined });
   h.coordinator.audio(h.id, h.state().generation, Buffer.alloc(640));
@@ -444,6 +460,17 @@ test('display loss during video and its recovery do not add spoken connection ch
   h.report('device.status',{glassesDisplayAvailable:true});
   assert.ok(!h.instances.flatMap(instance=>instance.contexts).some(context=>context.spoken&&/glasses display connection/.test(context.text)));
   assert.match(h.instances.at(-1)!.contexts.find(context=>context.spoken)!.text,/video couldn’t play/);
+});
+
+test('starting the practice camera keeps temporary display recovery silent',async t=>{
+  const h=await setup(t,{device:'meta_display'});h.advertise();h.report('device.status',{glassesDisplayAvailable:true});
+  h.coordinator.audio(h.id,h.state().generation,Buffer.alloc(640));h.visible();h.enterPlacement();
+  assert.equal(h.state().lesson!.observerStatus,'waiting_for_camera');
+  h.report('device.status',{glassesDisplayAvailable:false});h.report('device.status',{glassesDisplayAvailable:true});
+  const contexts=h.instances.flatMap(instance=>instance.contexts);
+  assert.ok(!contexts.some(context=>context.spoken&&/glasses display connection/.test(context.text)));
+  assert.ok(contexts.some(context=>!context.spoken&&/camera is restarting/.test(context.text)));
+  assert.equal(h.state().lesson!.phase,'placement');
 });
 
 test('losing camera freshness replaces the old correction card with a waiting cue', async t => {

@@ -42,9 +42,12 @@ test('placement loads calibration references and keeps their provenance out of l
   assert.equal(h.requests[0].options?.timeoutMs,4500);
   const references=h.requests[0].options!.references!;assert.deepEqual(references.map(r=>r.pose),['correct','too_low']);
   const referenceEvidence={provenance:'user_labeled_calibration' as const,references:references.map(({pose,sha256})=>({pose,sha256}))};
-  h.requests[0].resolve({...correct,serviceTier:'priority',referenceEvidence});await settle();
+  const verification={model:'gpt-5.6-terra',placement:'correct' as const,confidence:0.95,elapsedMs:900,usage:{total_tokens:100},serviceTier:'priority'};
+  h.requests[0].resolve({...correct,serviceTier:'priority',referenceEvidence,verification});await settle();
   assert.deepEqual(h.events().find(e=>e.type==='lesson.observer.completed')!.payload.referenceEvidence,referenceEvidence);
+  assert.deepEqual(h.events().find(e=>e.type==='lesson.observer.completed')!.payload.verification,verification);
   assert.ok(!('referenceEvidence' in h.state().lesson!.lastObservation!));
+  assert.ok(!('verification' in h.state().lesson!.lastObservation!));
   assert.equal(h.events().find(e=>e.type==='lesson.observer.completed')!.payload.serviceTier,'priority');
   assert.ok(!('serviceTier' in h.state().lesson!.lastObservation!));
   assert.ok(!JSON.stringify(h.contexts).includes('sha256'));

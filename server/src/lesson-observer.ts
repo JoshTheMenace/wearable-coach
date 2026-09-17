@@ -2,10 +2,11 @@ import { z } from 'zod';
 import { generateStructured, type InferenceOptions } from './providers/inference.ts';
 import { boundedText, imageCheck } from './providers/shared.ts';
 import type { PlacementReferences } from './placement-references.ts';
+import { LESSON_CONFIDENCE } from './lesson.ts';
 export { loadPlacementReferences } from './placement-references.ts';
 
 export const LESSON_OBSERVER_PROMPT_VERSION = 'manikin-placement-v2';
-export const LESSON_REFERENCE_OBSERVER_PROMPT_VERSION = 'manikin-pose-v5-reference';
+export const LESSON_REFERENCE_OBSERVER_PROMPT_VERSION = 'manikin-pose-v6-verified';
 export const lessonObservationSchema = z.object({
   placement: z.enum(['too_low', 'off_target', 'correct', 'unknown']), confidence: z.number().min(0).max(1),
   reason: z.string().trim().min(1).max(240), landmarksVisible: z.boolean(), manikinVisible: z.boolean(),
@@ -18,11 +19,25 @@ export type LessonObserverOptions = InferenceOptions & { references?:PlacementRe
 type LessonObserverResult=PlacementObservation & {
   model:string;usage:Record<string,number>;promptVersion:string;serviceTier?:string;
   referenceEvidence?:{provenance:'user_labeled_calibration';references:{pose:PlacementReferences[number]['pose'];sha256:string}[]};
+  verification?:{model:string;placement:PlacementObservation['placement'];confidence:number;elapsedMs:number;usage:Record<string,number>;serviceTier?:string};
 };
 
 export async function observeLessonFrame(bytes: Buffer, mime: string, handPlacementFact: string,
   signal: AbortSignal, options: LessonObserverOptions = {}):Promise<LessonObserverResult> {
   imageCheck(bytes, mime);
+  const deadline=AbortSignal.any([signal,AbortSignal.timeout(options.timeoutMs??15000)]);
+  const result=await observeSingle(bytes,mime,handPlacementFact,deadline,options);
+  if(result.placement!=='correct'||result.confidence<LESSON_CONFIDENCE)return result;
+  const started=Date.now(),model=result.model.startsWith('gpt-5.6-terra')?'gpt-5.6-luna':'gpt-5.6-terra';
+  // A positive needs an independent model's answer, with no primary answer in its context.
+  // Both requests share the original deadline; errors and timeouts cannot approve placement.
+  const check=await observeSingle(bytes,mime,handPlacementFact,deadline,{...options,model});
+  const agreed=check.placement==='correct'&&check.confidence>=LESSON_CONFIDENCE;
+  return {...result,...(!agreed?{placement:'unknown' as const,confidence:0,reason:'The visual checks do not agree on a clear match.'}:{confidence:Math.min(result.confidence,check.confidence)}),
+    verification:{model:check.model,placement:check.placement,confidence:check.confidence,elapsedMs:Date.now()-started,usage:check.usage,...(check.serviceTier?{serviceTier:check.serviceTier}:{})}};
+}
+
+async function observeSingle(bytes:Buffer,mime:string,handPlacementFact:string,signal:AbortSignal,options:LessonObserverOptions):Promise<LessonObserverResult> {
   const {references,...inferenceOptions}=options;
   if(references)return compareReferencePose(bytes,mime,references,signal,inferenceOptions);
   const instruction=

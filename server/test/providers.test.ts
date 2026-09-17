@@ -430,6 +430,14 @@ test('Gemini advertises course start and returns rejected movie controls silentl
   const result={status:'rejected',retryable:false,silent:true,reason:'No fresh learner request'};
   adapter.toolResult('pause-denied',result);await until(()=>fixture.messages.length===2);
   assert.deepEqual(fixture.messages[1].toolResponse.functionResponses,[{id:'pause-denied',name:'lesson_action',response:result,scheduling:'SILENT'}]);
+  for(const [name,response] of [
+    ['lesson_action',{status:'applied',narration:'scheduled_after_display'}],
+    ['play_training_video',{status:'starting',applicationEffect:'video_requested'}],
+  ] as const){
+    fixture.send({toolCall:{functionCalls:[{id:name,name,args:{}}]}});await until(()=>r.calls.some(call=>call.id===name));
+    adapter.toolResult(name,response);await until(()=>fixture.messages.some(message=>message.toolResponse?.functionResponses[0].id===name));
+    assert.equal(fixture.messages.at(-1).toolResponse.functionResponses[0].scheduling,'SILENT');
+  }
   await adapter.close();
 });
 

@@ -120,7 +120,9 @@ export class GeminiProvider extends SocketProvider {
     const name = this.calls.get(id);
     if (!name) throw new Error('Unknown provider tool call');
     const response = result && typeof result === 'object' && !Array.isArray(result) ? result : { result };
-    this.send({ toolResponse: { functionResponses: [{ id, name, response, ...(name==='lesson_action'&&'silent' in response&&response.silent===true?{scheduling:'SILENT'}:{}) }] } });
+    const silent='silent' in response&&response.silent===true || 'narration' in response&&response.narration==='scheduled_after_display'
+      || 'applicationEffect' in response&&response.applicationEffect==='video_requested';
+    this.send({ toolResponse: { functionResponses: [{ id, name, response, ...(silent?{scheduling:'SILENT'}:{}) }] } });
     this.calls.delete(id);
   }
   activity(active: boolean) {

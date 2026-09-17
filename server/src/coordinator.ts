@@ -36,7 +36,8 @@ const videoPaused = (text:string) => videoControlRequested(text)&&/\b(?:pause|st
 const pending = (w: Work) => ['reserved','running'].includes(w.status);
 const toolFailure = (error:unknown) => error instanceof HttpError ? error.message : error instanceof z.ZodError ? 'Invalid tool arguments; use the declared tool schema.' : 'Tool request failed; no action was applied.';
 type Adapter = ReturnType<typeof createProvider>;
-type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; ready: boolean; lessonWelcomed?:boolean; audioReady?:boolean; interruptedCue?:{requestId:string;afterSeq:number}; narration?:{id:string;pageId:string;revision:number;hudRevision:number;text:string;requestedAt?:number;generatedAt?:number;audioBytes:number}; observers:Map<string,AbortController>; observerAfter?:number; deferredObserverCue?:{kind:'feedback'|'placement_ready';cue:string}; quietUntil?:number; video: {lastAt:number; lastId?:string; reportedAt:number; stale:boolean; cameraSource?:string}; aborts: Map<string,AbortController> };
+type Narration = {id:string;pageId:string;revision:number;hudRevision:number;text:string;requestedAt?:number;generatedAt?:number;audioBytes:number};
+type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; ready: boolean; lessonWelcomed?:boolean; audioReady?:boolean; interruptedCue?:{requestId:string;afterSeq:number;audioBytes:number;narration?:Narration}; narration?:Narration; observers:Map<string,AbortController>; observerAfter?:number; deferredObserverCue?:{kind:'feedback'|'placement_ready';cue:string}; quietUntil?:number; video: {lastAt:number; lastId?:string; reportedAt:number; stale:boolean; cameraSource?:string}; aborts: Map<string,AbortController> };
 type Emit = (type: string, payload: Record<string,unknown>, source?: string, messageId?: string) => void;
 
 export class Coordinator extends EventEmitter {
@@ -101,13 +102,14 @@ export class Coordinator extends EventEmitter {
       event:(type,payload)=>{if(current())this.providerEvent(id,type,payload);},
       audio:(pcm)=>{if(valid()&&!movieActive(this.get(id))){
         const narration=runtime.narration;
+        if(!narration&&runtime.interruptedCue)runtime.interruptedCue.audioBytes+=pcm.length;
         if(narration?.requestedAt&&pcm.length){
           if(!narration.audioBytes)this.mutate(id,(_,emit)=>emit('lesson.narration.first_audio',{narrationId:narration.id,pageId:narration.pageId,elapsedMs:Date.now()-narration.requestedAt!,bytes:pcm.length,measurementBasis:'provider_pcm_received',heard:false}));
           narration.audioBytes+=pcm.length;
         }
         runtime.outputSamples+=pcm.length/2;this.emit('audio',{id,generation,speechEpoch:this.get(id).speechEpoch,seq:++runtime.outputSeq,pcm});
       }},
-      interrupted:()=>{if(valid()){this.mutate(id,(state,emit)=>this.cancelVisualWork(state,emit,'learner_interrupted',undefined,true));this.flush(id,'provider_interruption');const state=this.get(id);if(state.demonstration?.status==='cueing')runtime.interruptedCue={requestId:state.demonstration.requestId,afterSeq:state.throughSeq};}},
+      interrupted:()=>{if(valid()){const narration=runtime.narration??runtime.interruptedCue?.narration;this.mutate(id,(state,emit)=>this.cancelVisualWork(state,emit,'learner_interrupted',undefined,true));this.flush(id,'provider_interruption');const state=this.get(id);if(state.demonstration?.status==='cueing')runtime.interruptedCue={requestId:state.demonstration.requestId,afterSeq:state.throughSeq,audioBytes:0,narration};}},
       tool:call=>{if(valid())this.background(this.tool(id,call));},
       delegation:(delegationId,offsetMs)=>{if(valid())this.background(this.delegate(id,delegationId,offsetMs).catch(()=>{try{provider.toolResult(delegationId,{status:'rejected',reason:'Work capacity reached',applicationEffect:'not_applied'});}catch{}}));},
       error:()=>{if(valid())this.mutate(id,(_,emit)=>emit('error',{code:'provider_error',message:'Provider request failed; verify access and configuration'}));},
@@ -148,7 +150,15 @@ export class Coordinator extends EventEmitter {
     const state=this.get(id),cue=runtime?.interruptedCue;
     // Finish the learner's question before restarting an interrupted pre-video cue.
     if(type==='provider.utterance_complete'&&cue&&!runtime.narration&&state.demonstration?.status==='cueing'&&state.demonstration.requestId===cue.requestId&&state.transcripts.some(t=>t.speaker==='coach'&&(t.seq??0)>cue.afterSeq)){
-      delete runtime.interruptedCue;this.mutate(id,s=>{s.demonstration!.deadlineAt=Date.now()+30000;});this.scheduleNarration(this.get(id),true);
+      delete runtime.interruptedCue;
+      const spoken=state.transcripts.filter(t=>t.speaker==='coach'&&(t.seq??0)>cue.afterSeq).map(t=>t.text).join('');
+      const normalize=(text:string)=>text.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+      const expected=(state.demonstration.restart?'I’ll restart this clip from the beginning. ':'')+lessonPresentation(state.lesson!).spoken;
+      if(cue.narration&&cue.audioBytes&&normalize(spoken)===normalize(expected)){
+        runtime.narration={...cue.narration,audioBytes:cue.audioBytes,generatedAt:Date.now()};
+        this.mutate(id,(_,emit)=>emit('lesson.narration.resumed',{narrationId:cue.narration!.id,audioBytes:cue.audioBytes,heard:false}));
+        this.releaseVideoCue(id);
+      }else{this.mutate(id,s=>{s.demonstration!.deadlineAt=Date.now()+30000;});this.scheduleNarration(this.get(id),true);}
     }
     if(type==='provider.go_away'&&active(this.get(id)))this.reconnect(id,this.get(id).generation,randomUUID(),true);
   }
@@ -462,7 +472,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
         let feedback:string|undefined,advanced=false,accepted=false;
         const speak=Date.now()>=(rt.quietUntil??0);
         this.mutate(s.id,(state,emit)=>{
-          const {model,usage,serviceTier,promptVersion,referenceEvidence,...observation}=result;
+          const {model,usage,serviceTier,promptVersion,referenceEvidence,verification,...observation}=result;
           const lastCorrectionAt=state.lesson!.lastCorrectionAt;
           const applied=applyLessonObservation(state.lesson!,{...observation,at,cameraSource:String(meta.cameraSource)});
           state.lesson=applied.lesson;state.lesson.observerStatus='idle';delete state.lesson.observerError;feedback=applied.feedback;advanced=applied.advanced;accepted=applied.accepted;
@@ -471,7 +481,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
             feedback??=state.lesson.feedback??(rt.deferredObserverCue.kind==='placement_ready'&&!state.lesson.needsPlacementCheck&&state.lesson.correctStreak>=2?rt.deferredObserverCue.cue:undefined);delete rt.deferredObserverCue;
             if(feedback&&['too_low','off_target'].includes(state.lesson.lastObservation!.placement))state.lesson.lastCorrectionAt=Date.now();
           }
-          emit('lesson.observer.completed',{frameId,attemptId,elapsedMs:Date.now()-at,observation:state.lesson.lastObservation,model,usage,serviceTier,promptVersion,referenceEvidence,accepted:applied.accepted});
+          emit('lesson.observer.completed',{frameId,attemptId,elapsedMs:Date.now()-at,observation:state.lesson.lastObservation,model,usage,serviceTier,promptVersion,referenceEvidence,verification,accepted:applied.accepted});
           if(applied.accepted){if(!lessonNeedsCamera(state))this.lessonCamera(state,emit,false);this.lessonChanged(state,emit);}
         });
         terminal=true;
@@ -600,10 +610,11 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   private displayNotice(s:Snapshot,available:boolean) {
     const rt=this.runtime.get(s.id);if(s.status!=='active'||!rt)return;
     const notice=this.displayNotices.get(s.id)??{lastLossAt:0,lossSpoken:false};
-    const spoken=!!rt.ready&&!!rt.lessonWelcomed&&!s.demonstration&&(available?notice.lossSpoken:Date.now()-notice.lastLossAt>=60000);
+    const restartingCamera=s.liveVideo&&s.lesson?.observerStatus==='waiting_for_camera';
+    const spoken=!!rt.ready&&!!rt.lessonWelcomed&&!s.demonstration&&(available?notice.lossSpoken:!restartingCamera&&Date.now()-notice.lastLossAt>=60000);
     if(!available&&spoken)notice.lastLossAt=Date.now();
     notice.lossSpoken=!available&&spoken;this.displayNotices.set(s.id,notice);
-    const status=available?'The glasses display connection is restored.':'The glasses display connection was lost; lesson progress is saved and conversation remains available.';
+    const status=available?'The glasses display connection is restored.':restartingCamera?'The camera is restarting; the display is temporarily unavailable.':'The glasses display connection was lost; lesson progress is saved and conversation remains available.';
     rt.provider.appendContext(`${status} ${spoken?'In one short sentence, tell the learner.':'State update only; do not announce this transition unless asked.'} The app handles display and camera recovery automatically; do not ask the learner to resume the feed. Retain the current lesson step and evidence without advancing it.`,null,spoken);
   }
   report(id:string,generation:number,messageId:string,type:string,payload:Record<string,unknown>) {

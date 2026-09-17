@@ -45,7 +45,7 @@ test('reference pose comparison binds each image, limits the schema and maps onl
   assert.match(body.instructions,/allowing camera rotation/);assert.match(body.instructions,/cropped fingertips are acceptable/);assert.match(body.instructions,/incorrect only when it clearly matches the INCORRECT example/);
   assert.match(body.instructions,/Missing hands, wrong scenes, obscured contact, or an ambiguous match require unclear/);
   assert.ok(!JSON.stringify(body).includes('Supplied clinical fact'));assert.deepEqual(body.reasoning,{effort:'none'});assert.equal(body.service_tier,'priority');
-  assert.equal(result.promptVersion,'manikin-pose-v5-reference');assert.equal(result.serviceTier,'priority');assert.equal(result.referenceEvidence?.provenance,'user_labeled_calibration');
+  assert.equal(result.promptVersion,'manikin-pose-v6-verified');assert.equal(result.serviceTier,'priority');assert.equal(result.referenceEvidence?.provenance,'user_labeled_calibration');
   assert.deepEqual(result.referenceEvidence?.references,references!.map(({pose,sha256})=>({pose,sha256})));
   assert.ok(!JSON.stringify(result).includes(jpeg.toString('base64')));assert.ok(!('pose' in result));assert.ok(!('handsVisible' in result));
   const incorrect=await run({pose:'incorrect'});assert.equal(incorrect.placement,'too_low');assert.match(incorrect.reason,/matches the incorrect reference pose/);
@@ -60,4 +60,36 @@ test('reference pose comparison binds each image, limits the schema and maps onl
   assert.equal(body.input[0].content.length,2);assert.equal(body.input[0].content[0].image_url,`data:image/png;base64,${current.toString('base64')}`);
   assert.match(body.input[0].content[1].text,/Supplied clinical fact/);assert.ok(!body.instructions.includes('reference-pose comparison'));
   assert.equal((await run({landmarksVisible:false},false)).placement,'unknown');
+});
+
+test('positive placement needs a separate model to agree on the same image within one deadline',async t=>{
+  const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='test-only';
+  t.after(()=>{if(previous===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;});
+  const run=async(primary:Record<string,unknown>,verifier:Record<string,unknown>|'timeout'|'failure',timeoutMs=1000,delayMs=0)=>{
+    const bodies:any[]=[];
+    const promise=observeLessonFrame(jpeg,'image/jpeg','Quoted fact.',new AbortController().signal,{
+      model:'gpt-5.6-luna',timeoutMs,fetchImpl:async(_url,init)=>{
+        const body=JSON.parse(String(init?.body));bodies.push(body);
+        if(delayMs)await new Promise(resolve=>setTimeout(resolve,delayMs));
+        if(bodies.length===2&&verifier==='failure')return new Response('',{status:503});
+        if(bodies.length===2&&verifier==='timeout')await new Promise((_,reject)=>init!.signal!.addEventListener('abort',()=>reject(init!.signal!.reason),{once:true}));
+        return Response.json({model:body.model,status:'completed',output:[{type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:JSON.stringify({...observation,...(bodies.length===1?primary:typeof verifier==='object'?verifier:{})})}]}]});
+      },
+    });
+    return {result:await promise,bodies};
+  };
+  const agreed=await run({},{});
+  assert.equal(agreed.result.placement,'correct');assert.equal(agreed.bodies.length,2);
+  assert.deepEqual(agreed.bodies.map(body=>body.model),['gpt-5.6-luna','gpt-5.6-terra']);
+  assert.deepEqual(agreed.bodies[0].input,agreed.bodies[1].input);
+  assert.equal(agreed.bodies[0].instructions,agreed.bodies[1].instructions);
+  for(const patch of [{placement:'too_low'},{placement:'unknown'},{confidence:0.8},{landmarksVisible:false}]){
+    const {result}=await run({},patch);assert.equal(result.placement,'unknown');assert.equal(result.confidence,0);
+    assert.equal(result.verification?.model,'gpt-5.6-terra');
+  }
+  for(const patch of [{placement:'too_low'},{placement:'unknown'},{confidence:0.8}])assert.equal((await run(patch,{})).bodies.length,1);
+  await assert.rejects(run({},'failure'),/503/);
+  const keepAlive=setTimeout(()=>{},1000);
+  try{await assert.rejects(run({},'timeout',30),/timed out|aborted/i);}finally{clearTimeout(keepAlive);}
+  await assert.rejects(run({},{},90,60),/timed out|timeout/i);
 });

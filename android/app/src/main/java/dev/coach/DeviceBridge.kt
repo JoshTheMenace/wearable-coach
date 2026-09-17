@@ -54,7 +54,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     private var phoneCapture: ImageCapture? = null
     private var session: DeviceSession? = null
     private var stream: Stream? = null
-    private var cameraClosedForVideo = false
+    private var sessionUsedForVideo = false
     private var display: Display? = null
     private var displayObserver: Closeable? = null
     private var lastDisplayError: String? = null
@@ -179,7 +179,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
     suspend fun recoverVideo(withCamera: Boolean = true, restoreCameraDisplay: Boolean = true, onAttempt: (Int) -> Unit): VideoRecovery {
         if (mode != "meta_display") return VideoRecovery.FAILED
         videoFrames.reset()
-        val reuseExistingSession = !withCamera || !cameraClosedForVideo
+        val reuseExistingSession = !withCamera || !sessionUsedForVideo
         var rebuilt = false
         try {
             val result = recoverCameraConnection(reuseExistingSession = reuseExistingSession, attempt = { reuseSession, attempt ->
@@ -195,7 +195,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
                 if (reuseSession && withCamera && canPlayLessonVideo && parent?.state?.value == DeviceSessionState.STARTED) {
                     startMetaCamera(parent, restoreCameraDisplay)
                 } else {
-                    if (!reuseExistingSession && attempt == 1) report("Meta camera rebuilding session directly: previous camera was closed for lesson video")
+                    if (!reuseExistingSession && attempt == 1) report("Meta camera rebuilding session directly: parent session was used for lesson video")
                     rebuilt = true
                     start("meta_display", withCamera, restoreCameraDisplay)
                 }
@@ -279,7 +279,6 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             // DAT 0.8 stop closes this capability; recovery must create a fresh stream.
             camera.stop()
             withTimeout(5_000) { camera.state.first { it == StreamState.CLOSED } }
-            cameraClosedForVideo = true
             videoMonitor?.cancel(); videoMonitor = null; stream = null; videoFrames.reset()
             report("Meta camera closed for lesson video; restoring display foreground")
             restoreDisplay()
@@ -306,6 +305,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
             } }
         }
         try {
+            sessionUsedForVideo = true // Movie playback can retire the camera transport even before its first stream.
             target.sendContent { video(player = player) }.fold(onSuccess = {}, onFailure = { error, _ -> error(error.description) })
             if (demoPlayer === player) player.play()
         } catch (error: Throwable) {
@@ -378,7 +378,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         runCatching { displayObserver?.close() }; displayObserver = null; lastDisplayError = null
         runCatching { stream?.stop() }; stream = null
         runCatching { session?.removeDisplay() }; display = null; displayAvailable = false
-        runCatching { session?.stop() }; session = null; cameraClosedForVideo = false
+        runCatching { session?.stop() }; session = null; sessionUsedForVideo = false
         runCatching { setDamBootstrap(false) }
         phoneProvider?.unbindAll(); phoneProvider = null; phoneCapture = null
     }
