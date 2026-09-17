@@ -320,7 +320,7 @@ class AudioEngine(context: Context, private val report: (String) -> Unit) {
         "shortWrites" to shortWrites, "underruns" to (player?.underrunCount ?: 0), "suppressed" to gate.suppressed,
         "routeType" to (manager.communicationDevice?.type ?: 0),
         "durationMs" to if (startedAt == 0L) 0L else SystemClock.elapsedRealtime() - startedAt,
-        "audioMode" to manager.mode, "captureMode" to if (movieAudio) "phone_microphone" else "glasses_conversation",
+        "audioMode" to manager.mode, "microphoneMuted" to muted, "captureMode" to if (movieAudio) "phone_microphone" else "glasses_conversation",
         "captureSequence" to captureSequence.get(), "microphoneRouteType" to (recorder?.routedDevice?.type ?: 0),
         "inputRmsDbfs" to inputRmsDbfs, "inputMaxRmsDbfs" to inputMaxRmsDbfs, "inputThresholdDbfs" to -45,
         "inputAboveThresholdAgeMs" to if (inputAboveThresholdAt == 0L) -1L else SystemClock.elapsedRealtime() - inputAboveThresholdAt,

@@ -405,11 +405,11 @@ test('paused practice keeps voice conversation available so the learner can resu
   h.advance(2001);await h.frame();assert.equal(h.requests.length,2);
 });
 
-test('video listens for scoped voice controls while suppressing coach speech, captions and other tools',async t=>{
+test('video mutes microphone input while retaining scoped text controls and suppressing coach speech',async t=>{
   const h=await setup(t,{device:'meta_display'});h.advertise();h.command('play_training_video',{clipId:'overview'});h.cue();
   const instance=h.instances[0],demo=h.state().demonstration!,output:Buffer[]=[];h.coordinator.on('audio',packet=>output.push(packet.pcm));
-  assert.ok(instance.contexts.some(context=>!context.spoken&&/Use lesson_action next to skip or move on/.test(context.text)));
-  const pcm=Buffer.alloc(640,1);h.coordinator.audio(h.id,h.state().generation,pcm);assert.deepEqual(instance.audio.at(-1),pcm);
+  assert.ok(instance.contexts.some(context=>!context.spoken&&/microphone is temporarily muted/.test(context.text)));
+  const pcm=Buffer.alloc(640,1);h.coordinator.audio(h.id,h.state().generation,pcm);assert.deepEqual(instance.audio.at(-1),Buffer.alloc(640));
   instance.callbacks.audio(pcm);instance.callbacks.event('transcript.fragment',{speaker:'assistant',text:'Unwanted narration over the video.'});
   assert.deepEqual(output,[]);assert.ok(!h.state().transcripts.some(fragment=>fragment.text==='Unwanted narration over the video.'));
   for(const [name,args] of [['lesson_action',{action:'continue'}],['lookup_training_reference',{query:'hand placement'}],['inspect_frame',{question:'Check my hands'}]] as const){
@@ -431,6 +431,21 @@ test('video listens for scoped voice controls while suppressing coach speech, ca
   h.advertise();const resumed=h.instances.at(-1)!;resumed.callbacks.event('transcript.fragment',{speaker:'user',text:'Resume the lesson.'});
   resumed.callbacks.tool({id:'resume-after-video-pause',name:'lesson_action',args:{action:'resume'}});await settle();
   assert.equal(h.state().lesson!.status,'active');assert.equal(h.state().demonstration!.status,'cueing');assert.equal(h.state().lesson!.activeClip,'overview');
+});
+
+for(const target of ['glasses','presentation'] as const)for(const clip of ['overview','hand-placement'])for(const ending of ['ended','next'])
+test(`${target} ${clip} mutes video input and restores it after ${ending} without advancing past placement`,async t=>{
+  const h=await setup(t,{device:'meta_display',videoTarget:target});h.advertise();
+  if(target==='presentation')h.coordinator.mutate(h.id,s=>{s.presentation={connected:true,ready:true,assets:h.assets.map(asset=>({...asset,mime:'video/mp4'}))};});
+  if(clip==='hand-placement')h.enterPlacement(false);
+  h.command('play_training_video',{clipId:clip});h.cue();
+  const pcm=Buffer.alloc(640,7);
+  h.coordinator.audio(h.id,h.state().generation,pcm);assert.deepEqual(h.instances.at(-1)!.audio.at(-1),Buffer.alloc(640));
+  if(ending==='next')h.action('skip_demo');
+  else h.coordinator.report(h.id,h.state().generation,randomUUID(),'demo.playback',{requestId:h.state().demonstration!.requestId,status:'ended'},target==='presentation'?'presentation':'device');
+  await settle();assert.equal(h.state().demonstration,undefined);assert.equal(h.state().lesson!.phase,'placement');assert.equal(h.state().lesson!.ready,false);
+  h.coordinator.audio(h.id,h.state().generation,pcm);assert.deepEqual(h.instances.at(-1)!.audio.at(-1),pcm);
+  h.command('set_mic',{muted:true});h.coordinator.audio(h.id,h.state().generation,pcm);assert.deepEqual(h.instances.at(-1)!.audio.at(-1),Buffer.alloc(640));
 });
 
 test('display recovery speaks only after a spoken loss and flapping stays quiet across provider rebinds',async t=>{

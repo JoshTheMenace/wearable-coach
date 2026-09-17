@@ -86,6 +86,15 @@ export function Presentation() {
       socket.current.send(JSON.stringify({ type: 'presentation.practice_mode', mode: requestedMode, commandId: crypto.randomUUID() }));
   }, [armed, connected, requestedMode, snapshot?.id, snapshot?.config.practiceMode]);
   useEffect(() => {
+    if (!armed || !connected) return;
+    const timer = setInterval(() => {
+      const progress = audio.current.progress();
+      if (progress.pendingMs && socket.current?.readyState === WebSocket.OPEN)
+        socket.current.send(JSON.stringify({ type: 'presentation.audio', ...progress }));
+    }, 250);
+    return () => clearInterval(timer);
+  }, [armed, connected]);
+  useEffect(() => {
     const sync = () => setRequestedMode(location.pathname.replace(/\/$/, '') === '/demo' ? 'scripted_demo' : 'live');
     window.addEventListener('popstate', sync); return () => window.removeEventListener('popstate', sync);
   }, []);

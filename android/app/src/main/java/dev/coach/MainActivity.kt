@@ -160,7 +160,7 @@ class MainActivity : ComponentActivity() {
                                     if (cprLesson) {
                                         Text("Learn through your glasses", style = MaterialTheme.typography.titleSmall)
                                         Text("Ask questions, review a demonstration, and practise with live coaching.", style = MaterialTheme.typography.bodyMedium)
-                                        Text("No reading or tapping on the phone is needed during the lesson. Phone controls stay available if you want them.", style = MaterialTheme.typography.bodySmall)
+                                        Text("During videos, the microphone pauses. Tap Next here to skip ahead; voice resumes afterward.", style = MaterialTheme.typography.bodySmall)
                                     }
                                     Text(when {
                                         checkingServer -> "Checking local server…"
@@ -420,11 +420,13 @@ class MainActivity : ComponentActivity() {
                 Button({ session?.lessonAction("start") }, enabled = ready) { Text("Start CPR lesson") }
             } else {
                 if (movieActive) {
-                    Text(if (demonstration?.optString("status") == "playing") "Video playing on glasses" else "Preparing your video…", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
-                    Text("The coach stays silent during playback. Say “Pause the video” to interrupt.")
-                    Text("A paused clip restarts from the beginning; playback position is not saved.", style = MaterialTheme.typography.bodySmall)
+                    Text(if (demonstration?.optString("status") != "playing") "Preparing your video…" else if (demonstration.optString("target") == "presentation") "Video playing on laptop / TV" else "Video playing on glasses", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
                 } else if (page != null) LessonPageContent(page)
                 else Text("Waiting for the current lesson page…", style = MaterialTheme.typography.bodyMedium)
+                if (demonstration != null) {
+                    Text("Microphone paused during video. It resumes automatically afterward.", style = MaterialTheme.typography.bodyMedium)
+                    Button({ session?.lessonAction("skip_demo") }, enabled = ready, modifier = Modifier.fillMaxWidth()) { Text("Next") }
+                }
                 if (practice && demonstration == null && !scripted) {
                     DetailSection("Observation evidence") {
                         Text(when {
@@ -446,7 +448,6 @@ class MainActivity : ComponentActivity() {
                 DetailSection("Optional phone controls") {
                     if (demonstration != null) {
                         OutlinedButton({ session?.lessonAction("pause") }, enabled = ready, modifier = Modifier.fillMaxWidth()) { Text("Pause video") }
-                        if (demonstration.optString("lessonKey") == "overview") TextButton({ session?.lessonAction("skip_demo") }, enabled = ready) { Text("Skip demonstration") }
                     } else if (paused) {
                         Button({ session?.lessonAction("resume") }, enabled = ready && (!lesson.has("pausedClip") || lesson.optString("pausedClip") in state.lessonClipsReady), modifier = Modifier.fillMaxWidth()) { Text(if (lesson.has("pausedClip")) "Restart clip from beginning" else "Resume lesson") }
                         if (lesson.has("pausedClip")) Text("The interrupted clip will restart from the beginning.", style = MaterialTheme.typography.bodySmall)

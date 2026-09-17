@@ -17,6 +17,11 @@ export class PresentationAudio {
     if (generation !== this.generation || epoch !== this.epoch) { this.flush(); this.seq = -1; }
     this.generation = generation; this.epoch = epoch;
   }
+  progress() {
+    const context = this.context;
+    const pendingMs = context && this.enabled && this.sources.size ? Math.ceil((Math.max(0, this.until - context.currentTime) + (context.baseLatency || 0) + (context.outputLatency || 0)) * 1000) : 0;
+    return { generation: this.generation, speechEpoch: this.epoch, pendingMs: Math.min(60000, pendingMs) };
+  }
   play(bytes: ArrayBuffer, rate: number) {
     const packet = decodeAudio(new Uint8Array(bytes)), context = this.context;
     if (!context || !this.enabled || context.state !== 'running' || packet.generation !== this.generation || packet.speechEpoch !== this.epoch || packet.seq <= this.seq) return;

@@ -21,11 +21,19 @@ Validation: 322 automated tests passed, including pending observer cancellation,
 1. Keep the S21 connected to the laptop by USB and the local server running on port 8787.
 2. Open http://127.0.0.1:8787/ on the laptop. Click **Enable presentation** once to allow browser audio.
 3. Connect HDMI and select the TV in the Mac's sound output settings. Use **Test TV sound**, then **Full screen**.
-4. Wear and wake the glasses, then tap **Start coach** on the phone. The laptop joins automatically. Ask for CPR training and continue by voice.
+4. Wear and wake the glasses, then tap **Start coach** on the phone. The laptop joins automatically. Ask for CPR training and continue by voice; during videos, use the phone's **Next** button to skip.
 
-The page shows the sampled glasses camera with translucent lesson cards. Tutor audio plays on both the glasses and laptop. In the default presentation mode, prepared lesson videos play with audio on the laptop/TV over the camera image; the glasses retain their card and continue capturing and listening. The movie itself is **not** played inside the glasses in this mode. The mirror is a composite of camera frames and lesson content, not an optical recording of the display.
+The page shows the sampled glasses camera with translucent lesson cards. Tutor audio plays on both the glasses and laptop. In the default presentation mode, prepared lesson videos play with audio on the laptop/TV over the camera image; the glasses retain their card and continue capturing while microphone input is muted. The movie itself is **not** played inside the glasses in this mode. The mirror is a composite of camera frames and lesson content, not an optical recording of the display.
 
 The phone's **Session settings → Play videos on laptop / TV; keep glasses camera live** checkbox selects this behavior before starting. Uncheck it to use the native glasses player. Developer tools remain at `/lab`; they are not needed for a presentation.
+
+## Microphone and TV echo
+
+While the tutor speaks in presentation mode, microphone input is replaced with silence before reaching Gemini. The gate tracks generated PCM duration plus the laptop and phone playback queues, then allows 750 ms for speaker echo to decay. It does not reopen merely because Gemini finishes generating the reply. This disables spoken interruption of tutor replies; wait until the reply finishes.
+
+Both the overview and hand-placement video mute the microphone, including their preparing stage. The phone shows a large **Next** button outside the collapsed controls. Next skips the overview into placement setup or closes a hand-placement replay and returns to its existing step. Playback end, skip, pause, failure, and reconnect remove the temporary video mute; a manually muted microphone stays muted. Video voice controls are unavailable. Tutor narration after a video has its own playback gate.
+
+`microphone.echo_gate` events record transitions and their reasons. Android audio diagnostics include `microphoneMuted`. The camera and video playback continue independently. Regression tests cover playback queues, stale progress reports, echo decay, both clip types and delivery targets, Next/end recovery, and manual mute. A real Gemini test with the tutor's output looped into microphone input completed without echo interruptions. Physical TV acoustics still need a room check.
 
 Keep one enabled presentation window open. Closing it during a video cancels that video and restores the lesson. Reloading requires another Enable click. If clips cannot load, the page offers Reload video; the server refuses playback until the presentation is ready.
 

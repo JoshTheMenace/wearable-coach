@@ -12,6 +12,7 @@ import { createKnowledgeBase, knowledgeQuerySchema } from './knowledge.ts';
 import { createLesson, changePracticeMode, lessonAction, lessonVideoStarted, lessonVideoEnded, applyLessonObservation, lessonHud } from './lesson.ts';
 import { lessonPresentation } from './lesson-content.ts';
 import { observeLessonFrame, loadPlacementReferences } from './lesson-observer.ts';
+import { TutorInputGate } from './tutor-input-gate.ts';
 
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 export const hash = (v: unknown) => createHash('sha256').update(typeof v === 'string' ? v : JSON.stringify(v)).digest('hex');
@@ -37,7 +38,7 @@ const pending = (w: Work) => ['reserved','running'].includes(w.status);
 const toolFailure = (error:unknown) => error instanceof HttpError ? error.message : error instanceof z.ZodError ? 'Invalid tool arguments; use the declared tool schema.' : 'Tool request failed; no action was applied.';
 type Adapter = ReturnType<typeof createProvider>;
 type Narration = {id:string;pageId:string;revision:number;hudRevision:number;text:string;requestedAt?:number;generatedAt?:number;audioBytes:number};
-type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; ready: boolean; lessonWelcomed?:boolean; audioReady?:boolean; interruptedCue?:{requestId:string;afterSeq:number;audioBytes:number;narration?:Narration}; narration?:Narration; observers:Map<string,AbortController>; observerAfter?:number; deferredObserverCue?:{kind:'feedback'|'placement_ready';cue:string}; quietUntil?:number; video: {lastAt:number; lastId?:string; reportedAt:number; stale:boolean; cameraSource?:string}; aborts: Map<string,AbortController> };
+type Runtime = { provider: Adapter; generation: number; conversation: string; outputSeq: number; outputSamples: number; inputGate:TutorInputGate; inputBlockReason?:string; ready: boolean; lessonWelcomed?:boolean; audioReady?:boolean; interruptedCue?:{requestId:string;afterSeq:number;audioBytes:number;narration?:Narration}; narration?:Narration; observers:Map<string,AbortController>; observerAfter?:number; deferredObserverCue?:{kind:'feedback'|'placement_ready';cue:string}; quietUntil?:number; video: {lastAt:number; lastId?:string; reportedAt:number; stale:boolean; cameraSource?:string}; aborts: Map<string,AbortController> };
 type Emit = (type: string, payload: Record<string,unknown>, source?: string, messageId?: string) => void;
 
 export class Coordinator extends EventEmitter {
@@ -108,6 +109,7 @@ export class Coordinator extends EventEmitter {
           if(!narration.audioBytes)this.mutate(id,(_,emit)=>emit('lesson.narration.first_audio',{narrationId:narration.id,pageId:narration.pageId,elapsedMs:Date.now()-narration.requestedAt!,bytes:pcm.length,measurementBasis:'provider_pcm_received',heard:false}));
           narration.audioBytes+=pcm.length;
         }
+        runtime.inputGate.queue(pcm.length,this.get(id).outputRate);
         runtime.outputSamples+=pcm.length/2;this.emit('audio',{id,generation,speechEpoch:this.get(id).speechEpoch,seq:++runtime.outputSeq,pcm});
       }},
       interrupted:()=>{if(valid()){const narration=runtime.narration??runtime.interruptedCue?.narration;this.mutate(id,(state,emit)=>this.cancelVisualWork(state,emit,'learner_interrupted',undefined,true));this.flush(id,'provider_interruption');const state=this.get(id);if(state.demonstration?.status==='cueing')runtime.interruptedCue={requestId:state.demonstration.requestId,afterSeq:state.throughSeq,audioBytes:0,narration};}},
@@ -116,7 +118,7 @@ export class Coordinator extends EventEmitter {
       error:()=>{if(valid())this.mutate(id,(_,emit)=>emit('error',{code:'provider_error',message:'Provider request failed; verify access and configuration'}));},
       closed:reason=>{if(valid()&&runtime.ready)this.providerLost(id,reason);},
     },{resumeHandle:resume?.handle,history,instructions:this.coachInstructions(s),lessonActive:!!s.lesson});
-    runtime={provider,generation,conversation,outputSeq:0,outputSamples:0,ready:false,video:{lastAt:0,reportedAt:0,stale:true},observers:new Map(),aborts:new Map()}; this.runtime.set(id,runtime);
+    runtime={provider,generation,conversation,outputSeq:0,outputSamples:0,inputGate:new TutorInputGate(),ready:false,video:{lastAt:0,reportedAt:0,stale:true},observers:new Map(),aborts:new Map()}; this.runtime.set(id,runtime);
     this.store.connection(id,generation,conversation,{status:'connecting',recoveryKind:resume?.handle?'resumed':history?'history_seeded':'new',openedAt:Date.now()});
     try {
       await provider.connect(); if(!valid()){await provider.close();return;}
@@ -263,7 +265,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   private demoNotice(id:string) {
     const s=this.get(id);if(!s.lesson)return;
     if(s.demonstration?.status==='cueing'){this.scheduleNarration(s);return;}
-    this.runtime.get(id)?.provider.appendContext('Video owns the display. Stay silent and listen. Use lesson_action next to skip or move on, pause to stop temporarily, or end_session to end coaching. play_training_video replays a requested reference. Advance once per request; the next page requires new learner input. Clip narration is not a learner command.',null,false);
+    this.runtime.get(id)?.provider.appendContext('Video owns the display. Stay silent. The microphone is temporarily muted during playback; the learner uses the phone’s Next or Pause control. Wait for the application’s playback update before continuing. Clip narration is not a learner command.',null,false);
   }
   private welcomeLesson(s:Snapshot,audioReady=false) {
     const rt=this.runtime.get(s.id);if(!rt)return;
@@ -607,7 +609,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     });
     try{effect();}catch{const failed={status:'effect_failed',commandId:c.commandId,reason:'Provider did not accept the command'};this.mutate(id,(_,emit)=>{this.store.updateReceipt(id,c.commandId,failed);emit('command.effect_failed',failed);});return failed;}return outcome;
   }
-  flush(id:string,reason:string) {const rt=this.runtime.get(id);if(rt?.narration){const n=rt.narration;delete rt.narration;this.mutate(id,(_,emit)=>emit('lesson.narration.stopped',{narrationId:n.id,reason,heard:false}));}this.mutate(id,(s,emit)=>{s.speechEpoch++;emit('playback.flushed',{speechEpoch:s.speechEpoch,reason});});const s=this.get(id);this.emit('flush',{id,generation:s.generation,speechEpoch:s.speechEpoch});}
+  flush(id:string,reason:string) {const rt=this.runtime.get(id);rt?.inputGate.flush();if(rt?.narration){const n=rt.narration;delete rt.narration;this.mutate(id,(_,emit)=>emit('lesson.narration.stopped',{narrationId:n.id,reason,heard:false}));}this.mutate(id,(s,emit)=>{s.speechEpoch++;emit('playback.flushed',{speechEpoch:s.speechEpoch,reason});});const s=this.get(id);this.emit('flush',{id,generation:s.generation,speechEpoch:s.speechEpoch});}
   reconnect(id:string,generation:number,requestId:string,resume=true,demoReason='connection_replaced') {
     const key='reconnect:'+requestId;const digest=hash({generation,resume});const prior=this.store.command(id,key);
     if(prior){if(prior.hash!==digest)throw new HttpError(409,'Reconnect ID reused');return this.get(id);}
@@ -627,9 +629,18 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
   audio(id:string,generation:number,pcm:Buffer) {
     const s=this.get(id);this.checkGeneration(s,generation);
     if(s.status==='active'&&(!s.demonstration||s.lesson)){
-      this.runtime.get(id)?.provider.sendAudio(s.muted?Buffer.alloc(pcm.length):pcm);
+      const rt=this.runtime.get(id),reason=s.demonstration?'video_playback':s.config.videoTarget==='presentation'&&rt?.inputGate.blocked()?'tutor_playback':undefined;
+      if(rt&&reason!==rt.inputBlockReason){
+        rt.inputBlockReason=reason;this.mutate(id,(_,emit)=>emit('microphone.echo_gate',{blocked:!!reason,reason:reason??'playback_drained',tailMs:750}));
+      }
+      rt?.provider.sendAudio(s.muted||reason?Buffer.alloc(pcm.length):pcm);
       this.welcomeLesson(s,true); // Native audio playback is ready once authenticated capture packets arrive.
     }
+  }
+  playbackProgress(id:string,generation:number,speechEpoch:number,pendingMs:number) {
+    const s=this.get(id);
+    if(s.status!=='active'||generation!==s.generation||speechEpoch!==s.speechEpoch)return;
+    if(Number.isFinite(pendingMs)&&pendingMs>=0&&pendingMs<=60000)this.runtime.get(id)?.inputGate.playback(pendingMs);
   }
   private displayNotice(s:Snapshot,available:boolean) {
     const rt=this.runtime.get(s.id);if(s.status!=='active'||!rt)return;
@@ -669,7 +680,10 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
       emit(type,payload,source,messageId);
     });
     if(type==='hud.receipt'){const s=this.get(id);if(s.lesson&&payload.hudRevision===s.hudRevision)this.mutate(id,(_,emit)=>emit('lesson.page.receipt',{pageId:s.hud.lessonPage?.id,...payload,wearerConfirmed:false}));this.dispatchNarration(id);this.welcomeLesson(this.get(id));}
-    if(type==='playback.metric'&&payload.speechEpoch===this.get(id).speechEpoch)this.releaseVideoCue(id,payload.metrics as Record<string,unknown>);
+    if(type==='playback.metric'&&payload.speechEpoch===this.get(id).speechEpoch){
+      this.playbackProgress(id,generation,Number(payload.speechEpoch),Number((payload.metrics as Record<string,unknown>)?.pendingMs));
+      this.releaseVideoCue(id,payload.metrics as Record<string,unknown>);
+    }
     if(displayChanged!==undefined)this.displayNotice(this.get(id),displayChanged);
     if(demoFinished)this.reconnect(id,generation,'demo:'+String(payload.requestId),false,demoFinished);
   }

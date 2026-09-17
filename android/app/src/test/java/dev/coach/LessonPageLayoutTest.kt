@@ -32,7 +32,7 @@ class LessonPageLayoutTest {
                 page.optJSONObject("support")?.optString("title").orEmpty(), page.optJSONObject("support")?.optString("body").orEmpty(), page.getString("hint"))
                 .joinToString(" ").trim().replace(Regex("\\s+"), " ")
             assertEquals(expected, layout.rows.joinToString(" ") { it.text })
-            assertFalse(layout.rows.any { "phone" in it.text.lowercase() })
+            if (page.getString("template") != "show") assertFalse(layout.rows.any { "phone" in it.text.lowercase() })
             val firstHint = layout.rows.first { it.style == LessonPageLayout.Style.HINT }
             assertEquals(16, firstHint.gap)
         }

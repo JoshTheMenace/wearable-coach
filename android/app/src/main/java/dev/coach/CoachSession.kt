@@ -483,6 +483,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
             if (previous?.optString("requestId") != demo.optString("requestId")) {
                 stopDemonstration(); audio.flush(generation, epoch)
                 _state.update { it.copy(demonstration = demo.toString()) }
+                audio.muted = true
                 if (demo.optString("target") != "presentation") {
                     cancelPresentation()
                     val cameraJobs = arrayOf(cameraFeedJob, glassesRecoveryJob, liveJob, hudRestoreJob)
@@ -523,20 +524,20 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         }
         cuePlaybackJob?.cancel(); cuePlaybackJob = null
         if (demo?.optString("target") == "presentation") {
-            audio.suppress()
+            audio.muted = true; audio.suppress()
             _state.update { it.copy(demonstration = demo.toString(), liveMessage = "Video is playing on the presentation screen. Glasses camera stays live.") }
             return
         }
         val requestId = demo?.optString("requestId")?.takeIf { it.isNotBlank() }
-        if (requestId == demoRequestId) return
+        if (requestId != null && requestId == demoRequestId) return
         stopDemonstration()
         if (requestId == null || closed || ending) return
         val lease = DemoPlaybackLease(requestId, generation, binding)
         demoLease = lease; demoRequestId = requestId
         glassesRecoveryJob?.cancel()
         stopLiveLocally(); setPreview(false); timerJob?.cancel()
-        audio.muted = _state.value.muted; audio.suppress()
-        _state.update { it.copy(demonstration = demo.toString(), liveMessage = "Starting the video. Say pause the video to interrupt.") }
+        audio.muted = true; audio.suppress()
+        _state.update { it.copy(demonstration = demo.toString(), liveMessage = "Starting the video. Tap Next to continue.") }
         val clip = lessonClips.find { it.id == demo.getString("assetId") }
         var playbackStartedAt = 0L
         fun playback(status: String, reason: String? = null) {
@@ -591,6 +592,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
     }
 
     private fun stopDemonstration() {
+        audio.muted = _state.value.muted
         videoPreparationJob?.cancel(); videoPreparationJob = null
         cuePlaybackJob?.cancel(); cuePlaybackJob = null
         if (demoRequestId == null) { _state.update { it.copy(demonstration = "") }; return }
@@ -598,7 +600,6 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
         demoJob?.cancel(); demoJob = null; demoDeadlineJob?.cancel(); demoDeadlineJob = null
         device.stopLessonVideo()
         restoreMovieAudio()
-        audio.muted = _state.value.muted
         _state.update { it.copy(demonstration = "") }
         val expectedGeneration = generation
         scope.launch {
@@ -654,7 +655,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
                     audio.start(inputRate, outputRate, generation, epoch) { packet ->
                         !closed && activeBinding == binding && socket.queueSize() < (inputRate * 2 / 4) && socket.send(packet.toByteString())
                     }
-                    audio.muted = _state.value.muted
+                    audio.muted = _state.value.muted || _state.value.demonstration.isNotEmpty()
                     if (demoRequestId != null) audio.setMovieAudio(true)
                     _state.update { it.copy(route = audio.routeDescription()) }
                     healthJob?.cancel()
@@ -747,7 +748,7 @@ class CoachSession(private val context: Context, lifecycle: LifecycleOwner, priv
 
     fun mute() {
         val muted = !_state.value.muted
-        audio.muted = muted; _state.update { it.copy(muted = muted) }
+        audio.muted = muted || _state.value.demonstration.isNotEmpty(); _state.update { it.copy(muted = muted) }
         command("set_mic", json("muted" to muted))
     }
     fun stopSpeech() {

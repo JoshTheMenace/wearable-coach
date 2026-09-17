@@ -198,6 +198,9 @@ export function createApp(options:{dataDir?:string;operatorToken?:string;staticD
         if(channel==='events'){
           if(binary||presentations.get(id)!==ws)throw new HttpError(403,'Read-only stream');
           const message=JSON.parse(data.toString()),state=coordinator.get(id);
+          if(message.type==='presentation.audio'){
+            coordinator.playbackProgress(id,z.number().int().parse(message.generation),z.number().int().parse(message.speechEpoch),z.number().min(0).max(60000).parse(message.pendingMs));return;
+          }
           if(message.type==='presentation.ready'){
             const ready=z.boolean().parse(message.ready);
             const assets=ready?lessonMedia.list(id).map(({id,width,height,durationMs,mime,lessonKey})=>({id,width,height,durationMs,mime,lessonKey})):[];
