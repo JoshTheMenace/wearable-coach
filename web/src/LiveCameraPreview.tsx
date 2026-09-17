@@ -56,10 +56,10 @@ export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, m
         : <div className="mirror-scene" style={{ '--camera-aspect': aspect } as CSSProperties}>
           {image ? <img className="mirror-camera-image" src={image} onLoad={event => setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)} alt="Current view from the glasses camera" /> : <p className="mirror-camera-empty">{active ? 'The camera preview will appear here.' : 'Camera session ended.'}</p>}
           {showHud && <aside className="mirror-hud" aria-label="Mirrored coach display"><HudContent hud={hud} now={now} /></aside>}
+          {playingVideo && laptopVideo && <div className="mirror-movie-overlay" style={{ aspectRatio: clip ? clip.width / clip.height : 16 / 9 }}>{onPlayback
+            ? <PresentationVideo key={demo.requestId} demo={demo} clip={clip} sound={!!sound} report={onPlayback} />
+            : <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError} retryMedia={retryMedia} sound={sound} />}</div>}
         </div>}
-      {playingVideo && laptopVideo && <div className="mirror-movie-overlay">{onPlayback
-        ? <PresentationVideo key={demo.requestId} demo={demo} clip={clip} sound={!!sound} report={onPlayback} />
-        : <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError} retryMedia={retryMedia} sound={sound} />}</div>}
     </div>
     <footer>{playingVideo?laptopVideo?'Camera stays live during the video':'Camera resumes after the video':assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>{playingVideo?'Lesson playback mirror':'Sampled camera · live coaching cards'}</span></footer>
   </section>;
