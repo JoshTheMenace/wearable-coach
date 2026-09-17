@@ -79,6 +79,18 @@ class CameraStartupTest {
         assertEquals(VideoRecovery.RECOVERED, result)
     }
 
+    @Test fun cameraClosedForMovieRebuildsOnFirstAttemptWithoutWaitingThroughARetry() = runBlocking {
+        val attempts = mutableListOf<Pair<Boolean, Int>>()
+        val result = recoverCameraConnection(reuseExistingSession = false, attempt = { reuse, number ->
+            attempts.add(reuse to number)
+            if (reuse) throw CameraCaptureFailure("VideoStartTimeout")
+            VideoRecovery.RECOVERED
+        }, onFailure = { _, _ -> fail("The retired parent must not be retried") },
+            pause = { fail("Rebuilding directly must not wait for retry backoff") })
+        assertEquals(listOf(false to 1), attempts)
+        assertEquals(VideoRecovery.RECOVERED, result)
+    }
+
     @Test fun disconnectedGlassesWaitWithoutRepeatedSessionRestarts() = runBlocking {
         var attempts = 0
         val result = recoverCameraConnection(attempt = { _, _ -> attempts++; VideoRecovery.WAITING },

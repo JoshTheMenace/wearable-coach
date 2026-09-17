@@ -24,7 +24,7 @@ const TUTOR_WELCOME = 'I’m your AI training coach. What would you like to work
 const PLACEMENT_READY_CUE = 'Your hands appear on the target area. Begin a short practice round when ready. Let me know when you’ve finished.';
 const cprRequested = (text:string) => /\b(?:CPR|cardiopulmonary resuscitation)\b/i.test(text)&&/\b(?:pull up|bring up|start|begin|open|show|teach|learn|practi[cs]e|train|training|walk me through)\b/i.test(text)&&!/\b(?:not|never|don[’']?t|if|when|what|why|explain|define|emergency)\b/i.test(text);
 const videoControls = ['pause','skip_demo','next','continue','replay_video','end_session'];
-const practiceFinished = (text:string) => !(/[?]|\b(not|never|yet|should|can|could|would|might|what|when|if|don[’']?t|isn[’']?t|aren[’']?t|haven[’']?t)\b/i.test(text))&&/(?:^|[.!]\s*)(?:(?:ok(?:ay)?|yes)[,.]?\s*)?(?:(?:i(?:[’']m| am| have|[’']ve)?|we(?:[’']re| are| have|[’']ve)?)\s+)?(?:(?:all|about)\s+)?(?:done|finished|complete(?:d)?|all set)(?:\s+(?:with\s+)?(?:(?:the|this|my)\s+)?(?:practi[cs]e|round|compressions))?[.!\s]*$/i.test(text);
+const practiceFinished = (text:string) => /^finish[.!\s]*$/i.test(text)||!(/[?]|\b(not|never|yet|should|can|could|would|might|what|when|if|don[’']?t|isn[’']?t|aren[’']?t|haven[’']?t)\b/i.test(text))&&/(?:^|[.!]\s*)(?:(?:ok(?:ay)?|yes)[,.]?\s*)?(?:(?:i(?:[’']m| am| have|[’']ve)?|we(?:[’']re| are| have|[’']ve)?)\s+)?(?:(?:all|about)\s+)?(?:done|finished|complete(?:d)?|all set)(?:\s+(?:with\s+)?(?:(?:the|this|my)\s+)?(?:practi[cs]e|round|compressions))?[.!\s]*$/i.test(text);
 // Gemini chooses the action; these guards check contradictory intent and scope,
 // not the learner's greeting, reason, or exact sentence structure.
 const videoControlRequested = (text:string) =>

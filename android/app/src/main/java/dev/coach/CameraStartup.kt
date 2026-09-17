@@ -26,12 +26,13 @@ internal suspend fun awaitCameraStartup(states: Flow<StreamState>, errors: Flow<
 
 // A failed capability can leave its parent transport stale. Only reuse it once.
 internal suspend fun recoverCameraConnection(
+    reuseExistingSession: Boolean = true,
     attempt: suspend (reuseSession: Boolean, number: Int) -> VideoRecovery,
     onFailure: (Exception, Int) -> Unit,
     pause: suspend (Long) -> Unit = { delay(it) }
 ): VideoRecovery {
     repeat(3) { index ->
-        try { return attempt(index == 0, index + 1) }
+        try { return attempt(reuseExistingSession && index == 0, index + 1) }
         catch (error: CancellationException) { throw error }
         catch (error: Exception) { onFailure(error, index + 1) }
         if (index < 2) pause(2_000L * (index + 1))

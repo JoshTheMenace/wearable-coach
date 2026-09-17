@@ -1055,3 +1055,42 @@ test('scripted presentation uses the ordinary learner welcome while retaining it
   assert.match(welcome,/I’m your AI training coach/);assert.doesNotMatch(welcome,/scripted|simulated|no visual assessment/i);
   assert.equal((h.events().find(event=>event.type==='session.created')!.payload.config as SessionConfig).practiceMode,'scripted_demo');
 });
+
+for(const action of ['next','end_session'])test(`fresh spoken “finish” opens the practice recap once through ${action}`,async t=>{
+  const h=await setup(t);h.enterPlacement();
+  for(let i=0;i<2;i++){await h.frame();h.requests.at(-1)!.resolve(correct);await settle();h.advance();}
+  assert.equal(h.state().lesson!.phase,'practice');
+  const instance=h.instances[0],call=async()=>{instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action}});await settle();return instance.results.at(-1)!.result;};
+  instance.callbacks.event('provider.utterance_complete',{});
+  instance.callbacks.event('transcript.fragment',{speaker:'user',text:'finish'});
+  assert.equal((await call()).action,'finish_practice');
+  assert.equal(h.state().lesson!.phase,'complete');assert.equal(h.state().status,'active');
+  assert.equal(h.state().lesson!.completed.at(-1)!.evidence,'learner_confirmed');
+  assert.equal((await call()).status,'rejected');
+  assert.equal(h.state().lesson!.recapPage,0);
+  assert.equal(h.events().filter(event=>event.type==='lesson.learner_confirmation'&&event.payload.step==='practice').length,1);
+  assert.ok(!h.events().some(event=>event.type==='session.ending'));
+});
+
+test('standalone finish acceptance preserves negative, future, question and stale-input guards',async t=>{
+  const h=await setup(t);h.enterPlacement();h.action('skip_placement');
+  const instance=h.instances[0],next=async()=>{instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();return instance.results.at(-1)!.result;};
+  for(const text of ["Don't finish.",'Do not finish.','Not finished.','I will finish.','I’m going to finish.','I want to finish.','Finish when I am ready.','Can I finish?','Finish?','Finish the session.','Finish the video.']){
+    h.command('send_text',{text});assert.equal((await next()).status,'rejected',text);
+    assert.equal(h.state().lesson!.phase,'practice');assert.equal(h.state().status,'active');
+  }
+  h.command('send_text',{text:'finish'});h.advance(30001);
+  assert.equal((await next()).status,'rejected');assert.equal(h.state().lesson!.phase,'practice');
+});
+
+for(const phase of ['intro','placement','paused practice','video'])test(`standalone finish cannot advance ${phase}`,async t=>{
+  const h=await setup(t);
+  if(phase==='placement')h.enterPlacement(false);
+  if(phase==='paused practice'){h.enterPlacement();h.action('skip_placement');h.action('pause');}
+  if(phase==='video'){h.advertise();h.command('play_training_video',{clipId:'overview'});h.cue();}
+  const before=structuredClone(h.state().lesson),instance=h.instances.at(-1)!;
+  instance.callbacks.event('transcript.fragment',{speaker:'user',text:'finish'});
+  instance.callbacks.tool({id:randomUUID(),name:'lesson_action',args:{action:'next'}});await settle();
+  assert.equal(instance.results.at(-1)!.result.status,'rejected');assert.deepEqual(h.state().lesson,before);
+  assert.equal(h.state().status,'active');
+});
