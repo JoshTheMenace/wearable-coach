@@ -285,7 +285,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     // Simulator without sound has no audio device; generated PCM duration is a conservative fallback.
     const elapsed=s.config.device==='mock'&&Date.now()-n.generatedAt>=n.audioBytes/(s.outputRate*2)*1000+500;
     if(!drained&&!elapsed)return;
-    this.mutate(id,(state,emit)=>{const demo=state.demonstration!;demo.status='starting';demo.startedAt=Date.now();demo.deadlineAt=Date.now()+(demo.durationMs??55000)+15000;emit('demo.cue.finished',{requestId:demo.requestId,narrationId:n.id,measurementBasis:drained?'device_playback_queue':'simulator_duration'});});
+    this.mutate(id,(state,emit)=>{const demo=state.demonstration!;demo.status='starting';demo.startedAt=Date.now();demo.deadlineAt=Date.now()+(demo.durationMs??55000)+30000;emit('demo.cue.finished',{requestId:demo.requestId,narrationId:n.id,measurementBasis:drained?'device_playback_queue':'simulator_duration'});});
     this.flush(id,'video_cue_finished');this.emit('snapshot',id);this.demoNotice(id);
   }
   private lessonChanged(s:Snapshot,emit:Emit) {
@@ -450,7 +450,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
     if(s.liveVideoStats)emit('video.summary',{...s.liveVideoStats,liveVideoEpoch:s.liveVideoEpoch,reason:'demonstration_started'});
     const resumeLiveVideo=s.liveVideo;
     s.liveVideo=false;s.liveVideoEpoch++;s.liveVideoStats=undefined;
-    s.demonstration={requestId:randomUUID(),assetId,status:s.lesson?'cueing':'starting',startedAt:Date.now(),deadlineAt:Date.now()+(s.lesson?30000:asset.durationMs+15000),durationMs:asset.durationMs,...(asset.lessonKey?{lessonKey:asset.lessonKey}:{}),resumeLiveVideo};
+    s.demonstration={requestId:randomUUID(),assetId,status:s.lesson?'cueing':'starting',startedAt:Date.now(),deadlineAt:Date.now()+(s.lesson?30000:asset.durationMs+30000),durationMs:asset.durationMs,...(asset.lessonKey?{lessonKey:asset.lessonKey}:{}),resumeLiveVideo};
     emit('demo.started',{...s.demonstration});
   }
   private observeLesson(s:Snapshot,frameId:string,bytes:Buffer,mime:string,meta:Record<string,unknown>,at:number) {
@@ -638,7 +638,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
         payload=z.object({requestId:z.string().uuid(),status:z.enum(['playing','ended','failed']),reason:z.string().max(300).optional()}).strict().parse(payload);
         if(!s.demonstration||s.demonstration.requestId!==payload.requestId){emit('demo.playback.stale',payload,'device',messageId);return;}
         if(s.demonstration.status==='cueing'){emit('demo.playback.stale',payload,'device',messageId);return;}
-        if(payload.status==='playing'){s.demonstration.status='playing';s.demonstration.playbackStartedAt??=Date.now();}else demoFinished=String(payload.status);
+        if(payload.status==='playing'){s.demonstration.status='playing';s.demonstration.playbackStartedAt??=Date.now();s.demonstration.deadlineAt=s.demonstration.playbackStartedAt+(s.demonstration.durationMs??55000)+15000;}else demoFinished=String(payload.status);
       }
       else if(type==='capture.failed'){const w=s.work.find(w=>w.id===payload.workId);if(w&&pending(w)){this.finishIn(s,w,'failed',{reason:'capture_failed',instruction:'No image arrived because camera capture failed. Explain the camera connection failure and ask the learner to retry inspection. Do not imply the object was absent, obscured, or out of view; no visual evidence was received.',applicationEffect:'not_applied',providerOutcomeKnown:true},emit);}}
       else if(!['playback.metric','media.summary','clock.sample'].includes(type))throw new HttpError(400,'Unsupported device report');
@@ -842,7 +842,7 @@ Authoritative lesson state: ${JSON.stringify(s.lesson)}`;
       const rt=this.runtime.get(s.id);
       if(s.demonstration){
         if(s.demonstration.status==='cueing'&&rt?.interruptedCue?.requestId===s.demonstration.requestId)continue;
-        this.releaseVideoCue(s.id);if(now>s.demonstration.deadlineAt||s.demonstration.status==='starting'&&now-s.demonstration.startedAt>15000)this.reconnect(s.id,s.generation,'demo:'+s.demonstration.requestId,false,'timeout');continue;
+        this.releaseVideoCue(s.id);if(now>s.demonstration.deadlineAt||s.demonstration.status==='starting'&&now-s.demonstration.startedAt>30000)this.reconnect(s.id,s.generation,'demo:'+s.demonstration.requestId,false,'timeout');continue;
       }
       if(s.liveVideo&&rt?.video.lastAt&&!rt.video.stale&&now-rt.video.lastAt>5000){
         rt.video.stale=true;

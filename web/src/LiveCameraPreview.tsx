@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Snapshot } from '../../contracts/index.ts';
 import type { CachedLessonClip } from './lesson-media.ts';
 import { HudContent } from './HudContent.tsx';
@@ -15,6 +15,7 @@ export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, m
   const clip = clips.find(clip => clip.id === demo?.assetId);
   const showHud = active && !playingVideo && (hud.expiresAt ?? Infinity) > now && !!(hud.brand || hud.lessonPage || hud.card || hud.checklist?.length || hud.timer);
   const [image, setImage] = useState('');
+  const [aspect, setAspect] = useState(4 / 3);
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     setImage('');
@@ -49,9 +50,10 @@ export function LiveCameraPreview({ snapshot, token, now, clips, mediaLoading, m
       <button className="plain" onClick={()=>void panel.current?.requestFullscreen().catch(()=>{})}>Full screen</button></header>
     <div className="live-camera-picture">
       {playingVideo ? <MirrorVideo key={demo.requestId} demo={demo} clip={clip} now={now} mediaError={mediaError || (!mediaLoading && !clip ? 'This video is unavailable in the laptop mirror.' : '')} retryMedia={retryMedia} />
-        : <>{image ? <img className="mirror-camera-image" src={image} alt="Current view from the glasses camera" /> : <p className="mirror-camera-empty">{active ? 'The camera preview will appear here.' : 'Camera session ended.'}</p>}
-          {showHud && <aside className="mirror-hud" aria-label="Mirrored coach display"><span className="mirror-hud-label">Coach display</span><HudContent hud={hud} now={now} /></aside>}
-        </>}
+        : <div className="mirror-scene" style={{ '--camera-aspect': aspect } as CSSProperties}>
+          {image ? <img className="mirror-camera-image" src={image} onLoad={event => setAspect(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)} alt="Current view from the glasses camera" /> : <p className="mirror-camera-empty">{active ? 'The camera preview will appear here.' : 'Camera session ended.'}</p>}
+          {showHud && <aside className="mirror-hud" aria-label="Mirrored coach display"><HudContent hud={hud} now={now} /></aside>}
+        </div>}
     </div>
     <footer>{playingVideo?'Camera resumes after the video':assessing?'Coach is checking hand placement':'Camera preview only · AI assessment is off'}<span>{playingVideo?'Lesson playback mirror':'Sampled camera · live coaching cards'}</span></footer>
   </section>;

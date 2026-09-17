@@ -86,11 +86,22 @@ for(const reason of ['failed','reconnect','end'] as const)test(`${reason} cancel
   assert.ok(h.store.events(h.id).some(event=>event.type==='demo.finished'));
 });
 
+test('slow glasses startup survives fifteen seconds and still has a bounded deadline',async t=>{
+  t.mock.timers.enable({apis:['Date','setInterval'],now:Date.now()});
+  const h=await setup(t,'meta_display'),demo=h.start();
+  t.mock.timers.tick(16000);await settle();
+  assert.equal(h.state().demonstration?.requestId,demo.requestId);
+  h.report('demo.playback',{requestId:demo.requestId,status:'playing'});
+  assert.equal(h.state().generation,1);
+  t.mock.timers.tick(26000);await settle();
+  assert.equal(h.state().demonstration,undefined);
+});
+
 for(const status of ['starting','playing'] as const)test(`${status} demonstration timeout restores HUD and turns live video off`,async t=>{
   t.mock.timers.enable({apis:['Date','setInterval'],now:Date.now()});
   const h=await setup(t);h.command('set_hud',{hud:{card:{body:'Timed out clip'}}});const demo=h.start();
   if(status==='playing')h.report('demo.playback',{requestId:demo.requestId,status});
-  t.mock.timers.tick(status==='starting'?16000:26000);await settle();
+  t.mock.timers.tick(status==='starting'?31000:26000);await settle();
   assert.equal(h.state().demonstration,undefined);assert.equal(h.state().generation,2);assert.equal(h.state().liveVideo,false);
   assert.equal(h.state().hud.card?.body,'Timed out clip');
   assert.ok(h.store.events(h.id).some(event=>event.type==='demo.finished'&&event.payload.reason==='timeout'));

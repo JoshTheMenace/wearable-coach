@@ -297,6 +297,7 @@ class DeviceBridge(private val context: Context, private val lifecycle: Lifecycl
         val player = VideoPlayer(VideoSource.Url(server.url), VideoCodec.MP4).also { demoPlayer = it }
         demoMonitor = scope.launch {
             launch { player.state.collect { state ->
+                if (demoPlayer === player) report("Lesson video state: $state")
                 if (demoPlayer === player) when (state) {
                     VideoPlayerState.PLAYING -> onState("playing", null)
                     VideoPlayerState.ENDED -> onState("ended", null)

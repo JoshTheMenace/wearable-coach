@@ -26,7 +26,7 @@ The shipped path therefore pauses camera capture while a lesson movie plays, the
 
 Start the coach on Android, then use **Live device sessions → Open live mirror** on the laptop. The home screen refreshes the list every five seconds. Choosing a native device in the laptop setup joins its existing session; it no longer creates a separate session with no attached camera. Device candidates must have reported native SDK status. If several match, the user chooses one explicitly.
 
-The camera panel also renders the current session HUD: Marine welcome, lesson pages, coaching cards, checklists, and timers. It uses the same content renderer as the diagnostic display panel. Cleared, expired, and ended-session cards are hidden. Full screen includes both camera and coaching content; narrow screens put the card below the camera.
+The camera panel also renders the current session HUD: Marine welcome, lesson pages, coaching cards, checklists, and timers. It uses the same content renderer as the diagnostic display panel. Cleared, expired, and ended-session cards are hidden. Cards have a translucent background and stay inside the actual camera image, including portrait feeds, full screen, and narrow screens. The scene follows the frame's aspect ratio without cropping the camera view.
 
 During a lesson movie, the panel replaces the camera and card with the matching cached MP4. It waits for the device's `playing` report, then follows `demonstration.playbackStartedAt`. Repeated playback reports preserve that timestamp. A late viewer seeks to the elapsed position, and drift greater than 750 ms is corrected. Stopping, skipping, failing, or finishing playback restores the current card and resumes preview polling; the camera image appears when fresh frames arrive.
 
@@ -60,6 +60,18 @@ Session `1b7a265a-6a5b-4f4c-a298-6e5893274456` used the installed S21 build and 
 
 The wearer confirmed both short videos appeared visibly. All three camera recoveries succeeded on their first attempt, with no camera error reports during this pass. The observer returned unknown in the unattended scene; this test does not validate correct/incorrect hand-position accuracy. Teaching preview summaries recorded assessment disabled; observations began only after readiness.
 
-The overview startup is still slow and close to the 15-second startup deadline. This run establishes repeated recovery and short-clip visibility, not universal startup reliability, uninterrupted camera during movies, full-length overview visibility, or spoken skip recognition. Timings combine server receipt timestamps with phone wall-clock diagnostics on this local setup; they are practical trial measurements, not synchronized end-to-end latency guarantees.
+The overview startup in that pass was close to the then-current 15-second deadline. This run establishes repeated recovery and short-clip visibility, not universal startup reliability, uninterrupted camera during movies, full-length overview visibility, or spoken skip recognition. Timings combine server receipt timestamps with phone wall-clock diagnostics on this local setup; they are practical trial measurements, not synchronized end-to-end latency guarantees.
+
+### Video timeout and retry follow-up
+
+The next user run delivered the complete 10,056,605-byte overview to the phone's DAT HTTP client in 59 ms, but no PLAYING report arrived before the 15-second cutoff. HTTP completion does not prove transfer to the glasses or decoding. The application cancelled playback and replaced the Gemini connection. The logs do not identify a radio-distance cause.
+
+The subsequent retry remained in `cueing` for thirty seconds: its card had no SDK receipt, so narration and playback never began. Meanwhile, camera recovery held the capture/display locks while waiting for frames. Recovery can take multiple twenty-second attempts, exceeding the cue deadline. This explains the retry blockage independently of video decoding.
+
+Video preparation now cancels and joins camera tasks before submitting its cue, restores a display-only session if cancellation interrupted a rebuild, and keeps preview uploads paused until playback finishes. Both phone and server allow thirty seconds for startup; the playback-duration deadline begins at the actual PLAYING acknowledgment. Player state transitions are recorded alongside HTTP delivery reports. Tests cover the old fifteen-second cutoff, bounded timeout, and releasing display locks while camera recovery waits for frames.
+
+In the automated follow-up, the SDK reported overview playback after 11.302 seconds. A text request to skip advanced once to placement; camera preview resumed within 12.918 seconds. The hand-placement excerpt then started after 2.960 seconds, reported ENDED, and camera preview resumed within 8.383 seconds. These checks establish SDK acknowledgments and returning frames, not new wearer confirmation or spoken microphone recognition. The final build also adds a stale-generation guard and measures the phone's playback deadline from PLAYING.
+
+313 server tests and 57 Android tests pass, along with Android lint and both builds. Browser checks verify the translucent overlay stays within the camera image in full screen and at 390 pixels wide, with no horizontal overflow.
 
 The requested code-golf skill was not available in the installed skill directories. A manual simplification pass kept one camera upload loop, reused the existing recovery and observer paths, and removed the unsuccessful display-refresh experiment.
